@@ -1,0 +1,18 @@
+version: '3.8'
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: moodfood-postgres
+    environment:
+      POSTGRES_DB: moodfood
+      POSTGRES_USER: moodfood
+      POSTGRES_PASSWORD: moodfood_dev
+    ports:
+      - "5434:5432"
+    volumes:
+      - moodfood_data:/var/lib/postgresql/data
+    restart: unless-stopped
+
+volumes:
+  moodfood_data:

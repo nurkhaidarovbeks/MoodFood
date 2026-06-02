@@ -1,0 +1,24 @@
+# ─── Backend ──────────────────────────────────────────────────────────────────
+Backend/node_modules/
+Backend/dist/
+Backend/.env
+Backend/.env.local
+Backend/coverage/
+Backend/*.log
+
+# ─── Mobile (Flutter) ─────────────────────────────────────────────────────────
+Mobile/.dart_tool/
+Mobile/.flutter-plugins
+Mobile/.flutter-plugins-dependencies
+Mobile/build/
+Mobile/.packages
+Mobile/pubspec.lock
+
+# ─── OS ───────────────────────────────────────────────────────────────────────
+.DS_Store
+Thumbs.db
+
+# ─── Editor ───────────────────────────────────────────────────────────────────
+.vscode/
+.idea/
+*.iml

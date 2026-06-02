@@ -1,0 +1,147 @@
+// MoodFood — Prisma Schema
+// Database: PostgreSQL
+// ORM: Prisma 5.x
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ─── Enums ───────────────────────────────────────────────────────────────────
+
+enum AuthProvider {
+  email
+  google
+  apple
+  telegram
+}
+
+enum Lifestyle {
+  student
+  professional
+  other
+}
+
+enum BudgetLevel {
+  low
+  medium
+  high
+}
+
+// ─── Users ───────────────────────────────────────────────────────────────────
+
+model User {
+  id        String       @id @default(uuid())
+  email     String       @unique
+  name      String?
+
+  // Auth
+  passwordHash             String?
+  authProvider             AuthProvider @default(email)
+  googleId                 String?      @unique @map("google_id")
+  appleId                  String?      @unique @map("apple_id")
+
+  // Email verification
+  isEmailVerified          Boolean      @default(false)
+  emailVerificationToken   String?      // SHA-256 hash of raw token (raw token sent via email, never stored)
+  emailVerificationExpires DateTime?
+
+  // OTP — 6-digit code, valid 5 minutes, max 3 attempts
+  otpHash     String?   @map("otp_hash")
+  otpExpires  DateTime? @map("otp_expires")
+  otpAttempts Int       @default(0) @map("otp_attempts")
+
+  // Account state
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  profile UserProfile?
+
+  @@map("users")
+}
+
+// ─── User Profiles ────────────────────────────────────────────────────────────
+
+model UserProfile {
+  id     String @id @default(uuid())
+  userId String @unique
+
+  // Nutrition profile fields
+  age         Int?
+  goal        String?
+  lifestyle   Lifestyle?
+  budgetLevel BudgetLevel?
+
+  // Dietary restrictions — stored as JSON arrays of string keys
+  // e.g., ["vegan", "gluten_free"]
+  dietaryRestrictions Json @default("[]")
+
+  // Allergies — stored as JSON array of string keys
+  // e.g., ["nut_allergy", "egg_allergy"]
+  allergies Json @default("[]")
+
+  // Free-text custom restrictions — stored as JSON array of lowercase strings
+  // e.g., ["mushrooms", "cilantro"]
+  customRestrictions Json @default("[]")
+
+  // Profile completion tracking
+  onboardingCompleted Boolean   @default(false)
+  profileCompletedAt  DateTime?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("user_profiles")
+}
+
+// ─── Recipes ─────────────────────────────────────────────────────────────────
+
+model Recipe {
+  id             String  @id @default(uuid())
+  title          String
+  cookingTimeMin Int?
+  difficulty     String?
+  estimatedCost  Float?
+  calories       Float?
+  proteinG       Float?
+  steps          String?
+
+  // JSON array of mood tag strings, e.g., ["happy", "energetic"]
+  moodTags Json @default("[]")
+
+  recipeIngredients RecipeIngredient[]
+
+  @@map("recipes")
+}
+
+// ─── Ingredients ─────────────────────────────────────────────────────────────
+
+model Ingredient {
+  id       String  @id @default(uuid())
+  name     String  @unique
+  category String? // e.g., "meat", "dairy", "vegetable" — used for restriction filtering
+
+  recipeIngredients RecipeIngredient[]
+
+  @@map("ingredients")
+}
+
+// ─── Recipe Ingredients (junction) ───────────────────────────────────────────
+
+model RecipeIngredient {
+  id           String @id @default(uuid())
+  recipeId     String
+  ingredientId String
+  amount       String?
+  unit         String?
+
+  recipe     Recipe     @relation(fields: [recipeId], references: [id], onDelete: Cascade)
+  ingredient Ingredient @relation(fields: [ingredientId], references: [id], onDelete: Cascade)
+
+  @@unique([recipeId, ingredientId])
+  @@map("recipe_ingredients")
+}
