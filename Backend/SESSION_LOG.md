@@ -45,6 +45,15 @@ MoodFood — AI-приложение для рекомендаций еды на
 - DietaryRestrictionService — 10 типов ограничений + кастомные
 - 36 тестов
 
+### Сессия 3 — 6 июня 2026
+- Epic 2: модуль рецептов — полный CRUD (`POST/GET/PUT/PATCH/DELETE /api/v1/recipes`)
+- Эндпоинт рекомендаций (`GET /api/v1/recipes/recommendations`) — фильтрует через `DietaryRestrictionService`
+- Фильтрация по настроению (`?mood=calm`), пагинация (`?limit=20&offset=0`)
+- Ингредиенты хранятся через upsert — shared ingredients переиспользуются
+- `validate` middleware расширен для поддержки query-параметров (`source: 'body' | 'query'`)
+- Seed: `prisma/seed.ts` — 10 разнообразных рецептов (мясо, вегетарианские, веганские, разные настроения)
+- **77 тестов — все зелёные** (+22 новых)
+
 ### Сессия 2 — 2 июня 2026
 - Apple Sign In (ID token, серверная верификация через `apple-signin-auth`)
 - OTP аутентификация (6 цифр, 5 минут, SHA-256 хэш, 3 попытки)
@@ -263,12 +272,13 @@ git push origin feature/название
 
 ---
 
-## Следующий шаг — Epic 2: рецепты
+## Следующий шаг — Epic 3
 
-`DietaryRestrictionService` уже написан и протестирован. Нужно:
-1. CRUD для рецептов (`POST/GET/PUT/DELETE /api/v1/recipes`)
-2. Эндпоинт рекомендаций (`GET /api/v1/recipes/recommendations`) — применяет `filterRecipesForUser()`
-3. Seed-данные с тестовыми рецептами
+- Поиск рецептов (`GET /api/v1/recipes/search?q=...`)
+- Избранное / сохранённые рецепты
+- Сброс пароля
+- Rate limiting на login/register
+- Деплой (после Flutter)
 
 ---
 
