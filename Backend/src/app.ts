@@ -5,6 +5,7 @@ import { env } from './config/env'
 import { errorHandler } from './middleware/errorHandler'
 import authRoutes from './modules/auth/auth.routes'
 import profileRoutes from './modules/profile/profile.routes'
+import recipeRoutes from './modules/recipes/recipe.routes'
 
 const app = express()
 
@@ -30,6 +31,7 @@ app.get('/health', (_req, res) => {
 // ─── API routes ───────────────────────────────────────────────────────────────
 app.use('/api/v1/auth', authRoutes)
 app.use('/api/v1/profile', profileRoutes)
+app.use('/api/v1/recipes', recipeRoutes)
 
 // ─── 404 handler ─────────────────────────────────────────────────────────────
 app.use((_req, res) => {
