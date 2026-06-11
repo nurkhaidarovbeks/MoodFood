@@ -76,12 +76,14 @@ MoodFood — AI-приложение для рекомендаций еды на
 | `jest.config.ts` | Jest с moduleNameMapper для мока БД |
 | `.env.example` | Шаблон переменных окружения |
 | `.env` | Локальные переменные (не в git!) |
-| `docker-compose.yml` | PostgreSQL на порту **5434** |
+| `docker-compose.yml` | PostgreSQL + Backend — полный стек на портах 5434/3000 |
+| `Dockerfile` | Multi-stage build для продакшн контейнера |
+| `.dockerignore` | Исключает node_modules, dist, .env из образа |
 
 ### База данных
 | Файл | Описание |
 |------|---------|
-| `prisma/schema.prisma` | Схема: User, UserProfile, Recipe, Ingredient, RecipeIngredient |
+| `prisma/schema.prisma` | Схема: User, UserProfile, Recipe, Ingredient, RecipeIngredient, UserIngredient |
 | `prisma/migrations/` | История миграций (коммитятся в git) |
 
 **Поля User (все):**
@@ -155,6 +157,8 @@ onboardingCompleted, profileCompletedAt
 | `tests/auth.test.ts` | 27 | Регистрация, вход, Google, Apple, OTP |
 | `tests/profile.test.ts` | 8 | Профиль: create, patch, get, ошибки |
 | `tests/dietary-restriction.test.ts` | 24 | Все 10 ограничений + кастомные + edge cases |
+| `tests/recipe.test.ts` | 22 | CRUD рецептов, рекомендации, фильтрация |
+| `tests/pantry.test.ts` | 7 | Кладовка: CRUD, 404, очистка |
 
 ---
 
@@ -175,7 +179,18 @@ onboardingCompleted, profileCompletedAt
 | `GET` | `/profile` | JWT | Получить профиль |
 | `PUT` | `/profile` | JWT | Создать/заменить профиль |
 | `PATCH` | `/profile` | JWT | Частично обновить профиль |
-| `GET` | `/health` | — | Статус сервера |
+| `GET` | `/health` | — | Статус сервера + БД + версия |
+| `GET` | `/pantry` | JWT | Список ингредиентов в кладовке |
+| `POST` | `/pantry` | JWT | Добавить ингредиенты |
+| `DELETE` | `/pantry/:id` | JWT | Удалить один ингредиент |
+| `DELETE` | `/pantry/clear` | JWT | Очистить всю кладовку |
+| `GET` | `/recipes` | — | Список рецептов (пагинация, фильтр по mood) |
+| `GET` | `/recipes/:id` | — | Один рецепт |
+| `POST` | `/recipes` | JWT | Создать рецепт |
+| `PUT` | `/recipes/:id` | JWT | Полная замена рецепта |
+| `PATCH` | `/recipes/:id` | JWT | Частичное обновление |
+| `DELETE` | `/recipes/:id` | JWT | Удалить рецепт |
+| `GET` | `/recipes/recommendations` | JWT | Рекомендации (ограничения + `?useMyIngredients=true`) |
 
 ---
 
@@ -227,7 +242,7 @@ cd "c:\Users\0penf\Corporate project\Backend"
 docker-compose up -d                              # PostgreSQL на порту 5434
 npx prisma migrate dev --name <описание           # применить миграции
 npm run dev                                       # сервер на localhost:3000
-npm test                                          # 55 тестов
+npm test                                          # 84 тестов
 
 # Просмотр БД визуально
 npx prisma studio                                 # открывает localhost:5555
@@ -256,6 +271,83 @@ git push origin feature/название
 ```
 
 **Формат коммитов:** `feat:` / `fix:` / `refactor:` / `docs:` / `test:`
+
+---
+
+## Сессия 5 — 11 июня 2026 (Infra + Epic 3 Backend)
+
+> Автор: Nurkhaidarov Beksultan | Модель: Claude Sonnet 4.6
+
+### Инфраструктура
+
+**Docker — полный стек:**
+- `Backend/Dockerfile` — multi-stage build: builder (Alpine + OpenSSL + npm ci + prisma generate + tsc) → runner (только production deps)
+- `docker-compose.yml` обновлён — добавлен сервис `backend` + healthcheck для postgres
+- `Backend/.dockerignore`
+- Фикс: `binaryTargets = ["native", "linux-musl-openssl-3.0.x"]` в schema.prisma — Alpine 3.18+ использует OpenSSL 3.x
+- Фикс: rate limiter IPv6 — заменён `req.ip` на `req.socket.remoteAddress` (express-rate-limit v8 бросал ValidationError)
+
+**Запуск:**
+```powershell
+# Разработка (hot reload)
+docker-compose up -d postgres && npm run dev
+
+# Продакшн-режим (всё в Docker)
+docker-compose up --build -d
+```
+
+**GitHub Actions CI** (`.github/workflows/ci.yml`):
+- Запускается на любой пуш (`branches: ['**']`) и на PR в main
+- Шаги: checkout → Node 20 → npm ci → prisma generate → 84 тестов → tsc build → upload artifact
+- После пуша: `https://github.com/nurkhaidarovbeks/MoodFood/actions`
+
+**Прочая инфраструктура:**
+- `.github/PULL_REQUEST_TEMPLATE.md` — шаблон появляется автоматически при создании PR
+- `scripts/deploy.sh` — деплой на сервере: backup → migrate → restart → healthcheck
+- `scripts/backup.sh` — pg_dump, 7-дневное хранение, cron в 2:00
+- `nginx/moodfood.conf` — reverse proxy конфиг (применить когда будет VPS)
+
+**`/health` endpoint улучшен:**
+```json
+{ "status": "ok", "db": "connected", "version": "1.0.0" }
+```
+Возвращает 503 если БД недоступна. Добавлена переменная `APP_VERSION` в env.
+
+---
+
+### Epic 3 — Кладовка (Pantry)
+
+**Новая таблица:** `user_ingredients` — ингредиенты пользователя дома. Связана с таблицей `ingredients` через FK.
+**Миграция:** `20260611132036_add_user_ingredients`
+
+**Новый модуль `src/modules/pantry/`:**
+| Файл | Описание |
+|------|---------|
+| `pantry.schema.ts` | Zod: `AddIngredientsSchema` |
+| `pantry.service.ts` | getIngredients, addIngredients, removeIngredient, clearPantry |
+| `pantry.controller.ts` | HTTP handlers |
+| `pantry.routes.ts` | Все маршруты под `requireAuth` |
+
+**4 новых эндпоинта `/api/v1/pantry`** (все требуют JWT):
+- `GET /pantry` — список ингредиентов пользователя
+- `POST /pantry` — добавить: `{ "ingredients": ["eggs", "rice"] }` (lowercase, upsert)
+- `DELETE /pantry/:id` — удалить один
+- `DELETE /pantry/clear` — очистить всё
+
+**Рекомендации расширены** — новые query параметры в `GET /recipes/recommendations`:
+- `useMyIngredients=true` — фильтрует по кладовке, сортирует по `matchScore` убыванию
+- `minMatchScore=0.8` — минимальный порог (0 = все, 1 = только 100% совпадение)
+
+Ответ с `useMyIngredients=true` добавляет к каждому рецепту:
+```json
+{ "matchScore": 0.75, "missingIngredients": ["olive oil", "basil"] }
+```
+
+**Тесты:** `tests/pantry.test.ts` — 7 тестов (P1–P7): getIngredients, addIngredients, removeIngredient, clearPantry
+
+**Postman коллекция обновлена:** добавлены группы Pantry и Recipes со всеми новыми запросами.
+
+**Итого тестов: 84 (было 77, +7 pantry)**
 
 ---
 
@@ -355,13 +447,13 @@ cd ~/MoodFood/Mobile
 
 ---
 
-## Следующий шаг — Epic 3
+## Следующий шаг — Epic 4+
 
-- Поиск рецептов (`GET /api/v1/recipes/search?q=...`)
+- Epic 4: AI рекомендации по настроению (Mood-check → рецепты)
 - Избранное / сохранённые рецепты
 - Сброс пароля
 - Rate limiting на login/register
-- Деплой (после Flutter)
+- Деплой на VPS (nginx/moodfood.conf + scripts/deploy.sh готовы)
 
 ---
 
@@ -369,4 +461,5 @@ cd ~/MoodFood/Mobile
 *Сессия 2: 2 июня 2026 — Apple/OTP/SQL/Git (55 тестов)*  
 *Сессия 3: 6 июня 2026 — Epic 2 Backend, рецепты (77 тестов)*  
 *Сессия 4: 9–11 июня 2026 — Flutter Frontend Epic 1-2, все экраны, iOS деплой*  
+*Сессия 5: 11 июня 2026 — Infra (Docker/CI/CD) + Epic 3 Pantry (84 тестов)*  
 

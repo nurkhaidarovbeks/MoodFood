@@ -61,7 +61,8 @@ model User {
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
-  profile UserProfile?
+  profile          UserProfile?
+  pantryIngredients UserIngredient[]
 
   @@map("users")
 }
@@ -127,6 +128,7 @@ model Ingredient {
   category String? // e.g., "meat", "dairy", "vegetable" — used for restriction filtering
 
   recipeIngredients RecipeIngredient[]
+  userIngredients   UserIngredient[]
 
   @@map("ingredients")
 }
@@ -145,4 +147,19 @@ model RecipeIngredient {
 
   @@unique([recipeId, ingredientId])
   @@map("recipe_ingredients")
+}
+
+// ─── User Pantry (ingredients available at home) ──────────────────────────────
+
+model UserIngredient {
+  id           String   @id @default(uuid())
+  userId       String   @map("user_id")
+  ingredientId String   @map("ingredient_id")
+  createdAt    DateTime @default(now()) @map("created_at")
+
+  user       User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  ingredient Ingredient @relation(fields: [ingredientId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, ingredientId])
+  @@map("user_ingredients")
 }
