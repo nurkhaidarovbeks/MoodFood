@@ -13,6 +13,10 @@ Mobile/.flutter-plugins-dependencies
 Mobile/build/
 Mobile/.packages
 Mobile/pubspec.lock
+Mobile/ios/Pods/
+Mobile/ios/.symlinks/
+Mobile/android/.gradle/
+Mobile/android/local.properties
 
 # ─── OS ───────────────────────────────────────────────────────────────────────
 .DS_Store
