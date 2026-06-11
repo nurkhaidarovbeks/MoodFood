@@ -3,6 +3,7 @@ import cors from 'cors'
 import helmet from 'helmet'
 import { env } from './config/env'
 import { errorHandler } from './middleware/errorHandler'
+import prisma from './config/database'
 import authRoutes from './modules/auth/auth.routes'
 import profileRoutes from './modules/profile/profile.routes'
 import recipeRoutes from './modules/recipes/recipe.routes'
@@ -24,8 +25,13 @@ app.use(
 app.use(express.json({ limit: '1mb' }))
 
 // ─── Health check ────────────────────────────────────────────────────────────
-app.get('/health', (_req, res) => {
-  res.json({ status: 'ok', timestamp: new Date().toISOString() })
+app.get('/health', async (_req, res) => {
+  try {
+    await prisma.$queryRaw`SELECT 1`
+    res.json({ status: 'ok', db: 'connected', version: env.APP_VERSION })
+  } catch {
+    res.status(503).json({ status: 'error', db: 'disconnected', version: env.APP_VERSION })
+  }
 })
 
 // ─── API routes ───────────────────────────────────────────────────────────────

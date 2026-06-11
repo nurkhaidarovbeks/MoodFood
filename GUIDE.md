@@ -1,20 +1,20 @@
-# MoodFood — Руководство для команды
+# MoodFood — Руководство команды
 
-> Последнее обновление: 2 июня 2026  
-> Репозиторий: https://github.com/nurkhaidarovbeks/MoodFood
+> Репозиторий: https://github.com/nurkhaidarovbeks/MoodFood  
+> Последнее обновление: 11 июня 2026
 
 ---
 
 ## Что такое MoodFood
 
-AI-приложение для рекомендаций еды на основе настроения, бюджета, аллергий и диетических ограничений пользователя.
+AI-приложение для рекомендаций еды на основе настроения, бюджета, аллергий и диетических ограничений.
 
 ```
 Flutter (Mobile)
       ↓  HTTP запросы (JSON)
-  Backend API (Node.js + Express)
+  Backend API (Node.js + Express, порт 3000)
       ↓  SQL
-  PostgreSQL (база данных)
+  PostgreSQL (порт 5434)
 ```
 
 ---
@@ -22,91 +22,89 @@ Flutter (Mobile)
 ## Структура репозитория
 
 ```
-MoodFood/                    ← корень репозитория
-├── Backend/                 ← серверная часть (готова)
-│   ├── src/                 ← исходный код
-│   ├── prisma/              ← схема и миграции БД
-│   ├── tests/               ← автотесты (55 тестов)
-│   ├── .env.example         ← шаблон переменных окружения
-│   └── GUIDE.md             ← документация по бэкенду
-├── Mobile/                  ← Flutter приложение (в разработке)
+MoodFood/
+├── Backend/                 ← серверная часть (Node.js + TypeScript)
+│   ├── src/
+│   │   ├── config/          ← env.ts, database.ts
+│   │   ├── middleware/      ← auth.ts, validate.ts, errorHandler.ts
+│   │   ├── modules/
+│   │   │   ├── auth/        ← регистрация, вход, Google/Apple, OTP
+│   │   │   ├── profile/     ← профиль питания пользователя
+│   │   │   └── recipes/     ← рецепты, рекомендации
+│   │   ├── services/
+│   │   │   ├── email.service.ts
+│   │   │   ├── google-oauth.service.ts
+│   │   │   ├── apple-auth.service.ts
+│   │   │   └── dietary-restriction.service.ts
+│   │   └── utils/           ← jwt.ts, hash.ts
+│   ├── prisma/              ← schema.prisma, миграции
+│   ├── tests/               ← 77 автотестов
+│   ├── .env.example         ← шаблон переменных
+│   ├── docker-compose.yml   ← PostgreSQL через Docker
+│   └── moodfood.postman_collection.json
+├── Mobile/                  ← Flutter приложение
 ├── .gitignore
 └── GUIDE.md                 ← этот файл
 ```
 
 ---
 
-## Git — правила для команды
+## Git — правила команды
 
 ### Ветки
 
 ```
-main              ← стабильный код (никто не пушит напрямую)
-  ├── feature/epic-2-recipes
+main              ← стабильный код (только через Pull Request)
+  ├── feature/epic-3-mood
   ├── feature/flutter-auth
   └── fix/название-бага
 ```
 
-**Правило одно: в `main` только через Pull Request.**
+**Прямой пуш в `main` запрещён.**
 
-### Как работать с веткой
+### Рабочий процесс
 
 ```bash
-# 1. Перед началом работы — обновить main
+# 1. Перед началом — обновить main
 git checkout main
 git pull origin main
 
-# 2. Создать ветку для своей задачи
+# 2. Создать ветку
 git checkout -b feature/название-задачи
 
-# 3. Работаешь, сохраняешь изменения
+# 3. Работать, коммитить
 git add .
-git commit -m "feat: описание что сделал"
+git commit -m "feat: описание"
 
-# 4. Пушишь свою ветку (не main!)
+# 4. Запушить ветку
 git push origin feature/название-задачи
 
-# 5. На GitHub открываешь Pull Request:
-#    feature/название-задачи → main
-#    Описываешь что сделал → Create Pull Request
+# 5. На GitHub: открыть Pull Request → feature/... → main
 ```
-
-### Как принять Pull Request
-
-1. Открой Pull Request на GitHub
-2. Посмотри на изменения во вкладке **Files changed**
-3. Если всё ок — нажми **Merge pull request**
-4. Удали ветку после мёрджа
 
 ### Формат коммитов
 
-```
-feat: новая функциональность
-fix: исправление бага
-refactor: рефакторинг без изменения логики
-docs: изменения в документации
-test: добавление/изменение тестов
-```
+| Префикс | Когда |
+|---------|-------|
+| `feat:` | новая функциональность |
+| `fix:` | исправление бага |
+| `refactor:` | рефакторинг без изменения логики |
+| `docs:` | изменения в документации |
+| `test:` | тесты |
 
-Примеры:
-```
-feat: add recipe recommendations endpoint
-fix: otp cooldown not resetting after verify
-docs: update API endpoints in GUIDE
-```
+### Чего нельзя
 
-### Чего нельзя делать
-
-- ❌ `git push origin main` — нельзя пушить прямо в main
-- ❌ Коммитить `.env` файл — там секреты
-- ❌ Коммитить папку `node_modules/`
-- ❌ Делать `git push --force` на main
+- `git push origin main` — только через PR
+- Коммитить `.env` — там секреты
+- Коммитить `node_modules/`
+- `git push --force` на main
 
 ---
 
 ## Backend — быстрый старт
 
 ### Требования
+
 - Node.js v18+
 - Docker Desktop
 
@@ -118,42 +116,46 @@ cd Backend
 # 1. Установить зависимости
 npm install
 
-# 2. Создать .env файл
+# 2. Скопировать и заполнить .env
 copy .env.example .env
-# Открыть .env и заполнить переменные (см. секцию ниже)
 
-# 3. Запустить PostgreSQL через Docker
+# 3. Запустить PostgreSQL
 docker-compose up -d
 
-# 4. Применить миграции БД
-npx prisma migrate dev
+# 4. Создать таблицы
+npx prisma migrate deploy
 
-# 5. Запустить сервер
+# 5. (Опционально) Заполнить тестовыми рецептами
+npx ts-node prisma/seed.ts
+
+# 6. Запустить сервер
 npm run dev
 ```
 
-Сервер доступен на `http://localhost:3000`
+Сервер: `http://localhost:3000`
 
-### Переменные окружения (.env)
-
-Скопируй `.env.example` → `.env` и заполни:
+### Переменные окружения (`.env`)
 
 | Переменная | Обязательна | Описание |
 |-----------|------------|---------|
 | `DATABASE_URL` | ✅ | `postgresql://moodfood:moodfood_dev@localhost:5434/moodfood?schema=public` |
 | `JWT_SECRET` | ✅ | Любая строка 32+ символов |
-| `GOOGLE_CLIENT_ID` | Нет | Для Google OAuth |
-| `APPLE_CLIENT_ID` | Нет | Bundle ID приложения для Apple Sign In |
-| `SMTP_HOST` | Нет | Если пусто — письма выводятся в консоль |
+| `JWT_EXPIRES_IN` | — | Срок токена, по умолчанию `7d` |
+| `REQUIRE_EMAIL_VERIFICATION` | — | `true`/`false`, по умолчанию `false` |
+| `GOOGLE_CLIENT_ID` | — | Для Google OAuth |
+| `APPLE_CLIENT_ID` | — | Bundle ID приложения для Apple Sign In |
+| `SMTP_HOST` / `SMTP_USER` / `SMTP_PASS` | — | Если пусто — письма в консоль |
+| `APP_URL` | — | URL сервера (для ссылок в письмах) |
 
 ### Команды
 
 ```powershell
 npm run dev          # запуск в режиме разработки
-npm test             # запустить все тесты (55 штук)
-npm run build        # сборка для продакшена
-npx prisma studio    # визуальный просмотр базы данных
+npm test             # все тесты (77 штук, ~4 сек)
+npm run build        # сборка TypeScript → JavaScript
+npx prisma studio    # визуальный просмотр БД (http://localhost:5555)
 docker-compose up -d # запустить PostgreSQL
+docker-compose down  # остановить PostgreSQL
 ```
 
 ---
@@ -166,6 +168,12 @@ docker-compose up -d # запустить PostgreSQL
 ```
 Authorization: Bearer <jwt-токен>
 ```
+
+### Системные
+
+| Метод | Путь | Auth | Описание |
+|-------|------|------|---------|
+| `GET` | `/health` | — | Проверка сервера |
 
 ### Аутентификация
 
@@ -184,15 +192,21 @@ Authorization: Bearer <jwt-токен>
 
 | Метод | Путь | Auth | Описание |
 |-------|------|------|---------|
-| `GET` | `/profile` | ✅ JWT | Получить профиль пользователя |
-| `PUT` | `/profile` | ✅ JWT | Создать / полностью заменить профиль |
-| `PATCH` | `/profile` | ✅ JWT | Частично обновить профиль |
+| `GET` | `/profile` | ✅ | Получить профиль |
+| `PUT` | `/profile` | ✅ | Создать / полностью заменить профиль |
+| `PATCH` | `/profile` | ✅ | Частично обновить профиль |
 
-### Системные
+### Рецепты
 
 | Метод | Путь | Auth | Описание |
 |-------|------|------|---------|
-| `GET` | `/health` | — | Проверка работы сервера |
+| `GET` | `/recipes` | — | Список рецептов (с фильтрацией) |
+| `GET` | `/recipes/:id` | — | Один рецепт |
+| `POST` | `/recipes` | ✅ | Создать рецепт |
+| `PUT` | `/recipes/:id` | ✅ | Обновить рецепт |
+| `PATCH` | `/recipes/:id` | ✅ | Частично обновить рецепт |
+| `DELETE` | `/recipes/:id` | ✅ | Удалить рецепт |
+| `GET` | `/recipes/recommendations` | ✅ | Персональные рекомендации (с учётом ограничений) |
 
 ---
 
@@ -221,13 +235,22 @@ POST /api/v1/auth/register
 }
 ```
 
-### OTP вход
+### Вход через email
 ```json
-// Шаг 1 — запросить код
+POST /api/v1/auth/login
+{ "email": "user@example.com", "password": "SecurePass123!" }
+
+// Ответ 200
+{ "user": { ... }, "token": "eyJ..." }
+```
+
+### OTP вход (без пароля)
+```json
+// Шаг 1 — запросить код (приходит на email, действует 5 минут)
 POST /api/v1/auth/otp/send
 { "email": "user@example.com" }
 
-// Шаг 2 — войти по коду (действует 5 минут)
+// Шаг 2 — войти по коду
 POST /api/v1/auth/otp/verify
 { "email": "user@example.com", "code": "123456" }
 
@@ -240,7 +263,7 @@ POST /api/v1/auth/otp/verify
 POST /api/v1/auth/apple
 {
   "idToken": "<apple-id-token>",
-  "name": "Алибек"   // только при первом входе
+  "name": "Алибек"   // только при первом входе, потом необязательно
 }
 ```
 
@@ -260,9 +283,19 @@ Authorization: Bearer eyJ...
 }
 ```
 
+### Рецепты
+```json
+// Список с пагинацией
+GET /api/v1/recipes?page=1&limit=10
+
+// Персональные рекомендации (учитывает профиль пользователя)
+GET /api/v1/recipes/recommendations
+Authorization: Bearer eyJ...
+```
+
 ---
 
-## Диетические ограничения — ключи
+## Диетические ограничения
 
 | Ключ | Что исключает |
 |------|-------------|
@@ -270,14 +303,16 @@ Authorization: Bearer eyJ...
 | `vegetarian` | Мясо, рыба |
 | `pescatarian` | Только мясо (рыба разрешена) |
 | `lactose_free` | Молочные продукты |
-| `gluten_free` | Пшеница, мука, хлеб, паста |
+| `gluten_free` | Пшеница, мука, хлеб, паста, ячмень, рожь |
 | `halal` | Свинина, алкоголь |
 | `kosher` | Свинина, моллюски |
 | `nut_allergy` | Все орехи, арахис |
 | `egg_allergy` | Яйца, майонез |
-| `soy_allergy` | Соя, тофу, мисо |
+| `soy_allergy` | Соя, тофу, мисо, соевый соус |
 
-Кастомные ограничения — любой текст в `customRestrictions`, совпадение по названию ингредиента без учёта регистра.
+Кастомные ограничения — любой текст в `customRestrictions`, совпадение по имени ингредиента без учёта регистра.
+
+**Важно:** рецепты фильтруются на бэкенде — фронтенд не может обойти ограничения.
 
 ---
 
@@ -293,8 +328,8 @@ Authorization: Bearer eyJ...
 | `INVALID_APPLE_TOKEN` | 401 | Apple ID token недействителен |
 | `APPLE_NO_EMAIL` | 400 | Apple не вернул email |
 | `INVALID_OTP` | 401 | OTP неверный или истёк |
-| `OTP_MAX_ATTEMPTS` | 429 | Превышено кол-во попыток OTP |
-| `OTP_RATE_LIMITED` | 429 | Подождите перед повторной отправкой |
+| `OTP_MAX_ATTEMPTS` | 429 | Превышено количество попыток OTP (3) |
+| `RATE_LIMITED` | 429 | Слишком много запросов |
 | `UNAUTHORIZED` | 401 | JWT токен отсутствует или недействителен |
 | `NOT_FOUND` | 404 | Маршрут не найден |
 
@@ -303,34 +338,33 @@ Authorization: Bearer eyJ...
 ## Mobile (Flutter) — быстрый старт
 
 ### Требования
-- Flutter 3.41.3+ (`/Users/azharakhamitbek/flutter/bin/flutter`)
-- Xcode 26.5+ (для iOS)
-- CocoaPods 1.16.2+ (`brew install cocoapods`)
-- iPhone с включённым Developer Mode (Настройки → Конфиденциальность и безопасность → Режим разработчика)
 
-### Запуск на iPhone
+- Flutter 3.41.3+
+- Xcode 26.5+ (для iOS/macOS)
+- iPhone с включённым Developer Mode (Настройки → Конфиденциальность → Режим разработчика)
 
-```bash
-cd ~/MoodFood/Mobile
+### Установка Flutter (Windows)
 
-# Первый раз — установить зависимости
-/Users/azharakhamitbek/flutter/bin/flutter pub get
+1. Скачать с [flutter.dev/install/windows](https://docs.flutter.dev/get-started/install/windows)
+2. Распаковать в `C:\flutter`
+3. Добавить `C:\flutter\bin` в переменную PATH
+4. Перезапустить терминал и проверить: `flutter doctor`
 
-# Запустить на подключённом iPhone
-/Users/azharakhamitbek/flutter/bin/flutter run --release
-
-# При первом запуске на iPhone:
-# Настройки → Основные → VPN и управление устройством → Доверять
-```
-
-### Запуск в Chrome (только для проверки)
+### Запуск
 
 ```bash
-cd ~/MoodFood/Mobile
-/Users/azharakhamitbek/flutter/bin/flutter run -d chrome
+cd Mobile
 
-# ВАЖНО: первый запуск занимает 3-5 минут (компиляция Dart → JS)
-# Не останавливай — используй 'r' для hot reload после первого запуска
+# Установить зависимости
+flutter pub get
+
+# Запустить на iPhone (нужен подключённый телефон)
+flutter run --release
+
+# Запустить в Chrome (для проверки UI без телефона)
+flutter run -d chrome
+# Первый запуск занимает 3-5 минут (компиляция Dart → JS)
+# После первого запуска: 'r' — hot reload, 'R' — hot restart
 ```
 
 ### Структура приложения
@@ -343,17 +377,17 @@ Mobile/lib/
 │   ├── models/       ← User, Profile, MoodEntry
 │   ├── providers/    ← AuthProvider, ProfileProvider, MoodProvider
 │   ├── services/     ← AuthService, ProfileService
-│   ├── storage/      ← TokenStorage (SharedPreferences/FlutterSecureStorage)
-│   └── theme/        ← AppTheme с Figma токенами
+│   ├── storage/      ← TokenStorage (SecureStorage)
+│   └── theme/        ← AppTheme с дизайн-токенами
 ├── features/
 │   ├── auth/         ← Login, Register, OTP, Welcome, Splash
-│   ├── home/         ← Home (3 таба: Home, History, Profile)
+│   ├── home/         ← Home (3 таба)
 │   ├── mood/         ← MoodCheck, MoodHistory
 │   └── onboarding/   ← ProfileSetup (4 шага)
-└── router/           ← AppRouter (named routes)
+└── router/           ← AppRouter
 ```
 
-### Figma дизайн-токены
+### Дизайн-токены (Figma)
 
 | Токен | Цвет |
 |-------|------|
@@ -362,32 +396,48 @@ Mobile/lib/
 | Text Dark | `#2D3436` |
 | Text Secondary | `#717182` |
 
-### Важные детали
+### Подключение к бэкенду
 
-- **Бэкенд**: `http://localhost:3000/api/v1` — должен быть запущен для работы auth/profile
-- **Google/Apple кнопки**: показывают SnackBar "requires configuration" — не подключены (заглушка)
-- **Mood данные**: хранятся локально в SharedPreferences, не в бэкенде
-- **Bundle ID**: `com.banb.moodfood` (для Personal Team Xcode)
+```dart
+// Бэкенд запущен локально
+const baseUrl = 'http://localhost:3000/api/v1';
+
+// На Android-эмуляторе localhost указывает на сам эмулятор!
+// Используй IP машины вместо localhost:
+const baseUrl = 'http://10.0.2.2:3000/api/v1';
+```
+
+### Текущее состояние Flutter
+
+- Экраны auth (Login, Register, OTP, Splash, Welcome) — готовы
+- Онбординг (ProfileSetup, 4 шага) — готов
+- Home с тремя табами — готов
+- Mood модуль — данные в SharedPreferences (не в бэкенде)
+- Google/Apple кнопки — заглушки (показывают SnackBar)
+- Bundle ID: `com.banb.moodfood`
 
 ---
 
-## Flutter — подключение к API
+## База данных
 
-```dart
-// В разработке (бэкенд на твоей машине)
-const baseUrl = 'http://localhost:3000/api/v1';
-
-// Пример запроса с токеном
-final response = await dio.get(
-  '$baseUrl/profile',
-  options: Options(headers: {'Authorization': 'Bearer $token'}),
-);
+```powershell
+# Визуальный просмотр таблиц
+cd Backend
+npx prisma studio
+# Открывает http://localhost:5555
 ```
 
-> **Важно:** На Android-эмуляторе `localhost` указывает на сам эмулятор, а не на твою машину. Используй `10.0.2.2` вместо `localhost`:
-> ```dart
-> const baseUrl = 'http://10.0.2.2:3000/api/v1';
-> ```
+Или через pgAdmin:
+- Host: `localhost`, Port: `5434`
+- Database: `moodfood`, User: `moodfood`, Password: `moodfood_dev`
+
+### Основные таблицы
+
+**`users`** — аккаунты пользователей: id, email, passwordHash, authProvider (`email`/`google`/`apple`), googleId, appleId, isEmailVerified, isActive, name, otpHash, otpExpires, otpAttempts
+
+**`user_profiles`** — профиль питания: age, goal, lifestyle, budgetLevel, dietaryRestrictions, allergies, customRestrictions, onboardingCompleted
+
+**`recipes`** — рецепты: title, description, ingredients (JSON), tags, mood, budget
 
 ---
 
@@ -398,41 +448,37 @@ cd Backend
 npm test
 ```
 
-55 тестов, запускаются без базы данных, занимают ~4 секунды.
+77 тестов, запускаются без реальной базы данных (~4 секунды).
 
 | Файл | Что тестирует |
 |------|-------------|
-| `auth.test.ts` | Регистрация, вход, Google/Apple OAuth, OTP |
+| `auth.test.ts` | Регистрация, вход, Google OAuth, Apple Sign In, OTP |
 | `profile.test.ts` | Создание профиля, PATCH, GET |
-| `dietary-restriction.test.ts` | Фильтрация по всем 10 типам ограничений |
+| `dietary-restriction.test.ts` | Фильтрация по всем 10 типам + кастомные |
+| `recipe.test.ts` | CRUD рецептов, рекомендации, фильтрация |
 
 ---
 
-## База данных
+## Безопасность
 
-Посмотреть таблицы визуально:
-```powershell
-cd Backend
-npx prisma studio
-# Открывает http://localhost:5555
-```
-
-Или через pgAdmin:
-- Host: `localhost`, Port: `5434`
-- Database: `moodfood`, User: `moodfood`, Password: `moodfood_dev`
-
----
-
-## Безопасность — что уже сделано
-
-- Пароли хранятся только как bcrypt хэш (cost 12)
-- OTP хранится только как SHA-256 хэш, сам код нигде не сохраняется
-- Google и Apple токены верифицируются на серверах Google/Apple
+- Пароли — только bcrypt хэш (cost 12), никогда в открытом виде
+- OTP — только SHA-256 хэш в БД, сам код только в письме
+- Apple/Google токены верифицируются на серверах Apple/Google
 - JWT проверяется на каждом защищённом маршруте
 - Zod валидирует все входящие данные
 - Prisma ORM — параметризованные запросы, SQL injection невозможен
-- Rate limiting на OTP: 3 запроса/15 мин на отправку, 10 попыток/5 мин на проверку
+- Rate limiting: OTP отправка — 3 запроса/15 мин, OTP проверка — 10 попыток/5 мин
 
 ---
 
-*Backend разработан: май–июнь 2026*
+## Состояние проекта
+
+| Epic | Статус | Что сделано |
+|------|--------|------------|
+| Epic 1 | ✅ Готов | Auth (email, Google, Apple, OTP), профиль, диетические ограничения |
+| Epic 2 | ✅ Готов | CRUD рецептов, рекомендации с фильтрацией |
+| Epic 3 | ⏳ Следующий | Mood модуль, AI-рекомендации |
+
+---
+
+*Backend: май–июнь 2026*
