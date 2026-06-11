@@ -30,6 +30,7 @@ MoodFood/
 │   │   ├── modules/
 │   │   │   ├── auth/        ← регистрация, вход, Google/Apple, OTP
 │   │   │   ├── profile/     ← профиль питания пользователя
+│   │   │   ├── pantry/      ← кладовка ингредиентов пользователя
 │   │   │   └── recipes/     ← рецепты, рекомендации
 │   │   ├── services/
 │   │   │   ├── email.service.ts
@@ -38,7 +39,7 @@ MoodFood/
 │   │   │   └── dietary-restriction.service.ts
 │   │   └── utils/           ← jwt.ts, hash.ts
 │   ├── prisma/              ← schema.prisma, миграции
-│   ├── tests/               ← 77 автотестов
+│   ├── tests/               ← 84 автотестов
 │   ├── .env.example         ← шаблон переменных
 │   ├── docker-compose.yml   ← PostgreSQL через Docker
 │   └── moodfood.postman_collection.json
@@ -150,13 +151,26 @@ npm run dev
 ### Команды
 
 ```powershell
-npm run dev          # запуск в режиме разработки
-npm test             # все тесты (77 штук, ~4 сек)
+npm run dev          # запуск сервера с hot-reload (режим разработки)
+npm test             # все тесты (84 штуки, ~4 сек)
 npm run build        # сборка TypeScript → JavaScript
 npx prisma studio    # визуальный просмотр БД (http://localhost:5555)
-docker-compose up -d # запустить PostgreSQL
-docker-compose down  # остановить PostgreSQL
 ```
+
+**Два способа запустить окружение:**
+
+```powershell
+# Режим разработки — только БД в Docker, сервер локально
+docker-compose up -d postgres   # поднять только PostgreSQL
+npm run dev                     # запустить сервер с hot-reload
+
+# Полный Docker — и БД, и бэкенд в контейнерах (production-like)
+docker-compose up --build -d    # собрать образ и поднять всё
+docker-compose down             # остановить всё
+```
+
+> Для разработки используй первый способ — hot-reload работает только при `npm run dev`.  
+> Второй способ — для финального тестирования перед деплоем или на сервере.
 
 ---
 
@@ -196,6 +210,15 @@ Authorization: Bearer <jwt-токен>
 | `PUT` | `/profile` | ✅ | Создать / полностью заменить профиль |
 | `PATCH` | `/profile` | ✅ | Частично обновить профиль |
 
+### Кладовка (Pantry)
+
+| Метод | Путь | Auth | Описание |
+|-------|------|------|---------|
+| `GET` | `/pantry` | ✅ | Список ингредиентов пользователя |
+| `POST` | `/pantry` | ✅ | Добавить ингредиенты `{ "ingredients": ["eggs", "rice"] }` |
+| `DELETE` | `/pantry/clear` | ✅ | Очистить всю кладовку |
+| `DELETE` | `/pantry/:id` | ✅ | Удалить один ингредиент |
+
 ### Рецепты
 
 | Метод | Путь | Auth | Описание |
@@ -206,7 +229,7 @@ Authorization: Bearer <jwt-токен>
 | `PUT` | `/recipes/:id` | ✅ | Обновить рецепт |
 | `PATCH` | `/recipes/:id` | ✅ | Частично обновить рецепт |
 | `DELETE` | `/recipes/:id` | ✅ | Удалить рецепт |
-| `GET` | `/recipes/recommendations` | ✅ | Персональные рекомендации (с учётом ограничений) |
+| `GET` | `/recipes/recommendations` | ✅ | Рекомендации (ограничения + опционально `useMyIngredients=true&minMatchScore=0.8`) |
 
 ---
 
@@ -283,6 +306,19 @@ Authorization: Bearer eyJ...
 }
 ```
 
+### Кладовка
+```json
+// Добавить ингредиенты
+POST /api/v1/pantry
+Authorization: Bearer eyJ...
+{ "ingredients": ["eggs", "rice", "tomato"] }
+
+// Рецепты по ингредиентам из кладовки (минимум 80% совпадений)
+GET /api/v1/recipes/recommendations?useMyIngredients=true&minMatchScore=0.8
+Authorization: Bearer eyJ...
+// Ответ содержит matchScore (0..1) и missingIngredients для каждого рецепта
+```
+
 ### Рецепты
 ```json
 // Список с пагинацией
@@ -329,6 +365,7 @@ Authorization: Bearer eyJ...
 | `APPLE_NO_EMAIL` | 400 | Apple не вернул email |
 | `INVALID_OTP` | 401 | OTP неверный или истёк |
 | `OTP_MAX_ATTEMPTS` | 429 | Превышено количество попыток OTP (3) |
+| `PANTRY_ITEM_NOT_FOUND` | 404 | Ингредиент не найден в кладовке пользователя |
 | `RATE_LIMITED` | 429 | Слишком много запросов |
 | `UNAUTHORIZED` | 401 | JWT токен отсутствует или недействителен |
 | `NOT_FOUND` | 404 | Маршрут не найден |
@@ -439,6 +476,10 @@ npx prisma studio
 
 **`recipes`** — рецепты: title, description, ingredients (JSON), tags, mood, budget
 
+**`ingredients`** — справочник ингредиентов: id, name (уникальный, lowercase), category
+
+**`user_ingredients`** — кладовка: userId + ingredientId (уникальная пара), FK → users + ingredients
+
 ---
 
 ## Тесты
@@ -448,14 +489,15 @@ cd Backend
 npm test
 ```
 
-77 тестов, запускаются без реальной базы данных (~4 секунды).
+84 теста, запускаются без реальной базы данных (~4 секунды).
 
-| Файл | Что тестирует |
-|------|-------------|
-| `auth.test.ts` | Регистрация, вход, Google OAuth, Apple Sign In, OTP |
-| `profile.test.ts` | Создание профиля, PATCH, GET |
-| `dietary-restriction.test.ts` | Фильтрация по всем 10 типам + кастомные |
-| `recipe.test.ts` | CRUD рецептов, рекомендации, фильтрация |
+| Файл | Тестов | Что тестирует |
+|------|--------|-------------|
+| `auth.test.ts` | 20 | Регистрация, вход, Google OAuth, Apple Sign In, OTP |
+| `profile.test.ts` | 12 | Создание профиля, PATCH, GET |
+| `dietary-restriction.test.ts` | 22 | Фильтрация по всем 10 типам + кастомные |
+| `recipe.test.ts` | 23 | CRUD рецептов, рекомендации, фильтрация, matchScore |
+| `pantry.test.ts` | 7 | Добавление, удаление, очистка кладовки |
 
 ---
 
@@ -477,8 +519,9 @@ npm test
 |------|--------|------------|
 | Epic 1 | ✅ Готов | Auth (email, Google, Apple, OTP), профиль, диетические ограничения |
 | Epic 2 | ✅ Готов | CRUD рецептов, рекомендации с фильтрацией |
-| Epic 3 | ⏳ Следующий | Mood модуль, AI-рекомендации |
+| Epic 3 | ✅ Готов | Кладовка (pantry), фильтрация рецептов по ингредиентам + matchScore |
+| Epic 4 | ⏳ Следующий | AI-рекомендации по настроению, избранное, сброс пароля |
 
 ---
 
-*Backend: май–июнь 2026*
+*Backend: май–июнь 2026 · 84 теста · Epics 1–3 завершены*

@@ -33,6 +33,9 @@ export const RecipeQuerySchema = z.object({
   mood: z.string().optional(),
   limit: z.coerce.number().int().positive().max(100).default(20),
   offset: z.coerce.number().int().min(0).default(0),
+  // Ingredient matching — only used in /recommendations
+  useMyIngredients: z.coerce.boolean().default(false),
+  minMatchScore: z.coerce.number().min(0).max(1).default(0),
 })
 
 // ─── Types ─────────────────────────────────────────────────────────────────────

@@ -87,6 +87,64 @@
               "raw": "{\n  \"email\": \"alice@example.com\",\n  \"password\": \"SecurePass123!\"\n}"
             }
           }
+        },
+        {
+          "name": "OTP — Send Code",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": "{{base_url}}/auth/otp/send",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"alice@example.com\"\n}"
+            }
+          }
+        },
+        {
+          "name": "OTP — Verify Code",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "var json = pm.response.json();",
+                  "if (json.token) { pm.collectionVariables.set('token', json.token); }"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": "{{base_url}}/auth/otp/verify",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"alice@example.com\",\n  \"code\": \"123456\"\n}"
+            }
+          }
+        },
+        {
+          "name": "Apple Sign In",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "var json = pm.response.json();",
+                  "if (json.token) { pm.collectionVariables.set('token', json.token); }"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": "{{base_url}}/auth/apple",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"idToken\": \"<apple-id-token-from-mobile>\",\n  \"name\": \"Alice\"\n}"
+            }
+          }
         }
       ]
     },
@@ -94,7 +152,7 @@
       "name": "Profile",
       "item": [
         {
-          "name": "Get Profile (empty)",
+          "name": "Get Profile",
           "request": {
             "method": "GET",
             "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
@@ -112,16 +170,8 @@
             "url": "{{base_url}}/profile",
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"age\": 22,\n  \"goal\": \"Есть здоровее и чувствовать себя бодрее\",\n  \"lifestyle\": \"student\",\n  \"budgetLevel\": \"low\",\n  \"dietaryRestrictions\": [\"vegan\", \"gluten_free\"],\n  \"allergies\": [\"nut_allergy\"],\n  \"customRestrictions\": [\"грибы\", \"кинза\"]\n}"
+              "raw": "{\n  \"age\": 22,\n  \"goal\": \"Есть здоровее и чувствовать себя бодрее\",\n  \"lifestyle\": \"student\",\n  \"budgetLevel\": \"low\",\n  \"dietaryRestrictions\": [\"vegan\"],\n  \"allergies\": [\"nut_allergy\"],\n  \"customRestrictions\": [\"грибы\"]\n}"
             }
-          }
-        },
-        {
-          "name": "Get Profile (filled)",
-          "request": {
-            "method": "GET",
-            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
-            "url": "{{base_url}}/profile"
           }
         },
         {
@@ -144,6 +194,139 @@
           "request": {
             "method": "GET",
             "url": "{{base_url}}/profile"
+          }
+        }
+      ]
+    },
+    {
+      "name": "Pantry (Кладовка)",
+      "item": [
+        {
+          "name": "Get My Ingredients",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+            "url": "{{base_url}}/pantry"
+          }
+        },
+        {
+          "name": "Add Ingredients",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{token}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "url": "{{base_url}}/pantry",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"ingredients\": [\"eggs\", \"rice\", \"tomato\", \"chicken breast\"]\n}"
+            }
+          }
+        },
+        {
+          "name": "Remove One Ingredient",
+          "request": {
+            "method": "DELETE",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+            "url": "{{base_url}}/pantry/<pantry-item-id>"
+          }
+        },
+        {
+          "name": "Clear Pantry",
+          "request": {
+            "method": "DELETE",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+            "url": "{{base_url}}/pantry/clear"
+          }
+        },
+        {
+          "name": "Get Ingredients — No Token (expect 401)",
+          "request": {
+            "method": "GET",
+            "url": "{{base_url}}/pantry"
+          }
+        }
+      ]
+    },
+    {
+      "name": "Recipes",
+      "item": [
+        {
+          "name": "List Recipes",
+          "request": {
+            "method": "GET",
+            "url": "{{base_url}}/recipes"
+          }
+        },
+        {
+          "name": "List Recipes — Filter by Mood",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{base_url}}/recipes?mood=energetic&limit=10",
+              "query": [
+                { "key": "mood", "value": "energetic" },
+                { "key": "limit", "value": "10" }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Get Recipe by ID",
+          "request": {
+            "method": "GET",
+            "url": "{{base_url}}/recipes/<recipe-id>"
+          }
+        },
+        {
+          "name": "Create Recipe",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{token}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "url": "{{base_url}}/recipes",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"title\": \"Омлет с томатами\",\n  \"cookingTimeMin\": 10,\n  \"difficulty\": \"easy\",\n  \"estimatedCost\": 2.5,\n  \"calories\": 320,\n  \"proteinG\": 18,\n  \"steps\": \"Взбить яйца, обжарить с томатами.\",\n  \"moodTags\": [\"energetic\", \"happy\"],\n  \"ingredients\": [\n    { \"name\": \"eggs\", \"category\": \"dairy\", \"amount\": \"3\", \"unit\": \"pcs\" },\n    { \"name\": \"tomato\", \"category\": \"vegetable\", \"amount\": \"1\", \"unit\": \"pcs\" }\n  ]\n}"
+            }
+          }
+        },
+        {
+          "name": "Recommendations — By Dietary Restrictions",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+            "url": "{{base_url}}/recipes/recommendations"
+          }
+        },
+        {
+          "name": "Recommendations — By My Ingredients",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+            "url": {
+              "raw": "{{base_url}}/recipes/recommendations?useMyIngredients=true",
+              "query": [
+                { "key": "useMyIngredients", "value": "true" }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Recommendations — Ingredients + Min 80% Match",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+            "url": {
+              "raw": "{{base_url}}/recipes/recommendations?useMyIngredients=true&minMatchScore=0.8",
+              "query": [
+                { "key": "useMyIngredients", "value": "true" },
+                { "key": "minMatchScore", "value": "0.8" }
+              ]
+            }
           }
         }
       ]

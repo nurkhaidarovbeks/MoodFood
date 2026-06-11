@@ -7,6 +7,7 @@ import prisma from './config/database'
 import authRoutes from './modules/auth/auth.routes'
 import profileRoutes from './modules/profile/profile.routes'
 import recipeRoutes from './modules/recipes/recipe.routes'
+import pantryRoutes from './modules/pantry/pantry.routes'
 
 const app = express()
 
@@ -38,6 +39,7 @@ app.get('/health', async (_req, res) => {
 app.use('/api/v1/auth', authRoutes)
 app.use('/api/v1/profile', profileRoutes)
 app.use('/api/v1/recipes', recipeRoutes)
+app.use('/api/v1/pantry', pantryRoutes)
 
 // ─── 404 handler ─────────────────────────────────────────────────────────────
 app.use((_req, res) => {

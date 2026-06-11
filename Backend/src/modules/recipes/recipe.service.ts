@@ -215,13 +215,51 @@ export class RecipeService {
       candidates as unknown as RecipeForFiltering[],
     )
 
+    // ─── Ingredient matching (Epic 3) ─────────────────────────────────────────
+    if (query.useMyIngredients) {
+      const pantryItems = await this.prisma.userIngredient.findMany({
+        where: { userId },
+        select: { ingredientId: true },
+      })
+      const pantryIds = new Set(pantryItems.map(p => p.ingredientId))
+
+      const withScore = filtered.map(recipe => {
+        const raw = recipe as unknown as {
+          recipeIngredients: Array<{ ingredientId: string; ingredient: { name: string } }>
+        } & Parameters<typeof formatRecipe>[0]
+
+        const total = raw.recipeIngredients.length
+        const matchedCount = raw.recipeIngredients.filter(ri =>
+          pantryIds.has(ri.ingredientId),
+        ).length
+        const matchScore = total === 0 ? 1 : matchedCount / total
+        const missingIngredients = raw.recipeIngredients
+          .filter(ri => !pantryIds.has(ri.ingredientId))
+          .map(ri => ri.ingredient.name)
+
+        return {
+          ...formatRecipe(raw),
+          matchScore: Math.round(matchScore * 100) / 100,
+          missingIngredients,
+        }
+      })
+
+      const aboveThreshold = withScore
+        .filter(r => r.matchScore >= query.minMatchScore)
+        .sort((a, b) => b.matchScore - a.matchScore)
+
+      const totalCount = aboveThreshold.length
+      const paginated = aboveThreshold.slice(query.offset, query.offset + query.limit)
+
+      return { recipes: paginated, total: totalCount, limit: query.limit, offset: query.offset }
+    }
+
+    // ─── Default: dietary filter only, no ingredient matching ─────────────────
     const total = filtered.length
     const paginated = filtered.slice(query.offset, query.offset + query.limit)
 
     return {
-      recipes: paginated.map((r) =>
-        formatRecipe(r as Parameters<typeof formatRecipe>[0]),
-      ),
+      recipes: paginated.map(r => formatRecipe(r as Parameters<typeof formatRecipe>[0])),
       total,
       limit: query.limit,
       offset: query.offset,
