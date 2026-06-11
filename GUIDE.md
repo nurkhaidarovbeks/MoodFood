@@ -300,6 +300,77 @@ Authorization: Bearer eyJ...
 
 ---
 
+## Mobile (Flutter) — быстрый старт
+
+### Требования
+- Flutter 3.41.3+ (`/Users/azharakhamitbek/flutter/bin/flutter`)
+- Xcode 26.5+ (для iOS)
+- CocoaPods 1.16.2+ (`brew install cocoapods`)
+- iPhone с включённым Developer Mode (Настройки → Конфиденциальность и безопасность → Режим разработчика)
+
+### Запуск на iPhone
+
+```bash
+cd ~/MoodFood/Mobile
+
+# Первый раз — установить зависимости
+/Users/azharakhamitbek/flutter/bin/flutter pub get
+
+# Запустить на подключённом iPhone
+/Users/azharakhamitbek/flutter/bin/flutter run --release
+
+# При первом запуске на iPhone:
+# Настройки → Основные → VPN и управление устройством → Доверять
+```
+
+### Запуск в Chrome (только для проверки)
+
+```bash
+cd ~/MoodFood/Mobile
+/Users/azharakhamitbek/flutter/bin/flutter run -d chrome
+
+# ВАЖНО: первый запуск занимает 3-5 минут (компиляция Dart → JS)
+# Не останавливай — используй 'r' для hot reload после первого запуска
+```
+
+### Структура приложения
+
+```
+Mobile/lib/
+├── core/
+│   ├── api/          ← Dio HTTP клиент, JWT интерцептор
+│   ├── constants/    ← API URLs
+│   ├── models/       ← User, Profile, MoodEntry
+│   ├── providers/    ← AuthProvider, ProfileProvider, MoodProvider
+│   ├── services/     ← AuthService, ProfileService
+│   ├── storage/      ← TokenStorage (SharedPreferences/FlutterSecureStorage)
+│   └── theme/        ← AppTheme с Figma токенами
+├── features/
+│   ├── auth/         ← Login, Register, OTP, Welcome, Splash
+│   ├── home/         ← Home (3 таба: Home, History, Profile)
+│   ├── mood/         ← MoodCheck, MoodHistory
+│   └── onboarding/   ← ProfileSetup (4 шага)
+└── router/           ← AppRouter (named routes)
+```
+
+### Figma дизайн-токены
+
+| Токен | Цвет |
+|-------|------|
+| Primary | `#7CB342` |
+| Background | `#FAF9F7` |
+| Text Dark | `#2D3436` |
+| Text Secondary | `#717182` |
+
+### Важные детали
+
+- **Бэкенд**: `http://localhost:3000/api/v1` — должен быть запущен для работы auth/profile
+- **Google/Apple кнопки**: показывают SnackBar "requires configuration" — не подключены (заглушка)
+- **Mood данные**: хранятся локально в SharedPreferences, не в бэкенде
+- **Bundle ID**: `com.banb.moodfood` (для Personal Team Xcode)
+
+---
+
 ## Flutter — подключение к API
 
 ```dart
