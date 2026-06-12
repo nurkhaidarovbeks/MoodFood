@@ -358,19 +358,75 @@ docker-compose up --build -d
 | Refresh токены | После MVP |
 | Сброс пароля | Отдельный feature |
 | Telegram OAuth | Enum в схеме есть, endpoint позже |
-| Рекомендации рецептов | Epic 2 — DietaryRestrictionService уже готов |
 | Rate limiting на login/register | Добавить express-rate-limit |
-| Деплой | После MVP (nginx/moodfood.conf + scripts/deploy.sh готовы) |
+| Epic 3 Frontend | Экраны Pantry + Recipes + Recommendations на Flutter |
 
 ---
 
-## Следующий шаг — Epic 4+
+## Сессия 6 — 13 июня 2026 (Render деплой + CD + Render-адаптация скриптов)
 
+> Автор: Nurkhaidarov Beksultan | Модель: Claude Sonnet 4.6
+
+### Деплой на Render (Free tier)
+
+**Бэкенд живёт по адресу:** `https://moodfood-backend.onrender.com`
+
+- Сервис: Web Service (Docker), Free tier
+- PostgreSQL: Render Managed PostgreSQL, Free tier (удаляется через 90 дней)
+- Health check: `/health` → `{ status: "ok", db: "connected", version: "1.0.0" }`
+- Dockerfile: multi-stage Alpine + OpenSSL, `CMD ["node", "dist/server.js"]`
+- Docker Command в Render: `node dist/server.js` (не migrate — это была причина первых ошибок)
+
+**Важно про Free tier:**
+- Засыпает после 15 мин неактивности, первый запрос ~30 сек
+- DB автоматически удаляется через 90 дней → нужны бэкапы
+
+### CD pipeline (GitHub Actions)
+
+Добавлен job `deploy` в `.github/workflows/ci.yml`:
+```yaml
+deploy:
+  needs: test
+  if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+  steps:
+    - name: Trigger Render deploy
+      run: |
+        STATUS=$(curl -s -o /dev/null -w "%{http_code}" -X POST "${{ secrets.RENDER_DEPLOY_HOOK_URL }}")
+        if [ "$STATUS" != "200" ] && [ "$STATUS" != "201" ]; then exit 1; fi
+```
+
+Секрет `RENDER_DEPLOY_HOOK_URL` добавлен в GitHub Settings → Secrets.
+
+Полный pipeline: пуш в любую ветку → тесты; пуш/мерж в main → тесты → авто-деплой на Render.
+
+### Скрипты адаптированы для Render
+
+**`scripts/deploy.sh`** — теперь триггерит Render Deploy Hook вместо docker-compose:
+```bash
+export RENDER_DEPLOY_HOOK_URL="https://api.render.com/deploy/srv-xxx?key=yyy"
+bash scripts/deploy.sh
+```
+Используй для ручного передеплоя без пуша кода.
+
+**`scripts/backup.sh`** — теперь использует External Database URL вместо docker exec:
+```bash
+export DATABASE_URL="postgresql://user:pass@dpg-xxx.render.com/moodfood"
+bash scripts/backup.sh
+# Сохраняет в ./backups/, хранение 7 дней, восстановление: psql "$DATABASE_URL" < backup.sql
+```
+External Database URL берётся в Render Dashboard → PostgreSQL → Info.
+
+**`nginx/moodfood.conf`** — оставлен как есть, добавлена пометка что это только для VPS. На Render nginx не нужен.
+
+---
+
+## Следующий шаг — Epic 3 Frontend + Epic 4
+
+- Epic 3 Frontend: Pantry экран, Recipes экран, Recommendations экран (всё API готово)
 - Epic 4: AI рекомендации по настроению (Mood-check → рецепты)
 - Избранное / сохранённые рецепты
 - Сброс пароля
 - Rate limiting на login/register
-- Деплой на VPS (nginx/moodfood.conf + scripts/deploy.sh готовы)
 
 ---
 
@@ -378,4 +434,5 @@ docker-compose up --build -d
 *Сессия 2: 2 июня 2026 — Apple/OTP/SQL/Git (55 тестов)*  
 *Сессия 3: 6 июня 2026 — Epic 2 Backend, рецепты (77 тестов)*  
 *Сессия 5: 11 июня 2026 — Infra (Docker/CI/CD) + Epic 3 Pantry (84 тестов)*  
+*Сессия 6: 13 июня 2026 — Render деплой + CD pipeline + скрипты под Render*  
 

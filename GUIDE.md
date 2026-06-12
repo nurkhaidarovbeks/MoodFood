@@ -1,7 +1,7 @@
 # MoodFood — Руководство команды
 
 > Репозиторий: https://github.com/nurkhaidarovbeks/MoodFood  
-> Последнее обновление: 11 июня 2026
+> Последнее обновление: 13 июня 2026
 
 ---
 
@@ -44,7 +44,13 @@ MoodFood/
 │   ├── docker-compose.yml   ← PostgreSQL через Docker
 │   └── moodfood.postman_collection.json
 ├── Mobile/                  ← Flutter приложение
-├── .gitignore
+├── scripts/
+│   ├── deploy.sh            ← триггер Render деплоя (curl Deploy Hook)
+│   └── backup.sh            ← pg_dump через External Database URL
+├── nginx/
+│   └── moodfood.conf        ← конфиг для VPS (не нужен на Render)
+├── .github/
+│   └── workflows/ci.yml     ← CI/CD: тесты на всех ветках, деплой на main
 └── GUIDE.md                 ← этот файл
 ```
 
@@ -92,6 +98,7 @@ git push origin feature/название-задачи
 | `refactor:` | рефакторинг без изменения логики |
 | `docs:` | изменения в документации |
 | `test:` | тесты |
+| `chore:` | настройка, инфраструктура |
 
 ### Чего нельзя
 
@@ -99,6 +106,20 @@ git push origin feature/название-задачи
 - Коммитить `.env` — там секреты
 - Коммитить `node_modules/`
 - `git push --force` на main
+
+---
+
+## CI/CD — как работает
+
+```
+Любой пуш в любую ветку
+  → GitHub Actions: npm ci → prisma generate → 84 теста → tsc build
+
+Пуш/мерж в main
+  → GitHub Actions: тесты → curl Render Deploy Hook → авто-деплой на Render
+```
+
+Следи за прогрессом: https://github.com/nurkhaidarovbeks/MoodFood/actions
 
 ---
 
@@ -174,9 +195,40 @@ docker-compose down             # остановить всё
 
 ---
 
+## Деплой (Render)
+
+Бэкенд задеплоен на Render (Free tier):
+
+- **URL:** `https://moodfood-backend.onrender.com`
+- **Health check:** `https://moodfood-backend.onrender.com/health`
+- **Dashboard:** https://dashboard.render.com
+
+**Важно про Free tier:**
+- Сервер засыпает после 15 минут неактивности, первый запрос будет медленным (~30 сек)
+- PostgreSQL удаляется через 90 дней — делай бэкапы регулярно
+
+**Ручной деплой без пуша:**
+```bash
+export RENDER_DEPLOY_HOOK_URL="https://api.render.com/deploy/srv-xxx?key=yyy"
+bash scripts/deploy.sh
+```
+
+**Бэкап БД:**
+```bash
+# DATABASE_URL берёшь в Render Dashboard → PostgreSQL → Info → External Database URL
+export DATABASE_URL="postgresql://user:pass@dpg-xxx.render.com/moodfood"
+bash scripts/backup.sh
+# Сохраняет в ./backups/moodfood-YYYYMMDD-HHMMSS.sql (хранение 7 дней)
+```
+
+---
+
 ## API — все эндпоинты
 
-Базовый URL: `http://localhost:3000/api/v1`
+| Окружение | Base URL |
+|-----------|----------|
+| Локальная разработка | `http://localhost:3000/api/v1` |
+| Продакшн (Render) | `https://moodfood-backend.onrender.com/api/v1` |
 
 Защищённые маршруты требуют заголовок:
 ```
@@ -233,18 +285,122 @@ Authorization: Bearer <jwt-токен>
 
 ---
 
-## API — примеры запросов
+## Интеграция Backend ↔ Frontend
 
-### Регистрация
+### Что уже готово
+
+| Компонент | Статус |
+|-----------|--------|
+| Backend API (84 теста) | ✅ Готов |
+| Деплой на Render | ✅ Живой |
+| CI/CD (автодеплой при пуше в main) | ✅ Работает |
+| Flutter Auth экраны (Login/Register/OTP) | ✅ Готовы |
+| Flutter Google Sign In | ✅ Реализован |
+| Flutter OnBoarding (ProfileSetup) | ✅ Готов |
+| Flutter Pantry экран | ⏳ Нужно реализовать |
+| Flutter Recipes экран | ⏳ Нужно реализовать |
+| Flutter Apple Sign In | 🔒 Заглушка (требует iOS entitlement) |
+
+---
+
+### Шаг 1 — Переключить Flutter на продакшн URL
+
+В файле `Mobile/lib/core/constants/api_constants.dart` смени базовый URL:
+
+```dart
+// Было (локальная разработка):
+static const String baseUrl = 'http://localhost:3000/api/v1';
+
+// Стало (продакшн):
+static const String baseUrl = 'https://moodfood-backend.onrender.com/api/v1';
+```
+
+> На Android-эмуляторе для локальной разработки используй `http://10.0.2.2:3000/api/v1` вместо localhost.
+
+---
+
+### Шаг 2 — Как работает авторизация
+
+**Все запросы после логина:**
+```
+Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
+```
+
+Flutter уже настроен: `Dio` интерцептор автоматически добавляет этот заголовок из `TokenStorage`.
+
+**Флоу регистрации:**
+```
+POST /auth/register → { user, token }  ← сохрани token в TokenStorage
+POST /auth/login    → { user, token }  ← сохрани token в TokenStorage
+POST /auth/google   → { user, token }  ← idToken берём из GoogleSignIn SDK
+```
+
+**Поле `isProfileComplete` в ответе `/auth/login` и `/auth/register`:**
+- `false` → перенаправить на онбординг (`/profile-setup`)
+- `true` → перенаправить на главный экран (`/home`)
+
+---
+
+### Шаг 3 — Что передать фронтенд-разработчикам
+
+**Основные данные:**
+
+| Параметр | Значение |
+|----------|---------|
+| Production API URL | `https://moodfood-backend.onrender.com/api/v1` |
+| Auth header | `Authorization: Bearer <token>` |
+| Content-Type | `application/json` |
+| Google Web Client ID | `189389207039-8bht9m53kvpqi00hqjfm5k1ov2vujt3h.apps.googleusercontent.com` |
+| Bundle ID | `com.banb.moodfood` |
+
+**Файлы для передачи:**
+- `Backend/moodfood.postman_collection.json` — все запросы с примерами готовы, импортируй в Postman
+- `Backend/.env.example` — переменные окружения для локального запуска бэкенда
+
+---
+
+### Шаг 4 — Порядок реализации экранов (что брать в работу)
+
+**Epic 3 Frontend — всё API уже готово:**
+
+**1. Экран Pantry (кладовка)**
+```
+GET  /pantry              → список ингредиентов пользователя
+POST /pantry              { "ingredients": ["eggs", "rice", "tomato"] }
+DELETE /pantry/:id        → удалить один ингредиент
+DELETE /pantry/clear      → очистить всё
+```
+
+**2. Экран Recipes (список рецептов)**
+```
+GET /recipes?page=1&limit=20          → список с пагинацией
+GET /recipes?mood=calm                → фильтр по настроению
+GET /recipes/:id                      → один рецепт
+```
+
+**3. Экран Recommendations (рекомендации)**
+```
+GET /recipes/recommendations                              → по профилю (диет. ограничения)
+GET /recipes/recommendations?useMyIngredients=true        → по ингредиентам из кладовки
+GET /recipes/recommendations?useMyIngredients=true&minMatchScore=0.8
+```
+
+Ответ рекомендаций с `useMyIngredients=true`:
 ```json
-POST /api/v1/auth/register
 {
-  "email": "user@example.com",
-  "password": "SecurePass123!",
-  "name": "Алибек"
+  "id": "uuid",
+  "title": "Vegetable Stir Fry",
+  "matchScore": 0.75,
+  "missingIngredients": ["olive oil", "basil"]
 }
+```
 
-// Ответ 201
+---
+
+### Форматы ответов
+
+**Успешная аутентификация:**
+```json
 {
   "user": {
     "id": "uuid",
@@ -258,13 +414,28 @@ POST /api/v1/auth/register
 }
 ```
 
-### Вход через email
+**Ошибка:**
 ```json
-POST /api/v1/auth/login
-{ "email": "user@example.com", "password": "SecurePass123!" }
+{
+  "error": {
+    "message": "Invalid credentials",
+    "code": "INVALID_CREDENTIALS"
+  }
+}
+```
 
-// Ответ 200
-{ "user": { ... }, "token": "eyJ..." }
+---
+
+## API — примеры запросов
+
+### Регистрация
+```json
+POST /api/v1/auth/register
+{
+  "email": "user@example.com",
+  "password": "SecurePass123!",
+  "name": "Алибек"
+}
 ```
 
 ### OTP вход (без пароля)
@@ -276,9 +447,12 @@ POST /api/v1/auth/otp/send
 // Шаг 2 — войти по коду
 POST /api/v1/auth/otp/verify
 { "email": "user@example.com", "code": "123456" }
+```
 
-// Ответ 200
-{ "user": { ... }, "token": "eyJ..." }
+### Google Sign In
+```json
+POST /api/v1/auth/google
+{ "idToken": "<google-id-token-из-SDK>" }
 ```
 
 ### Apple Sign In
@@ -286,7 +460,7 @@ POST /api/v1/auth/otp/verify
 POST /api/v1/auth/apple
 {
   "idToken": "<apple-id-token>",
-  "name": "Алибек"   // только при первом входе, потом необязательно
+  "name": "Алибек"   // только при первом входе
 }
 ```
 
@@ -308,24 +482,12 @@ Authorization: Bearer eyJ...
 
 ### Кладовка
 ```json
-// Добавить ингредиенты
 POST /api/v1/pantry
 Authorization: Bearer eyJ...
 { "ingredients": ["eggs", "rice", "tomato"] }
 
-// Рецепты по ингредиентам из кладовки (минимум 80% совпадений)
+// Рецепты по ингредиентам из кладовки
 GET /api/v1/recipes/recommendations?useMyIngredients=true&minMatchScore=0.8
-Authorization: Bearer eyJ...
-// Ответ содержит matchScore (0..1) и missingIngredients для каждого рецепта
-```
-
-### Рецепты
-```json
-// Список с пагинацией
-GET /api/v1/recipes?page=1&limit=10
-
-// Персональные рекомендации (учитывает профиль пользователя)
-GET /api/v1/recipes/recommendations
 Authorization: Bearer eyJ...
 ```
 
@@ -436,11 +598,13 @@ Mobile/lib/
 ### Подключение к бэкенду
 
 ```dart
-// Бэкенд запущен локально
+// Продакшн (Render)
+const baseUrl = 'https://moodfood-backend.onrender.com/api/v1';
+
+// Локальная разработка
 const baseUrl = 'http://localhost:3000/api/v1';
 
 // На Android-эмуляторе localhost указывает на сам эмулятор!
-// Используй IP машины вместо localhost:
 const baseUrl = 'http://10.0.2.2:3000/api/v1';
 ```
 
@@ -449,8 +613,11 @@ const baseUrl = 'http://10.0.2.2:3000/api/v1';
 - Экраны auth (Login, Register, OTP, Splash, Welcome) — готовы
 - Онбординг (ProfileSetup, 4 шага) — готов
 - Home с тремя табами — готов
+- Google Sign In — реализован (google_sign_in: ^6.2.2, serverClientId настроен)
+- Apple Sign In — заглушка (показывает SnackBar "coming soon")
 - Mood модуль — данные в SharedPreferences (не в бэкенде)
-- Google/Apple кнопки — заглушки (показывают SnackBar)
+- Pantry экран — не реализован (API готов)
+- Recipes экран — не реализован (API готов)
 - Bundle ID: `com.banb.moodfood`
 
 ---
@@ -519,9 +686,11 @@ npm test
 |------|--------|------------|
 | Epic 1 | ✅ Готов | Auth (email, Google, Apple, OTP), профиль, диетические ограничения |
 | Epic 2 | ✅ Готов | CRUD рецептов, рекомендации с фильтрацией |
-| Epic 3 | ✅ Готов | Кладовка (pantry), фильтрация рецептов по ингредиентам + matchScore |
+| Epic 3 Backend | ✅ Готов | Кладовка (pantry), фильтрация рецептов по ингредиентам + matchScore |
+| Epic 3 Frontend | ⏳ Следующий | Экраны Pantry + Recipes + Recommendations |
+| Infra | ✅ Готово | Docker, GitHub Actions CI/CD, Render деплой |
 | Epic 4 | ⏳ Следующий | AI-рекомендации по настроению, избранное, сброс пароля |
 
 ---
 
-*Backend: май–июнь 2026 · 84 теста · Epics 1–3 завершены*
+*Backend: май–июнь 2026 · 84 теста · Epics 1–3 Backend завершены · Деплой: Render*
