@@ -39,6 +39,9 @@ class AuthProvider extends ChangeNotifier {
   Future<bool> verifyOtp({required String email, required String code}) =>
       _run(() => _service.verifyOtp(email: email, code: code));
 
+  Future<bool> googleSignIn(String idToken) =>
+      _run(() => _service.googleSignIn(idToken));
+
   Future<bool> _run(Future<AuthResult> Function() call) async {
     _status = AuthStatus.loading;
     _error = null;
