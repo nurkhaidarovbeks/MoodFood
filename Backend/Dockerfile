@@ -21,16 +21,11 @@ ENV NODE_ENV=production
 
 RUN apk add --no-cache openssl
 
-COPY package*.json ./
-COPY prisma ./prisma/
-
-# Install all deps (need prisma CLI to generate), then prune dev deps
-RUN npm ci
-RUN npx prisma generate
-RUN npm prune --production
-
-# Copy compiled JS
+# Copy everything built in builder — guarantees same binaries and Prisma client
+COPY --from=builder /app/node_modules ./node_modules
 COPY --from=builder /app/dist ./dist
+COPY package.json ./
+COPY prisma ./prisma/
 
 EXPOSE 3000
 
