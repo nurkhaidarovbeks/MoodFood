@@ -187,26 +187,79 @@ flutter run -d chrome
 
 ---
 
+## Сессия 5 Mobile — 13 июня 2026 (Google Sign In)
+
+> Автор: Nurkhaidarov Beksultan | Модель: Claude Sonnet 4.6
+
+### Google Sign In — реализован
+
+**`pubspec.yaml`** — добавлен пакет:
+```yaml
+google_sign_in: ^6.2.2
+```
+
+**`ios/Runner/Info.plist`** — добавлены обязательные ключи для iOS:
+```xml
+<key>GIDClientID</key>
+<string>189389207039-8bht9m53kvpqi00hqjfm5k1ov2vujt3h.apps.googleusercontent.com</string>
+<key>CFBundleURLTypes</key>
+<array>
+  <dict>
+    <key>CFBundleURLSchemes</key>
+    <array>
+      <string>com.googleusercontent.apps.189389207039-8bht9m53kvpqi00hqjfm5k1ov2vujt3h</string>
+    </array>
+  </dict>
+</array>
+```
+
+**`lib/features/auth/widgets/auth_shared.dart`** — `_GoogleSignInBtn` переписан в `StatefulWidget`:
+- `GoogleSignIn(scopes: ['email', 'profile'], serverClientId: '...')` — `serverClientId` обязателен, иначе `idToken` будет `null` на Android
+- Получает `idToken` → отправляет на `POST /auth/google` через `AuthProvider.googleSignIn(idToken)`
+- Показывает `CircularProgressIndicator` во время загрузки
+- Обрабатывает ошибки через `SnackBar`
+
+**`lib/core/services/auth_service.dart`** — добавлен метод:
+```dart
+Future<AuthResult> googleSignIn(String idToken) async { ... }
+```
+
+**`lib/core/providers/auth_provider.dart`** — добавлен метод:
+```dart
+Future<bool> googleSignIn(String idToken) => _run(() => _service.googleSignIn(idToken));
+```
+
+**Apple Sign In** — оставлен мёртвой заглушкой (`_SocialBtn`): нажатие показывает SnackBar "Apple sign-in coming soon". Для активации нужен entitlement Sign In with Apple в Xcode.
+
+### Бэкенд подключён к продакшну
+
+URL переключён на Render:
+```dart
+static const String baseUrl = 'https://moodfood-backend.onrender.com/api/v1';
+```
+
+---
+
 ## Что не реализовано (для следующих эпиков)
 
 | Что | Когда |
 |-----|-------|
-| Google Sign In на mobile | Нужна серверная верификация ID token (бэкенд готов) |
-| Apple Sign In кнопка | Заглушка — нужен entitlement в Xcode |
-| Экран Pantry (кладовка) | Epic 3 фронт |
-| Экран Recipes | Epic 3 фронт |
+| Apple Sign In | Нужен entitlement Sign In with Apple в Xcode + iOS OAuth клиент |
+| Экран Pantry (кладовка) | Epic 3 фронт — API готов |
+| Экран Recipes | Epic 3 фронт — API готов |
+| Экран Recommendations | Epic 3 фронт — API готов (matchScore + missingIngredients) |
 | Mood → рецепты связка | Epic 4 |
 | Сохранённые рецепты | Epic 4 |
-| Интеграция с реальным бэкендом | После деплоя бэкенда на VPS |
 
 ---
 
 ## Следующий шаг — Epic 3 Frontend
 
-- Экран Pantry: добавить/удалить ингредиенты (API готов)
-- Экран Recipes: список + фильтрация по настроению (API готов)
-- Экран Recommendations: с matchScore и missingIngredients
+- Экран Pantry: добавить/удалить ингредиенты (API: GET/POST/DELETE /pantry)
+- Экран Recipes: список + фильтрация по настроению (API: GET /recipes?mood=calm)
+- Экран Recommendations: с matchScore и missingIngredients (API: GET /recipes/recommendations?useMyIngredients=true)
 
 ---
 
-*Сессия 4: 9–11 июня 2026 — Flutter Frontend Epic 1, все экраны auth + onboarding, iOS деплой*
+*Сессия 4: 9–11 июня 2026 — Flutter Frontend Epic 1, все экраны auth + onboarding, iOS деплой*  
+*Сессия 5: 13 июня 2026 — Google Sign In реализован, Apple заглушка, подключение к Render*
