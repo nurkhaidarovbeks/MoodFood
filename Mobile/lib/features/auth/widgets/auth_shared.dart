@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:google_sign_in/google_sign_in.dart';
 import 'package:provider/provider.dart';
 import '../../../core/providers/auth_provider.dart';
 import '../../../core/theme/app_theme.dart';
@@ -229,10 +230,96 @@ class AuthSocialButtons extends StatelessWidget {
   Widget build(BuildContext context) {
     return const Row(
       children: [
-        Expanded(child: _SocialBtn(label: 'Google', icon: Icons.g_mobiledata)),
+        Expanded(child: _GoogleSignInBtn()),
         SizedBox(width: 12),
         Expanded(child: _SocialBtn(label: 'Apple', icon: Icons.apple)),
       ],
+    );
+  }
+}
+
+class _GoogleSignInBtn extends StatefulWidget {
+  const _GoogleSignInBtn();
+
+  @override
+  State<_GoogleSignInBtn> createState() => _GoogleSignInBtnState();
+}
+
+class _GoogleSignInBtnState extends State<_GoogleSignInBtn> {
+  bool _loading = false;
+
+  static final _googleSignIn = GoogleSignIn(
+    scopes: ['email', 'profile'],
+    serverClientId: '189389207039-8bht9m53kvpqi00hqjfm5k1ov2vujt3h.apps.googleusercontent.com',
+  );
+
+  Future<void> _handleSignIn() async {
+    setState(() => _loading = true);
+    try {
+      final account = await _googleSignIn.signIn();
+      if (account == null || !mounted) {
+        setState(() => _loading = false);
+        return;
+      }
+      final auth = await account.authentication;
+      final idToken = auth.idToken;
+      if (idToken == null) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Google Sign In failed: no token received')),
+          );
+        }
+        setState(() => _loading = false);
+        return;
+      }
+      if (!mounted) return;
+      await context.read<AuthProvider>().googleSignIn(idToken);
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Google Sign In error: $e')),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _loading = false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: _loading ? null : _handleSignIn,
+      child: Container(
+        height: 56,
+        decoration: BoxDecoration(
+          color: AppTheme.surface,
+          borderRadius: BorderRadius.circular(20),
+          border: Border.all(color: Colors.black.withValues(alpha: 0.08), width: 0.8),
+        ),
+        child: _loading
+            ? const Center(
+                child: SizedBox(
+                  width: 20,
+                  height: 20,
+                  child: CircularProgressIndicator(strokeWidth: 2),
+                ),
+              )
+            : const Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Icon(Icons.g_mobiledata, size: 22, color: AppTheme.textDark),
+                  SizedBox(width: 8),
+                  Text(
+                    'Google',
+                    style: TextStyle(
+                      color: AppTheme.textDark,
+                      fontSize: 16,
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                ],
+              ),
+      ),
     );
   }
 }
@@ -246,15 +333,14 @@ class _SocialBtn extends StatelessWidget {
   Widget build(BuildContext context) {
     return GestureDetector(
       onTap: () => ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('$label sign-in requires configuration')),
+        SnackBar(content: Text('$label sign-in coming soon')),
       ),
       child: Container(
         height: 56,
         decoration: BoxDecoration(
           color: AppTheme.surface,
           borderRadius: BorderRadius.circular(20),
-          border: Border.all(
-              color: Colors.black.withValues(alpha: 0.08), width: 0.8),
+          border: Border.all(color: Colors.black.withValues(alpha: 0.08), width: 0.8),
         ),
         child: Row(
           mainAxisAlignment: MainAxisAlignment.center,

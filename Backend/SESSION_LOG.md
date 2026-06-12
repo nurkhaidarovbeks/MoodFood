@@ -351,89 +351,6 @@ docker-compose up --build -d
 
 ---
 
-## Сессия 4 — 9–11 июня 2026 (Flutter Frontend — Epic 1)
-
-> Автор: Khamitbek Azhara | Модель: Claude Sonnet 4.6  
-> Директория: `Mobile/` (бэкенд не трогался)
-
-### Что сделано
-
-**Анализ и линтинг:**
-- Исправлены все flutter analyze предупреждения → **0 issues**
-- `withOpacity` → `withValues(alpha:)` в 6 файлах (deprecated API)
-- Удалён неиспользуемый `import 'dart:math'`
-- Добавлен `const` к виджетам где требовал линтер
-
-**Исправление SDK:**
-- Восстановлены удалённые файлы Flutter SDK через `git restore`
-- Создан `/flutter/bin/cache/pkg/sky_engine/lib/_embedder.yaml` — исправил 715 ошибок "Undefined class"
-- Перекачан dart-sdk кэш (212 МБ) — исправил crash `ddc_module_loader.js not found`
-
-**Веб-платформа:**
-- `TokenStorage` — добавлен `kIsWeb` conditional: web → `SharedPreferences`, mobile → `FlutterSecureStorage`
-- Удалён пакет `google_sign_in` — загружал Google CDN скрипт при старте и вешал белый экран
-- Обновлён `web/index.html` — убран google-signin meta тег
-
-**Дизайн по Figma:**
-- Обновлён `app_theme.dart` — цвета Figma: `#7CB342`, `#FAF9F7`, `#2D3436`, `#717182`
-- Создан `auth_shared.dart` — общие компоненты: `AuthHeader`, `AuthTabToggle`, `AuthFieldLabel`, `AuthErrorBanner`, `AuthSubmitButton`, `AuthOrDivider`, `AuthSocialButtons`
-- Переписан `login_screen.dart` по Figma
-- Переписан `register_screen.dart` по Figma
-
-**iOS деплой:**
-- Установлен Xcode 26.5 + iOS 26.5 platform support
-- Установлен CocoaPods 1.16.2 через Homebrew
-- Настроен code signing: Personal Team, Bundle ID `com.banb.moodfood`
-- Обновлён `ios/Podfile` — `platform :ios, '13.0'`, deployment target для всех pods
-- Создан `ios/Flutter/AppFrameworkInfo.plist` (удалился после flutter clean)
-- Создан `ios/Runner/AppDelegate.swift` (отсутствовал)
-- Приложение успешно запущено на iPhone Cherry🍒 в debug и release режиме
-
-### Экраны — все реализованы
-
-| Экран | Файл | Статус |
-|-------|------|--------|
-| Splash | `auth/screens/splash_screen.dart` | ✅ |
-| Welcome | `auth/screens/welcome_screen.dart` | ✅ |
-| Login | `auth/screens/login_screen.dart` | ✅ Figma |
-| Register | `auth/screens/register_screen.dart` | ✅ Figma |
-| OTP | `auth/screens/otp_screen.dart` | ✅ |
-| Profile Setup | `onboarding/screens/profile_setup_screen.dart` | ✅ 4 шага |
-| Home | `home/screens/home_screen.dart` | ✅ |
-| Mood Check | `mood/screens/mood_check_screen.dart` | ✅ |
-| Mood History | `mood/screens/mood_history_screen.dart` | ✅ |
-
-### Проблемы и решения
-
-| Проблема | Решение |
-|----------|---------|
-| 715 "Undefined class" от flutter analyze | Создан `_embedder.yaml` в sky_engine |
-| `ddc_module_loader.js` crash на web | Перекачан dart-sdk кэш |
-| `flutter_secure_storage` не работает на web | `kIsWeb` conditional в TokenStorage |
-| Белый экран в Chrome (5+ минут) | Удалён google_sign_in — грузил Google CDN |
-| `No valid code signing certificates` | Настроен Personal Team в Xcode |
-| `Failed Registering Bundle Identifier` | Изменён Bundle ID на `com.banb.moodfood` |
-| `CocoaPods not installed` | `brew install cocoapods` |
-| `AppFrameworkInfo.plist` не найден | Создан вручную после flutter clean |
-| `AppDelegate.swift` не найден | Создан стандартный файл |
-| `errSecInternalComponent` | flutter clean + повторная сборка |
-| Deployment target 9.0 для pods | `platform :ios, '13.0'` в Podfile |
-
-### Запуск приложения на iPhone
-
-```bash
-# Подключить iPhone по USB, включить Developer Mode
-# Настройки → Конфиденциальность и безопасность → Режим разработчика
-
-cd ~/MoodFood/Mobile
-/Users/azharakhamitbek/flutter/bin/flutter run --release
-
-# При первом запуске на iPhone:
-# Настройки → Основные → VPN и управление устройством → Доверять
-```
-
----
-
 ## Что не реализовано (намеренно, для следующих эпиков)
 
 | Что | Когда |
@@ -443,7 +360,7 @@ cd ~/MoodFood/Mobile
 | Telegram OAuth | Enum в схеме есть, endpoint позже |
 | Рекомендации рецептов | Epic 2 — DietaryRestrictionService уже готов |
 | Rate limiting на login/register | Добавить express-rate-limit |
-| Деплой | После Flutter |
+| Деплой | После MVP (nginx/moodfood.conf + scripts/deploy.sh готовы) |
 
 ---
 
@@ -460,6 +377,5 @@ cd ~/MoodFood/Mobile
 *Сессия 1: 30 мая 2026 — Epic 1 Backend (36 тестов)*  
 *Сессия 2: 2 июня 2026 — Apple/OTP/SQL/Git (55 тестов)*  
 *Сессия 3: 6 июня 2026 — Epic 2 Backend, рецепты (77 тестов)*  
-*Сессия 4: 9–11 июня 2026 — Flutter Frontend Epic 1-2, все экраны, iOS деплой*  
 *Сессия 5: 11 июня 2026 — Infra (Docker/CI/CD) + Epic 3 Pantry (84 тестов)*  
 

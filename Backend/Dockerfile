@@ -14,20 +14,21 @@ COPY src ./src
 COPY tsconfig.json ./
 RUN npm run build
 
-# Stage 2: Production image (no dev dependencies)
+# Stage 2: Production image
 FROM node:20-alpine AS runner
 WORKDIR /app
 ENV NODE_ENV=production
 
-# Same OpenSSL needed at runtime
 RUN apk add --no-cache openssl
 
 COPY package*.json ./
 COPY prisma ./prisma/
-RUN npm ci --omit=dev
 
-# Copy generated Prisma client (linux-musl-openssl-3.0.x binary)
-COPY --from=builder /app/node_modules/.prisma ./node_modules/.prisma
+# Install all deps (need prisma CLI to generate), then prune dev deps
+RUN npm ci
+RUN npx prisma generate
+RUN npm prune --production
+
 # Copy compiled JS
 COPY --from=builder /app/dist ./dist
 
