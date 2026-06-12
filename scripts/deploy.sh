@@ -1,49 +1,24 @@
 #!/bin/bash
-# MoodFood — Production deploy script
-# Run on the server after git pull, or via GitHub Actions SSH step.
+# MoodFood — Ручной триггер деплоя на Render
+# Используй когда нужно передеплоить без пуша кода
+#
+# Использование:
+#   export RENDER_DEPLOY_HOOK_URL="https://api.render.com/deploy/srv-xxx?key=yyy"
+#   ./scripts/deploy.sh
+
 set -e
 
-DEPLOY_DIR="/app/moodfood"
-BACKUP_DIR="/backups"
-DATE=$(date +%Y%m%d-%H%M%S)
+DEPLOY_HOOK_URL="${RENDER_DEPLOY_HOOK_URL:?Переменная RENDER_DEPLOY_HOOK_URL не задана}"
 
-echo "=== MoodFood Deploy — $DATE ==="
+echo "=== MoodFood — Триггер Render деплоя ==="
+echo "Отправляем запрос..."
 
-# 1. Pull latest code
-cd "$DEPLOY_DIR"
-git pull origin main
-echo "[1/5] Code updated"
+STATUS=$(curl -s -o /dev/null -w "%{http_code}" -X POST "$DEPLOY_HOOK_URL")
 
-# 2. Backup database before any migration
-mkdir -p "$BACKUP_DIR"
-docker exec moodfood-postgres pg_dump -U moodfood moodfood > "$BACKUP_DIR/pre-deploy-$DATE.sql"
-if [ ! -s "$BACKUP_DIR/pre-deploy-$DATE.sql" ]; then
-  echo "ERROR: Backup is empty. Aborting deploy."
+if [ "$STATUS" = "200" ] || [ "$STATUS" = "201" ]; then
+  echo "✓ Деплой запущен (HTTP $STATUS)"
+  echo "Следи за прогрессом: https://dashboard.render.com"
+else
+  echo "✗ Ошибка: не удалось запустить деплой (HTTP $STATUS)"
   exit 1
 fi
-echo "[2/5] Database backup saved: $BACKUP_DIR/pre-deploy-$DATE.sql"
-
-# 3. Run migrations (against running postgres container)
-cd "$DEPLOY_DIR/Backend"
-DATABASE_URL="postgresql://moodfood:${DB_PASSWORD:-moodfood_dev}@localhost:5434/moodfood?schema=public" \
-  npx prisma migrate deploy
-echo "[3/5] Migrations applied"
-
-# 4. Rebuild and restart containers
-cd "$DEPLOY_DIR"
-docker-compose up --build -d
-echo "[4/5] Containers restarted"
-
-# 5. Wait for health check
-echo "[5/5] Waiting for health check..."
-for i in $(seq 1 30); do
-  if curl -sf http://localhost:3000/health > /dev/null; then
-    echo "=== Deploy successful! App is healthy. ==="
-    exit 0
-  fi
-  echo "  Attempt $i/30..."
-  sleep 2
-done
-
-echo "=== DEPLOY FAILED: health check timed out after 60s ==="
-exit 1

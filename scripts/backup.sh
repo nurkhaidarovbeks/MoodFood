@@ -1,35 +1,40 @@
 #!/bin/bash
-# MoodFood — PostgreSQL daily backup script
-# Add to cron: 0 2 * * * /app/moodfood/scripts/backup.sh >> /var/log/moodfood-backup.log 2>&1
+# MoodFood — Резервная копия БД через Render External Database URL
+# Запускай локально (нужен pg_dump установленный на машине)
+#
+# Использование:
+#   export DATABASE_URL="postgresql://user:pass@dpg-xxx.oregon-postgres.render.com/moodfood"
+#   ./scripts/backup.sh
+#
+# DATABASE_URL берёшь в Render Dashboard → PostgreSQL → Info → External Database URL
+# Скопируй его в .env.backup (этот файл НЕ коммить в git)
+
 set -e
 
-BACKUP_DIR="/backups"
+BACKUP_DIR="./backups"
 DATE=$(date +%Y%m%d-%H%M%S)
 BACKUP_FILE="$BACKUP_DIR/moodfood-$DATE.sql"
 
+DB_URL="${DATABASE_URL:?Переменная DATABASE_URL не задана. Скопируй External Database URL из Render Dashboard}"
+
 mkdir -p "$BACKUP_DIR"
+echo "[$(date)] Начинаем бэкап..."
 
-echo "[$DATE] Starting backup..."
+pg_dump "$DB_URL" > "$BACKUP_FILE"
 
-# Create backup from running container
-docker exec moodfood-postgres pg_dump -U moodfood moodfood > "$BACKUP_FILE"
-
-# Verify backup is not empty
 if [ ! -s "$BACKUP_FILE" ]; then
-  echo "[$DATE] ERROR: Backup file is empty. Something went wrong."
+  echo "[$(date)] ОШИБКА: файл бэкапа пустой"
   rm -f "$BACKUP_FILE"
   exit 1
 fi
 
 BACKUP_SIZE=$(du -h "$BACKUP_FILE" | cut -f1)
-echo "[$DATE] Backup created: $BACKUP_FILE ($BACKUP_SIZE)"
+echo "[$(date)] Бэкап сохранён: $BACKUP_FILE ($BACKUP_SIZE)"
 
-# Delete backups older than 7 days
+# Удаляем бэкапы старше 7 дней
 find "$BACKUP_DIR" -name "moodfood-*.sql" -mtime +7 -delete
-echo "[$DATE] Old backups cleaned up (7-day retention)"
+echo "[$(date)] Старые бэкапы удалены (хранение: 7 дней)"
+echo "[$(date)] Готово."
 
-echo "[$DATE] Backup complete."
-
-# ── Restore instructions ────────────────────────────────────────────────────
-# To restore a backup:
-#   docker exec -i moodfood-postgres psql -U moodfood moodfood < /backups/moodfood-YYYYMMDD-HHMMSS.sql
+# Чтобы восстановить из бэкапа:
+#   psql "$DATABASE_URL" < backups/moodfood-YYYYMMDD-HHMMSS.sql
