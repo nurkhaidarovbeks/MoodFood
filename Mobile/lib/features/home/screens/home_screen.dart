@@ -5,6 +5,8 @@ import '../../../core/models/mood_entry_model.dart';
 import '../../../core/providers/auth_provider.dart';
 import '../../../core/providers/mood_provider.dart';
 import '../../../core/theme/app_theme.dart';
+import '../../ingredients/screens/ingredients_screen.dart';
+import '../../recipes/screens/recipes_screen.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -24,6 +26,8 @@ class _HomeScreenState extends State<HomeScreen> {
         index: _tabIndex,
         children: const [
           _HomeTab(),
+          IngredientsScreen(),
+          RecipesScreen(),
           _HistoryTab(),
           _ProfileTab(),
         ],
@@ -39,6 +43,16 @@ class _HomeScreenState extends State<HomeScreen> {
             icon: Icon(Icons.home_outlined),
             selectedIcon: Icon(Icons.home),
             label: 'Home',
+          ),
+          NavigationDestination(
+            icon: Icon(Icons.kitchen_outlined),
+            selectedIcon: Icon(Icons.kitchen),
+            label: 'Fridge',
+          ),
+          NavigationDestination(
+            icon: Icon(Icons.restaurant_menu_outlined),
+            selectedIcon: Icon(Icons.restaurant_menu),
+            label: 'Recipes',
           ),
           NavigationDestination(
             icon: Icon(Icons.bar_chart_outlined),
@@ -346,15 +360,10 @@ class _QuickActionsGrid extends StatelessWidget {
         () => Navigator.pushNamed(context, '/profile')
       ),
       (
-        '💡',
-        'Recipes',
-        'Browse meals',
-        () => ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(
-                content: Text('Recipes coming in Epic 3 🚀'),
-                behavior: SnackBarBehavior.floating,
-              ),
-            )
+        '🧊',
+        'My Fridge',
+        'What\'s available',
+        () => Navigator.pushNamed(context, '/ingredients'),
       ),
     ];
 

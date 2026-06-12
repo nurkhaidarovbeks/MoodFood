@@ -8,6 +8,8 @@ import '../features/onboarding/screens/profile_setup_screen.dart';
 import '../features/home/screens/home_screen.dart';
 import '../features/mood/screens/mood_check_screen.dart';
 import '../features/mood/screens/mood_history_screen.dart';
+import '../features/ingredients/screens/ingredients_screen.dart';
+import '../features/recipes/screens/recipes_screen.dart';
 
 class AppRouter {
   static Route<dynamic> onGenerateRoute(RouteSettings settings) {
@@ -35,6 +37,10 @@ class AppRouter {
         );
       case '/mood-history':
         return MaterialPageRoute(builder: (_) => const MoodHistoryScreen());
+      case '/ingredients':
+        return MaterialPageRoute(builder: (_) => const IngredientsScreen());
+      case '/recipes':
+        return MaterialPageRoute(builder: (_) => const RecipesScreen());
       default:
         return MaterialPageRoute(
           builder: (_) => const Scaffold(
