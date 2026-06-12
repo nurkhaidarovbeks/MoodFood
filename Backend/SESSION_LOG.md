@@ -259,9 +259,7 @@ git push origin feature/название
 
 ---
 
-## Сессия 4 — 9–11 июня 2026 (Flutter Frontend — Epic 1)
-
-> Автор: Khamitbek Azhara | Модель: Claude Sonnet 4.6  
+## Сессия 4 — 9–11 июня 2026 (Flutter Frontend — Epic 1)  
 > Директория: `Mobile/` (бэкенд не трогался)
 
 ### Что сделано
