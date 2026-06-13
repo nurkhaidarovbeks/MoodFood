@@ -67,6 +67,20 @@ class AuthProvider extends ChangeNotifier {
     }
   }
 
+  Future<void> loginAsDemo() async {
+    await TokenStorage.save('demo_token');
+    _user = const UserModel(
+      id: 'demo',
+      email: 'demo@moodfood.app',
+      name: 'Demo User',
+      authProvider: 'demo',
+      isEmailVerified: true,
+      isProfileComplete: true,
+    );
+    _status = AuthStatus.authenticated;
+    notifyListeners();
+  }
+
   Future<void> logout() async {
     await _service.logout();
     _user = null;

@@ -4,6 +4,7 @@ import '../features/auth/screens/welcome_screen.dart';
 import '../features/auth/screens/login_screen.dart';
 import '../features/auth/screens/register_screen.dart';
 import '../features/auth/screens/otp_screen.dart';
+import '../features/onboarding/screens/onboarding_screen.dart';
 import '../features/onboarding/screens/profile_setup_screen.dart';
 import '../features/home/screens/home_screen.dart';
 import '../features/mood/screens/mood_check_screen.dart';
@@ -17,6 +18,8 @@ class AppRouter {
       case '/':
       case '/splash':
         return _fade(const SplashScreen());
+      case '/onboarding':
+        return _fade(const OnboardingScreen());
       case '/welcome':
         return _slide(const WelcomeScreen());
       case '/login':
