@@ -29,4 +29,5 @@ export const env = {
   // When true: email/password registrations must verify their email before logging in.
   // Set to false for MVP / development to skip enforcement.
   REQUIRE_EMAIL_VERIFICATION: optional('REQUIRE_EMAIL_VERIFICATION', 'false') === 'true',
+  APP_VERSION: optional('APP_VERSION', '1.0.0'),
 }

@@ -72,6 +72,18 @@ class AuthService {
     }
   }
 
+  Future<AuthResult> googleSignIn(String idToken) async {
+    try {
+      final res = await _dio.post(
+        ApiConstants.googleAuth,
+        data: {'idToken': idToken},
+      );
+      return _parseAuthResponse(res.data as Map<String, dynamic>);
+    } on DioException catch (e) {
+      throw _client.handleError(e);
+    }
+  }
+
   Future<void> logout() => TokenStorage.clear();
 
   Future<AuthResult> _parseAuthResponse(Map<String, dynamic> data) async {

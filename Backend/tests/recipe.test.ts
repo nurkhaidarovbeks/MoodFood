@@ -184,7 +184,7 @@ describe('listRecipes', () => {
     prismaMock.recipe.findMany.mockResolvedValueOnce([chickenRecipe, veganRecipe] as any)
     prismaMock.recipe.count.mockResolvedValueOnce(2)
 
-    const result = await recipeService.listRecipes({ limit: 20, offset: 0 })
+    const result = await recipeService.listRecipes({ limit: 20, offset: 0, useMyIngredients: false, minMatchScore: 0 })
 
     expect(result.recipes).toHaveLength(2)
     expect(result.total).toBe(2)
@@ -196,7 +196,7 @@ describe('listRecipes', () => {
     prismaMock.recipe.findMany.mockResolvedValueOnce([veganRecipe] as any)
     prismaMock.recipe.count.mockResolvedValueOnce(1)
 
-    const result = await recipeService.listRecipes({ mood: 'calm', limit: 20, offset: 0 })
+    const result = await recipeService.listRecipes({ mood: 'calm', limit: 20, offset: 0, useMyIngredients: false, minMatchScore: 0 })
 
     expect(result.total).toBe(1)
 
@@ -208,7 +208,7 @@ describe('listRecipes', () => {
     prismaMock.recipe.findMany.mockResolvedValueOnce([veganRecipe] as any)
     prismaMock.recipe.count.mockResolvedValueOnce(5)
 
-    const result = await recipeService.listRecipes({ limit: 1, offset: 2 })
+    const result = await recipeService.listRecipes({ limit: 1, offset: 2, useMyIngredients: false, minMatchScore: 0 })
 
     expect(result.recipes).toHaveLength(1)
     expect(result.total).toBe(5)
@@ -318,7 +318,7 @@ describe('getRecommendations', () => {
       [chickenRecipe, veganRecipe, tofuRecipe] as any,
     )
 
-    const result = await recipeService.getRecommendations('user-1', { limit: 20, offset: 0 })
+    const result = await recipeService.getRecommendations('user-1', { limit: 20, offset: 0, useMyIngredients: false, minMatchScore: 0 })
 
     expect(result.total).toBe(3)
     expect(result.recipes).toHaveLength(3)
@@ -330,7 +330,7 @@ describe('getRecommendations', () => {
       [chickenRecipe, veganRecipe, tofuRecipe] as any,
     )
 
-    const result = await recipeService.getRecommendations('user-2', { limit: 20, offset: 0 })
+    const result = await recipeService.getRecommendations('user-2', { limit: 20, offset: 0, useMyIngredients: false, minMatchScore: 0 })
 
     // chicken breast is excluded for vegan; tofu is also excluded (vegan excludes eggs/dairy but not tofu)
     // Actually vegan excludes: meat, seafood, eggs, dairy, honey, gelatin, etc.
@@ -349,7 +349,7 @@ describe('getRecommendations', () => {
       [chickenRecipe, veganRecipe, tofuRecipe] as any,
     )
 
-    const result = await recipeService.getRecommendations('user-3', { limit: 20, offset: 0 })
+    const result = await recipeService.getRecommendations('user-3', { limit: 20, offset: 0, useMyIngredients: false, minMatchScore: 0 })
 
     expect(result.total).toBe(2)
     const titles = result.recipes.map((r) => r.title)
@@ -363,7 +363,7 @@ describe('getRecommendations', () => {
       [chickenRecipe, veganRecipe, tofuRecipe] as any,
     )
 
-    const result = await recipeService.getRecommendations('user-4', { limit: 20, offset: 0 })
+    const result = await recipeService.getRecommendations('user-4', { limit: 20, offset: 0, useMyIngredients: false, minMatchScore: 0 })
 
     const titles = result.recipes.map((r) => r.title)
     expect(titles).not.toContain('Lentil Dal')
@@ -377,7 +377,7 @@ describe('getRecommendations', () => {
       [chickenRecipe, veganRecipe, tofuRecipe] as any,
     )
 
-    const result = await recipeService.getRecommendations('user-1', { limit: 2, offset: 1 })
+    const result = await recipeService.getRecommendations('user-1', { limit: 2, offset: 1, useMyIngredients: false, minMatchScore: 0 })
 
     expect(result.total).toBe(3)  // total before pagination
     expect(result.recipes).toHaveLength(2)  // page size
@@ -388,7 +388,7 @@ describe('getRecommendations', () => {
     prismaMock.user.findUnique.mockResolvedValueOnce(baseUserNoRestrictions as any)
     prismaMock.recipe.findMany.mockResolvedValueOnce([veganRecipe] as any)
 
-    await recipeService.getRecommendations('user-1', { mood: 'calm', limit: 20, offset: 0 })
+    await recipeService.getRecommendations('user-1', { mood: 'calm', limit: 20, offset: 0, useMyIngredients: false, minMatchScore: 0 })
 
     const findManyCall = prismaMock.recipe.findMany.mock.calls[0]![0] as any
     expect(findManyCall.where).toEqual({ moodTags: { array_contains: 'calm' } })
@@ -398,7 +398,7 @@ describe('getRecommendations', () => {
     prismaMock.user.findUnique.mockResolvedValueOnce({ ...baseUserNoRestrictions, profile: null } as any)
     prismaMock.recipe.findMany.mockResolvedValueOnce([chickenRecipe, veganRecipe] as any)
 
-    const result = await recipeService.getRecommendations('user-1', { limit: 20, offset: 0 })
+    const result = await recipeService.getRecommendations('user-1', { limit: 20, offset: 0, useMyIngredients: false, minMatchScore: 0 })
 
     expect(result.total).toBe(2)
   })
@@ -407,7 +407,7 @@ describe('getRecommendations', () => {
     prismaMock.user.findUnique.mockResolvedValueOnce(null)
 
     await expect(
-      recipeService.getRecommendations('nonexistent', { limit: 20, offset: 0 }),
+      recipeService.getRecommendations('nonexistent', { limit: 20, offset: 0, useMyIngredients: false, minMatchScore: 0 }),
     ).rejects.toMatchObject({ statusCode: 404, code: 'USER_NOT_FOUND' })
   })
 })

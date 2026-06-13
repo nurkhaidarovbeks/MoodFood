@@ -24,7 +24,11 @@ const authController = new AuthController(authService)
 const otpSendLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
   max: 3,
-  keyGenerator: (req) => (req.body?.email as string | undefined) ?? req.ip ?? 'unknown',
+  keyGenerator: (req) => {
+    const email = req.body?.email as string | undefined
+    if (email) return email
+    return (req.socket.remoteAddress ?? 'unknown').replace(/^::ffff:/, '')
+  },
   message: { error: { message: 'Too many OTP requests. Try again in 15 minutes.', code: 'RATE_LIMITED' } },
   standardHeaders: true,
   legacyHeaders: false,

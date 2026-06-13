@@ -16,7 +16,7 @@ export class RecipeController {
 
   async getRecipe(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
-      const result = await this.recipeService.getRecipe(req.params.id)
+      const result = await this.recipeService.getRecipe(req.params['id'] as string)
       res.status(200).json(result)
     } catch (err) {
       next(err)
@@ -34,7 +34,7 @@ export class RecipeController {
 
   async updateRecipe(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
-      const result = await this.recipeService.updateRecipe(req.params.id, req.body)
+      const result = await this.recipeService.updateRecipe(req.params['id'] as string, req.body)
       res.status(200).json(result)
     } catch (err) {
       next(err)
@@ -43,7 +43,7 @@ export class RecipeController {
 
   async patchRecipe(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
-      const result = await this.recipeService.patchRecipe(req.params.id, req.body)
+      const result = await this.recipeService.patchRecipe(req.params['id'] as string, req.body)
       res.status(200).json(result)
     } catch (err) {
       next(err)
@@ -52,7 +52,7 @@ export class RecipeController {
 
   async deleteRecipe(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
-      const result = await this.recipeService.deleteRecipe(req.params.id)
+      const result = await this.recipeService.deleteRecipe(req.params['id'] as string)
       res.status(200).json(result)
     } catch (err) {
       next(err)
