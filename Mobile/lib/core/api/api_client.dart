@@ -21,8 +21,8 @@ class ApiClient {
     dio = Dio(
       BaseOptions(
         baseUrl: ApiConstants.baseUrl,
-        connectTimeout: const Duration(seconds: 10),
-        receiveTimeout: const Duration(seconds: 10),
+        connectTimeout: const Duration(seconds: 60),
+        receiveTimeout: const Duration(seconds: 60),
         headers: {
           'Content-Type': 'application/json',
           'Accept': 'application/json',
@@ -63,11 +63,13 @@ class ApiClient {
     }
     if (e.type == DioExceptionType.connectionTimeout ||
         e.type == DioExceptionType.receiveTimeout) {
-      return const ApiException('Connection timeout. Check your internet.');
+      return const ApiException(
+        'Server is warming up — please wait 30 seconds and try again.',
+      );
     }
     if (e.type == DioExceptionType.connectionError) {
       return const ApiException(
-        'Cannot reach server. Make sure the backend is running.',
+        'No internet connection. Check your network and try again.',
       );
     }
     return ApiException(e.message ?? 'Unknown error');
