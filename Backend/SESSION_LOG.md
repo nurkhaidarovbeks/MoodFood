@@ -76,12 +76,14 @@ MoodFood — AI-приложение для рекомендаций еды на
 | `jest.config.ts` | Jest с moduleNameMapper для мока БД |
 | `.env.example` | Шаблон переменных окружения |
 | `.env` | Локальные переменные (не в git!) |
-| `docker-compose.yml` | PostgreSQL на порту **5434** |
+| `docker-compose.yml` | PostgreSQL + Backend — полный стек на портах 5434/3000 |
+| `Dockerfile` | Multi-stage build для продакшн контейнера |
+| `.dockerignore` | Исключает node_modules, dist, .env из образа |
 
 ### База данных
 | Файл | Описание |
 |------|---------|
-| `prisma/schema.prisma` | Схема: User, UserProfile, Recipe, Ingredient, RecipeIngredient |
+| `prisma/schema.prisma` | Схема: User, UserProfile, Recipe, Ingredient, RecipeIngredient, UserIngredient |
 | `prisma/migrations/` | История миграций (коммитятся в git) |
 
 **Поля User (все):**
@@ -155,6 +157,8 @@ onboardingCompleted, profileCompletedAt
 | `tests/auth.test.ts` | 27 | Регистрация, вход, Google, Apple, OTP |
 | `tests/profile.test.ts` | 8 | Профиль: create, patch, get, ошибки |
 | `tests/dietary-restriction.test.ts` | 24 | Все 10 ограничений + кастомные + edge cases |
+| `tests/recipe.test.ts` | 22 | CRUD рецептов, рекомендации, фильтрация |
+| `tests/pantry.test.ts` | 7 | Кладовка: CRUD, 404, очистка |
 
 ---
 
@@ -175,7 +179,18 @@ onboardingCompleted, profileCompletedAt
 | `GET` | `/profile` | JWT | Получить профиль |
 | `PUT` | `/profile` | JWT | Создать/заменить профиль |
 | `PATCH` | `/profile` | JWT | Частично обновить профиль |
-| `GET` | `/health` | — | Статус сервера |
+| `GET` | `/health` | — | Статус сервера + БД + версия |
+| `GET` | `/pantry` | JWT | Список ингредиентов в кладовке |
+| `POST` | `/pantry` | JWT | Добавить ингредиенты |
+| `DELETE` | `/pantry/:id` | JWT | Удалить один ингредиент |
+| `DELETE` | `/pantry/clear` | JWT | Очистить всю кладовку |
+| `GET` | `/recipes` | — | Список рецептов (пагинация, фильтр по mood) |
+| `GET` | `/recipes/:id` | — | Один рецепт |
+| `POST` | `/recipes` | JWT | Создать рецепт |
+| `PUT` | `/recipes/:id` | JWT | Полная замена рецепта |
+| `PATCH` | `/recipes/:id` | JWT | Частичное обновление |
+| `DELETE` | `/recipes/:id` | JWT | Удалить рецепт |
+| `GET` | `/recipes/recommendations` | JWT | Рекомендации (ограничения + `?useMyIngredients=true`) |
 
 ---
 
@@ -227,7 +242,7 @@ cd "c:\Users\0penf\Corporate project\Backend"
 docker-compose up -d                              # PostgreSQL на порту 5434
 npx prisma migrate dev --name <описание           # применить миграции
 npm run dev                                       # сервер на localhost:3000
-npm test                                          # 55 тестов
+npm test                                          # 84 тестов
 
 # Просмотр БД визуально
 npx prisma studio                                 # открывает localhost:5555
@@ -259,84 +274,80 @@ git push origin feature/название
 
 ---
 
-## Сессия 4 — 9–11 июня 2026 (Flutter Frontend — Epic 1)  
-> Директория: `Mobile/` (бэкенд не трогался)
+## Сессия 5 — 11 июня 2026 (Infra + Epic 3 Backend)
 
-### Что сделано
+> Автор: Nurkhaidarov Beksultan | Модель: Claude Sonnet 4.6
 
-**Анализ и линтинг:**
-- Исправлены все flutter analyze предупреждения → **0 issues**
-- `withOpacity` → `withValues(alpha:)` в 6 файлах (deprecated API)
-- Удалён неиспользуемый `import 'dart:math'`
-- Добавлен `const` к виджетам где требовал линтер
+### Инфраструктура
 
-**Исправление SDK:**
-- Восстановлены удалённые файлы Flutter SDK через `git restore`
-- Создан `/flutter/bin/cache/pkg/sky_engine/lib/_embedder.yaml` — исправил 715 ошибок "Undefined class"
-- Перекачан dart-sdk кэш (212 МБ) — исправил crash `ddc_module_loader.js not found`
+**Docker — полный стек:**
+- `Backend/Dockerfile` — multi-stage build: builder (Alpine + OpenSSL + npm ci + prisma generate + tsc) → runner (только production deps)
+- `docker-compose.yml` обновлён — добавлен сервис `backend` + healthcheck для postgres
+- `Backend/.dockerignore`
+- Фикс: `binaryTargets = ["native", "linux-musl-openssl-3.0.x"]` в schema.prisma — Alpine 3.18+ использует OpenSSL 3.x
+- Фикс: rate limiter IPv6 — заменён `req.ip` на `req.socket.remoteAddress` (express-rate-limit v8 бросал ValidationError)
 
-**Веб-платформа:**
-- `TokenStorage` — добавлен `kIsWeb` conditional: web → `SharedPreferences`, mobile → `FlutterSecureStorage`
-- Удалён пакет `google_sign_in` — загружал Google CDN скрипт при старте и вешал белый экран
-- Обновлён `web/index.html` — убран google-signin meta тег
+**Запуск:**
+```powershell
+# Разработка (hot reload)
+docker-compose up -d postgres && npm run dev
 
-**Дизайн по Figma:**
-- Обновлён `app_theme.dart` — цвета Figma: `#7CB342`, `#FAF9F7`, `#2D3436`, `#717182`
-- Создан `auth_shared.dart` — общие компоненты: `AuthHeader`, `AuthTabToggle`, `AuthFieldLabel`, `AuthErrorBanner`, `AuthSubmitButton`, `AuthOrDivider`, `AuthSocialButtons`
-- Переписан `login_screen.dart` по Figma
-- Переписан `register_screen.dart` по Figma
-
-**iOS деплой:**
-- Установлен Xcode 26.5 + iOS 26.5 platform support
-- Установлен CocoaPods 1.16.2 через Homebrew
-- Настроен code signing: Personal Team, Bundle ID `com.banb.moodfood`
-- Обновлён `ios/Podfile` — `platform :ios, '13.0'`, deployment target для всех pods
-- Создан `ios/Flutter/AppFrameworkInfo.plist` (удалился после flutter clean)
-- Создан `ios/Runner/AppDelegate.swift` (отсутствовал)
-- Приложение успешно запущено на iPhone Cherry🍒 в debug и release режиме
-
-### Экраны — все реализованы
-
-| Экран | Файл | Статус |
-|-------|------|--------|
-| Splash | `auth/screens/splash_screen.dart` | ✅ |
-| Welcome | `auth/screens/welcome_screen.dart` | ✅ |
-| Login | `auth/screens/login_screen.dart` | ✅ Figma |
-| Register | `auth/screens/register_screen.dart` | ✅ Figma |
-| OTP | `auth/screens/otp_screen.dart` | ✅ |
-| Profile Setup | `onboarding/screens/profile_setup_screen.dart` | ✅ 4 шага |
-| Home | `home/screens/home_screen.dart` | ✅ |
-| Mood Check | `mood/screens/mood_check_screen.dart` | ✅ |
-| Mood History | `mood/screens/mood_history_screen.dart` | ✅ |
-
-### Проблемы и решения
-
-| Проблема | Решение |
-|----------|---------|
-| 715 "Undefined class" от flutter analyze | Создан `_embedder.yaml` в sky_engine |
-| `ddc_module_loader.js` crash на web | Перекачан dart-sdk кэш |
-| `flutter_secure_storage` не работает на web | `kIsWeb` conditional в TokenStorage |
-| Белый экран в Chrome (5+ минут) | Удалён google_sign_in — грузил Google CDN |
-| `No valid code signing certificates` | Настроен Personal Team в Xcode |
-| `Failed Registering Bundle Identifier` | Изменён Bundle ID на `com.banb.moodfood` |
-| `CocoaPods not installed` | `brew install cocoapods` |
-| `AppFrameworkInfo.plist` не найден | Создан вручную после flutter clean |
-| `AppDelegate.swift` не найден | Создан стандартный файл |
-| `errSecInternalComponent` | flutter clean + повторная сборка |
-| Deployment target 9.0 для pods | `platform :ios, '13.0'` в Podfile |
-
-### Запуск приложения на iPhone
-
-```bash
-# Подключить iPhone по USB, включить Developer Mode
-# Настройки → Конфиденциальность и безопасность → Режим разработчика
-
-cd ~/MoodFood/Mobile
-/Users/azharakhamitbek/flutter/bin/flutter run --release
-
-# При первом запуске на iPhone:
-# Настройки → Основные → VPN и управление устройством → Доверять
+# Продакшн-режим (всё в Docker)
+docker-compose up --build -d
 ```
+
+**GitHub Actions CI** (`.github/workflows/ci.yml`):
+- Запускается на любой пуш (`branches: ['**']`) и на PR в main
+- Шаги: checkout → Node 20 → npm ci → prisma generate → 84 тестов → tsc build → upload artifact
+- После пуша: `https://github.com/nurkhaidarovbeks/MoodFood/actions`
+
+**Прочая инфраструктура:**
+- `.github/PULL_REQUEST_TEMPLATE.md` — шаблон появляется автоматически при создании PR
+- `scripts/deploy.sh` — деплой на сервере: backup → migrate → restart → healthcheck
+- `scripts/backup.sh` — pg_dump, 7-дневное хранение, cron в 2:00
+- `nginx/moodfood.conf` — reverse proxy конфиг (применить когда будет VPS)
+
+**`/health` endpoint улучшен:**
+```json
+{ "status": "ok", "db": "connected", "version": "1.0.0" }
+```
+Возвращает 503 если БД недоступна. Добавлена переменная `APP_VERSION` в env.
+
+---
+
+### Epic 3 — Кладовка (Pantry)
+
+**Новая таблица:** `user_ingredients` — ингредиенты пользователя дома. Связана с таблицей `ingredients` через FK.
+**Миграция:** `20260611132036_add_user_ingredients`
+
+**Новый модуль `src/modules/pantry/`:**
+| Файл | Описание |
+|------|---------|
+| `pantry.schema.ts` | Zod: `AddIngredientsSchema` |
+| `pantry.service.ts` | getIngredients, addIngredients, removeIngredient, clearPantry |
+| `pantry.controller.ts` | HTTP handlers |
+| `pantry.routes.ts` | Все маршруты под `requireAuth` |
+
+**4 новых эндпоинта `/api/v1/pantry`** (все требуют JWT):
+- `GET /pantry` — список ингредиентов пользователя
+- `POST /pantry` — добавить: `{ "ingredients": ["eggs", "rice"] }` (lowercase, upsert)
+- `DELETE /pantry/:id` — удалить один
+- `DELETE /pantry/clear` — очистить всё
+
+**Рекомендации расширены** — новые query параметры в `GET /recipes/recommendations`:
+- `useMyIngredients=true` — фильтрует по кладовке, сортирует по `matchScore` убыванию
+- `minMatchScore=0.8` — минимальный порог (0 = все, 1 = только 100% совпадение)
+
+Ответ с `useMyIngredients=true` добавляет к каждому рецепту:
+```json
+{ "matchScore": 0.75, "missingIngredients": ["olive oil", "basil"] }
+```
+
+**Тесты:** `tests/pantry.test.ts` — 7 тестов (P1–P7): getIngredients, addIngredients, removeIngredient, clearPantry
+
+**Postman коллекция обновлена:** добавлены группы Pantry и Recipes со всеми новыми запросами.
+
+**Итого тестов: 84 (было 77, +7 pantry)**
 
 ---
 
@@ -347,24 +358,81 @@ cd ~/MoodFood/Mobile
 | Refresh токены | После MVP |
 | Сброс пароля | Отдельный feature |
 | Telegram OAuth | Enum в схеме есть, endpoint позже |
-| Рекомендации рецептов | Epic 2 — DietaryRestrictionService уже готов |
 | Rate limiting на login/register | Добавить express-rate-limit |
-| Деплой | После Flutter |
+| Epic 3 Frontend | Экраны Pantry + Recipes + Recommendations на Flutter |
 
 ---
 
-## Следующий шаг — Epic 3
+## Сессия 6 — 13 июня 2026 (Render деплой + CD + Render-адаптация скриптов)
 
-- Поиск рецептов (`GET /api/v1/recipes/search?q=...`)
+> Автор: Nurkhaidarov Beksultan | Модель: Claude Sonnet 4.6
+
+### Деплой на Render (Free tier)
+
+**Бэкенд живёт по адресу:** `https://moodfood-backend.onrender.com`
+
+- Сервис: Web Service (Docker), Free tier
+- PostgreSQL: Render Managed PostgreSQL, Free tier (удаляется через 90 дней)
+- Health check: `/health` → `{ status: "ok", db: "connected", version: "1.0.0" }`
+- Dockerfile: multi-stage Alpine + OpenSSL, `CMD ["node", "dist/server.js"]`
+- Docker Command в Render: `node dist/server.js` (не migrate — это была причина первых ошибок)
+
+**Важно про Free tier:**
+- Засыпает после 15 мин неактивности, первый запрос ~30 сек
+- DB автоматически удаляется через 90 дней → нужны бэкапы
+
+### CD pipeline (GitHub Actions)
+
+Добавлен job `deploy` в `.github/workflows/ci.yml`:
+```yaml
+deploy:
+  needs: test
+  if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+  steps:
+    - name: Trigger Render deploy
+      run: |
+        STATUS=$(curl -s -o /dev/null -w "%{http_code}" -X POST "${{ secrets.RENDER_DEPLOY_HOOK_URL }}")
+        if [ "$STATUS" != "200" ] && [ "$STATUS" != "201" ]; then exit 1; fi
+```
+
+Секрет `RENDER_DEPLOY_HOOK_URL` добавлен в GitHub Settings → Secrets.
+
+Полный pipeline: пуш в любую ветку → тесты; пуш/мерж в main → тесты → авто-деплой на Render.
+
+### Скрипты адаптированы для Render
+
+**`scripts/deploy.sh`** — теперь триггерит Render Deploy Hook вместо docker-compose:
+```bash
+export RENDER_DEPLOY_HOOK_URL="https://api.render.com/deploy/srv-xxx?key=yyy"
+bash scripts/deploy.sh
+```
+Используй для ручного передеплоя без пуша кода.
+
+**`scripts/backup.sh`** — теперь использует External Database URL вместо docker exec:
+```bash
+export DATABASE_URL="postgresql://user:pass@dpg-xxx.render.com/moodfood"
+bash scripts/backup.sh
+# Сохраняет в ./backups/, хранение 7 дней, восстановление: psql "$DATABASE_URL" < backup.sql
+```
+External Database URL берётся в Render Dashboard → PostgreSQL → Info.
+
+**`nginx/moodfood.conf`** — оставлен как есть, добавлена пометка что это только для VPS. На Render nginx не нужен.
+
+---
+
+## Следующий шаг — Epic 3 Frontend + Epic 4
+
+- Epic 3 Frontend: Pantry экран, Recipes экран, Recommendations экран (всё API готово)
+- Epic 4: AI рекомендации по настроению (Mood-check → рецепты)
 - Избранное / сохранённые рецепты
 - Сброс пароля
 - Rate limiting на login/register
-- Деплой (после Flutter)
 
 ---
 
 *Сессия 1: 30 мая 2026 — Epic 1 Backend (36 тестов)*  
 *Сессия 2: 2 июня 2026 — Apple/OTP/SQL/Git (55 тестов)*  
 *Сессия 3: 6 июня 2026 — Epic 2 Backend, рецепты (77 тестов)*  
-*Сессия 4: 9–11 июня 2026 — Flutter Frontend Epic 1-2, все экраны, iOS деплой*  
+*Сессия 5: 11 июня 2026 — Infra (Docker/CI/CD) + Epic 3 Pantry (84 тестов)*  
+*Сессия 6: 13 июня 2026 — Render деплой + CD pipeline + скрипты под Render*  
 
