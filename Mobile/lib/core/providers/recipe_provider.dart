@@ -15,6 +15,7 @@ class RecipeProvider extends ChangeNotifier {
   RecipeFilter _filter = RecipeFilter.all;
   bool _loading = false;
   String? _error;
+  bool _isDemoMode = false;
 
   List<Recipe> get recipes => _recipes;
   RecipeFilter get filter => _filter;
@@ -34,6 +35,7 @@ class RecipeProvider extends ChangeNotifier {
   }
 
   Future<void> fetchRecipes({String? mood}) async {
+    if (_isDemoMode) return; // Demo mode uses mock data — skip backend call
     _loading = true;
     _error = null;
     notifyListeners();
@@ -50,6 +52,7 @@ class RecipeProvider extends ChangeNotifier {
   }
 
   void loadMockData() {
+    _isDemoMode = true;
     _recipes = [
       const Recipe(
         id: 'm1',
@@ -176,6 +179,7 @@ class RecipeProvider extends ChangeNotifier {
   }
 
   Future<void> fetchRecommendations({String? mood}) async {
+    if (_isDemoMode) return;
     _loading = true;
     _error = null;
     notifyListeners();

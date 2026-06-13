@@ -21,8 +21,14 @@ class AuthProvider extends ChangeNotifier {
 
   Future<void> checkAuthStatus() async {
     final token = await TokenStorage.get();
-    _status =
-        token != null ? AuthStatus.authenticated : AuthStatus.unauthenticated;
+    if (token == 'demo_token') {
+      // Clear stale demo tokens — demo mode is session-only, not persistent
+      await TokenStorage.clear();
+      _status = AuthStatus.unauthenticated;
+    } else {
+      _status =
+          token != null ? AuthStatus.authenticated : AuthStatus.unauthenticated;
+    }
     notifyListeners();
   }
 
@@ -71,7 +77,7 @@ class AuthProvider extends ChangeNotifier {
   }
 
   Future<void> loginAsDemo() async {
-    await TokenStorage.save('demo_token');
+    // Demo mode is session-only — no token saved so next launch shows onboarding/welcome
     _user = const UserModel(
       id: 'demo',
       email: 'demo@moodfood.app',

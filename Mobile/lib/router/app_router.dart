@@ -7,6 +7,8 @@ import '../features/auth/screens/otp_screen.dart';
 import '../features/onboarding/screens/onboarding_screen.dart';
 import '../features/onboarding/screens/profile_setup_screen.dart';
 import '../features/home/screens/home_screen.dart';
+import '../features/settings/screens/settings_screen.dart';
+import '../features/premium/screens/premium_screen.dart';
 import '../features/mood/screens/mood_check_screen.dart';
 import '../features/mood/screens/mood_history_screen.dart';
 import '../features/ingredients/screens/ingredients_screen.dart';
@@ -44,6 +46,10 @@ class AppRouter {
         return MaterialPageRoute(builder: (_) => const IngredientsScreen());
       case '/recipes':
         return MaterialPageRoute(builder: (_) => const RecipesScreen());
+      case '/settings':
+        return MaterialPageRoute(builder: (_) => const SettingsScreen());
+      case '/premium':
+        return MaterialPageRoute(builder: (_) => const PremiumScreen());
       default:
         return MaterialPageRoute(
           builder: (_) => const Scaffold(

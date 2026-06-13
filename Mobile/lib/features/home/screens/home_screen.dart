@@ -786,7 +786,21 @@ class _ProfilePage extends StatelessWidget {
               ),
               const SizedBox(height: 28),
               _ProfileInfoSection(),
-              const SizedBox(height: 28),
+              const SizedBox(height: 20),
+              // Settings & Premium
+              _ProfileMenuTile(
+                icon: Icons.workspace_premium_outlined,
+                label: 'MoodFood Premium',
+                iconColor: const Color(0xFFFFB300),
+                onTap: () => Navigator.pushNamed(context, '/premium'),
+              ),
+              const SizedBox(height: 8),
+              _ProfileMenuTile(
+                icon: Icons.settings_outlined,
+                label: 'Settings',
+                onTap: () => Navigator.pushNamed(context, '/settings'),
+              ),
+              const SizedBox(height: 20),
               OutlinedButton.icon(
                 onPressed: () async {
                   await auth.logout();
@@ -848,6 +862,59 @@ class _ProfileInfoSection extends StatelessWidget {
           ),
         ),
       ],
+    );
+  }
+}
+
+class _ProfileMenuTile extends StatelessWidget {
+  final IconData icon;
+  final String label;
+  final Color? iconColor;
+  final VoidCallback onTap;
+
+  const _ProfileMenuTile({
+    required this.icon,
+    required this.label,
+    this.iconColor,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(14),
+          border: Border.all(color: AppTheme.divider),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withValues(alpha: 0.03),
+              blurRadius: 6,
+              offset: const Offset(0, 2),
+            ),
+          ],
+        ),
+        child: Row(
+          children: [
+            Icon(icon, size: 20, color: iconColor ?? AppTheme.primary),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Text(
+                label,
+                style: const TextStyle(
+                  fontSize: 15,
+                  fontWeight: FontWeight.w600,
+                  color: AppTheme.textDark,
+                ),
+              ),
+            ),
+            const Icon(Icons.chevron_right, color: AppTheme.textLight, size: 20),
+          ],
+        ),
+      ),
     );
   }
 }
