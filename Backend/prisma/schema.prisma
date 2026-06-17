@@ -21,6 +21,22 @@ enum AuthProvider {
   telegram
 }
 
+enum OrderStatus {
+  created
+  pending
+  paid
+  fulfilled
+  completed
+  failed
+  refunded
+  cancelled
+}
+
+enum PaymentGateway {
+  bereke
+  paypal
+}
+
 enum Lifestyle {
   student
   professional
@@ -61,8 +77,9 @@ model User {
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
-  profile          UserProfile?
+  profile           UserProfile?
   pantryIngredients UserIngredient[]
+  orders            Order[]
 
   @@map("users")
 }
@@ -147,6 +164,27 @@ model RecipeIngredient {
 
   @@unique([recipeId, ingredientId])
   @@map("recipe_ingredients")
+}
+
+// ─── Orders ──────────────────────────────────────────────────────────────────
+
+model Order {
+  id             String         @id @default(uuid())
+  userId         String         @map("user_id")
+  amount         Float
+  currency       String         @default("KZT")
+  status         OrderStatus    @default(created)
+  gateway        PaymentGateway
+  gatewayOrderId String?        @map("gateway_order_id")
+  paymentUrl     String?        @map("payment_url")
+  transactionId  String?        @map("transaction_id")
+  description    String?
+  createdAt      DateTime       @default(now()) @map("created_at")
+  updatedAt      DateTime       @updatedAt @map("updated_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("orders")
 }
 
 // ─── User Pantry (ingredients available at home) ──────────────────────────────

@@ -420,13 +420,135 @@ External Database URL берётся в Render Dashboard → PostgreSQL → Info
 
 ---
 
-## Следующий шаг — Epic 3 Frontend + Epic 4
+## Сессия 7 — 17 июня 2026 (Epic 4: Payment — Bereke + PayPal)
 
-- Epic 3 Frontend: Pantry экран, Recipes экран, Recommendations экран (всё API готово)
-- Epic 4: AI рекомендации по настроению (Mood-check → рецепты)
+> Автор: Nurkhaidarov Beksultan | Модель: Claude Sonnet 4.6
+
+### Новые таблицы БД
+
+**Миграция:** `add_orders`
+
+**Новые enum'ы в schema.prisma:**
+- `OrderStatus`: `created → pending → paid → fulfilled → completed → failed → refunded → cancelled`
+- `PaymentGateway`: `bereke | paypal`
+
+**Новая модель `Order`:**
+```
+id, userId, amount, currency, status, gateway,
+gatewayOrderId, paymentUrl, transactionId, description,
+createdAt, updatedAt
+```
+
+### Новые сервисы
+
+| Файл | Описание |
+|------|---------|
+| `src/services/bereke.service.ts` | `bereRegisterOrder`, `bereGetStatus`, `bereRefund` — Bereke Bank REST API (form-encoded) |
+| `src/services/paypal.service.ts` | `getPayPalToken`, `createPayPalOrder`, `capturePayPalOrder` — PayPal REST API |
+
+**Bereke API (PAY-002):**
+- `register.do` — создаёт платёжную сессию, возвращает `formUrl` для редиректа
+- `getOrderStatusExtended.do` — верификация: `orderStatus=2` = оплачено
+- `refund.do` — полный или частичный возврат (L2 из презентации)
+- Сумма в тийнах: 4 900 KZT → `490000`
+
+**PayPal API (PAY-006):**
+- `POST /v1/oauth2/token` → Bearer token
+- `POST /v2/checkout/orders` — создаёт ордер, возвращает `approvalUrl`
+- `POST /v2/checkout/orders/:id/capture` — захват после аппрува
+
+### Модуль `src/modules/payment/`
+
+| Файл | Описание |
+|------|---------|
+| `payment.schema.ts` | Zod: `CheckoutSchema`, `RefundSchema` |
+| `payment.service.ts` | State machine + idempotency + вся бизнес-логика |
+| `payment.controller.ts` | HTTP handlers |
+| `payment.routes.ts` | 9 роутов |
+
+**State machine `VALID_TRANSITIONS` (PAY-004):**
+```
+created   → pending, cancelled
+pending   → paid, failed, cancelled
+paid      → fulfilled, refunded
+fulfilled → completed, refunded
+failed    → pending
+completed → (terminal)
+refunded  → (terminal)
+cancelled → (terminal)
+```
+Невалидный переход бросает `AppError(400, INVALID_STATUS_TRANSITION)`.
+
+**Idempotency (PAY-005):** `POST /checkout` с теми же `userId + amount + gateway` в течение 5 минут возвращает существующий pending-ордер без повторной регистрации в банке.
+
+**Callback (PAY-003):** `POST /payment/callback` — Bereke шлёт сюда server-to-server вне зависимости от браузера. Всегда возвращает 200 (иначе Bereke ретраит). Двойная верификация через `getOrderStatusExtended.do` перед апдейтом статуса.
+
+### Все новые API эндпоинты `/api/v1/payment`
+
+| Метод | Путь | Auth | Описание |
+|-------|------|------|---------|
+| `POST` | `/checkout` | JWT | Создать ордер + получить ссылку на оплату (Bereke или PayPal) |
+| `GET` | `/success?orderId=` | — | Bereke редирект после успешной оплаты |
+| `GET` | `/fail?orderId=` | — | Bereke редирект после отмены/ошибки |
+| `POST` | `/callback` | — | Bereke server-to-server webhook |
+| `GET` | `/paypal/success?token=` | — | PayPal capture после аппрува |
+| `GET` | `/paypal/cancel` | — | PayPal отмена |
+| `GET` | `/orders` | JWT | Список своих ордеров |
+| `GET` | `/orders/:id` | JWT | Один ордер (только свой) |
+| `POST` | `/orders/:id/refund` | JWT | Возврат через Bereke refund.do |
+
+### Новые env переменные
+
+```bash
+# Bereke Bank
+BEREKE_USERNAME=           # из Merchant Portal
+BEREKE_PASSWORD=
+BEREKE_BASE_URL=https://3dsec.berekebank.kz/payment/rest   # sandbox
+BEREKE_RETURN_URL=https://moodfood-backend.onrender.com/api/v1/payment/success
+BEREKE_FAIL_URL=https://moodfood-backend.onrender.com/api/v1/payment/fail
+
+# PayPal
+PAYPAL_CLIENT_ID=          # developer.paypal.com → My Apps
+PAYPAL_CLIENT_SECRET=
+PAYPAL_BASE_URL=https://api-m.sandbox.paypal.com
+PAYPAL_RETURN_URL=https://moodfood-backend.onrender.com/api/v1/payment/paypal/success
+PAYPAL_CANCEL_URL=https://moodfood-backend.onrender.com/api/v1/payment/paypal/cancel
+```
+
+### Тесты
+
+| Файл | Кол-во | Что тестирует |
+|------|--------|-------------|
+| `tests/payment.test.ts` | 29 | State machine, Bereke checkout/success/fail/callback, PayPal checkout/capture, idempotency, orders CRUD, refund |
+
+**Итого тестов: 113 (было 84, +29 payment) — все зелёные**
+
+### Тестовые карты Bereke (sandbox)
+
+| Карта | CVC | Срок | Результат |
+|-------|-----|------|----------|
+| 5555 5555 5555 5599 | 123 | 12/34 | ✅ 3DS |
+| 4111 1111 1111 1111 | 123 | 12/26 | ✅ Frictionless |
+| 5168 4948 9505 5780 | 123 | 12/26 | ❌ Fail |
+
+### Запуск миграции
+
+```powershell
+docker-compose up -d postgres
+# Создать .env из .env.example и заполнить DATABASE_URL
+npx --no-install prisma migrate dev --name add_orders
+```
+
+---
+
+## Следующий шаг
+
+- Epic 4 Frontend: экраны оплаты на Flutter
+- AI рекомендации по настроению (Mood-check → рецепты)
 - Избранное / сохранённые рецепты
 - Сброс пароля
 - Rate limiting на login/register
+- Bereke callback URL прописать в Merchant Portal (ngrok для локала)
 
 ---
 
@@ -435,4 +557,5 @@ External Database URL берётся в Render Dashboard → PostgreSQL → Info
 *Сессия 3: 6 июня 2026 — Epic 2 Backend, рецепты (77 тестов)*  
 *Сессия 5: 11 июня 2026 — Infra (Docker/CI/CD) + Epic 3 Pantry (84 тестов)*  
 *Сессия 6: 13 июня 2026 — Render деплой + CD pipeline + скрипты под Render*  
+*Сессия 7: 17 июня 2026 — Epic 4 Payment: Bereke + PayPal + state machine (113 тестов)*  
 

@@ -26,8 +26,20 @@ export const env = {
   SMTP_FROM: optional('SMTP_FROM', 'noreply@moodfood.app'),
   APP_URL: optional('APP_URL', 'http://localhost:3000'),
   FRONTEND_URL: optional('FRONTEND_URL', 'http://localhost:5173'),
-  // When true: email/password registrations must verify their email before logging in.
-  // Set to false for MVP / development to skip enforcement.
   REQUIRE_EMAIL_VERIFICATION: optional('REQUIRE_EMAIL_VERIFICATION', 'false') === 'true',
   APP_VERSION: optional('APP_VERSION', '1.0.0'),
+
+  // ─── Bereke Bank ─────────────────────────────────────────────────────────
+  BEREKE_USERNAME: optional('BEREKE_USERNAME', ''),
+  BEREKE_PASSWORD: optional('BEREKE_PASSWORD', ''),
+  BEREKE_BASE_URL: optional('BEREKE_BASE_URL', 'https://3dsec.berekebank.kz/payment/rest'),
+  BEREKE_RETURN_URL: optional('BEREKE_RETURN_URL', 'http://localhost:3000/api/v1/payment/success'),
+  BEREKE_FAIL_URL: optional('BEREKE_FAIL_URL', 'http://localhost:3000/api/v1/payment/fail'),
+
+  // ─── PayPal ──────────────────────────────────────────────────────────────
+  PAYPAL_CLIENT_ID: optional('PAYPAL_CLIENT_ID', ''),
+  PAYPAL_CLIENT_SECRET: optional('PAYPAL_CLIENT_SECRET', ''),
+  PAYPAL_BASE_URL: optional('PAYPAL_BASE_URL', 'https://api-m.sandbox.paypal.com'),
+  PAYPAL_RETURN_URL: optional('PAYPAL_RETURN_URL', 'http://localhost:3000/api/v1/payment/paypal/success'),
+  PAYPAL_CANCEL_URL: optional('PAYPAL_CANCEL_URL', 'http://localhost:3000/api/v1/payment/paypal/cancel'),
 }

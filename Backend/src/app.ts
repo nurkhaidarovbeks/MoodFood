@@ -8,6 +8,7 @@ import authRoutes from './modules/auth/auth.routes'
 import profileRoutes from './modules/profile/profile.routes'
 import recipeRoutes from './modules/recipes/recipe.routes'
 import pantryRoutes from './modules/pantry/pantry.routes'
+import paymentRoutes from './modules/payment/payment.routes'
 
 const app = express()
 
@@ -40,6 +41,7 @@ app.use('/api/v1/auth', authRoutes)
 app.use('/api/v1/profile', profileRoutes)
 app.use('/api/v1/recipes', recipeRoutes)
 app.use('/api/v1/pantry', pantryRoutes)
+app.use('/api/v1/payment', paymentRoutes)
 
 // ─── 404 handler ─────────────────────────────────────────────────────────────
 app.use((_req, res) => {
