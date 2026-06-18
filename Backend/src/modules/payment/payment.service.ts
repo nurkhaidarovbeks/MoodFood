@@ -1,4 +1,4 @@
-import { PrismaClient, OrderStatus, PaymentGateway } from '@prisma/client'
+import { PrismaClient, OrderStatus, OrderType, PaymentGateway, TransactionType, Order } from '@prisma/client'
 import { AppError } from '../../middleware/errorHandler'
 import type { CheckoutInput, RefundInput } from './payment.schema'
 import { bereRegisterOrder, bereGetStatus, bereRefund } from '../../services/bereke.service'
@@ -29,9 +29,59 @@ export class PaymentService {
     }
   }
 
+  // When a subscription order is paid — atomically activate the subscription
+  private async activateSubscriptionForOrder(order: Order): Promise<void> {
+    const sub = await this.prisma.userSubscription.findFirst({
+      where:   { orderId: order.id },
+      include: { plan: true },
+    })
+    if (!sub) return
+
+    const now       = new Date()
+    const expiresAt = new Date(now.getTime() + sub.plan.durationDays * 24 * 60 * 60 * 1000)
+
+    await this.prisma.$transaction(async tx => {
+      // Cancel any existing active subscription for this user
+      await tx.userSubscription.updateMany({
+        where: { userId: order.userId, status: 'active' },
+        data:  { status: 'cancelled' },
+      })
+      // Activate the new one
+      await tx.userSubscription.update({
+        where: { id: sub.id },
+        data:  { status: 'active', startedAt: now, expiresAt },
+      })
+    })
+  }
+
+  // When a topup order is paid — atomically credit the user's wallet
+  private async creditWallet(
+    userId: string,
+    amount: number,
+    currency: string,
+    orderId: string,
+  ): Promise<void> {
+    await this.prisma.$transaction(async tx => {
+      const wallet = await tx.wallet.upsert({
+        where: { userId },
+        create: { userId, balance: amount },
+        update: { balance: { increment: amount } },
+      })
+      await tx.walletTransaction.create({
+        data: {
+          walletId: wallet.id,
+          orderId,
+          amount,
+          currency,
+          type: TransactionType.topup,
+          description: 'Wallet top-up',
+        },
+      })
+    })
+  }
+
   // PAY-002 + PAY-005: checkout with idempotency guard
   async checkout(userId: string, input: CheckoutInput) {
-    // Idempotency: if a pending order with same params exists in last 5 min — return it
     const fiveMinutesAgo = new Date(Date.now() - 5 * 60 * 1000)
     const existing = await this.prisma.order.findFirst({
       where: {
@@ -39,6 +89,7 @@ export class PaymentService {
         status: OrderStatus.pending,
         amount: input.amount,
         gateway: input.gateway as PaymentGateway,
+        orderType: input.orderType as OrderType,
         createdAt: { gte: fiveMinutesAgo },
       },
     })
@@ -52,15 +103,17 @@ export class PaymentService {
       }
     }
 
-    // Create order in DB with status=created
+    const currency = input.gateway === 'paypal' ? 'USD' : 'KZT'
+
     const order = await this.prisma.order.create({
       data: {
         userId,
         amount: input.amount,
-        currency: input.gateway === 'paypal' ? 'USD' : 'KZT',
+        currency,
         status: OrderStatus.created,
+        orderType: input.orderType as OrderType,
         gateway: input.gateway as PaymentGateway,
-        description: input.description ?? 'MoodFood',
+        description: input.description ?? (input.orderType === 'topup' ? 'Wallet top-up' : 'MoodFood'),
       },
     })
 
@@ -114,6 +167,12 @@ export class PaymentService {
         where: { id: order.id },
         data: { status: OrderStatus.paid },
       })
+      if (order.orderType === OrderType.topup) {
+        await this.creditWallet(order.userId, order.amount, order.currency, order.id)
+      }
+      if (order.orderType === OrderType.subscription) {
+        await this.activateSubscriptionForOrder(order)
+      }
       return { success: true, orderId: order.id, status: 'paid' }
     }
 
@@ -153,13 +212,18 @@ export class PaymentService {
     if (!order) return { status: 'ok' }
 
     if (operation === 'deposited' && status === '1' && order.status === OrderStatus.pending) {
-      // Double-verify with Bereke before marking paid
       const result = await bereGetStatus(gatewayOrderId!)
       if (result.orderStatus === 2) {
         await this.prisma.order.update({
           where: { id: order.id },
           data: { status: OrderStatus.paid, gatewayOrderId },
         })
+        if (order.orderType === OrderType.topup) {
+          await this.creditWallet(order.userId, order.amount, order.currency, order.id)
+        }
+        if (order.orderType === OrderType.subscription) {
+          await this.activateSubscriptionForOrder(order)
+        }
       }
     } else if (operation === 'reversed') {
       const allowed = VALID_TRANSITIONS[order.status]
@@ -189,6 +253,12 @@ export class PaymentService {
         where: { id: order.id },
         data: { status: OrderStatus.paid, transactionId: result.transactionId },
       })
+      if (order.orderType === OrderType.topup) {
+        await this.creditWallet(order.userId, order.amount, order.currency, order.id)
+      }
+      if (order.orderType === OrderType.subscription) {
+        await this.activateSubscriptionForOrder(order)
+      }
       return { success: true, orderId: order.id, status: 'paid' }
     }
 
@@ -209,6 +279,7 @@ export class PaymentService {
         amount: true,
         currency: true,
         status: true,
+        orderType: true,
         gateway: true,
         description: true,
         createdAt: true,

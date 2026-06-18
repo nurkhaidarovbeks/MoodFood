@@ -182,7 +182,26 @@ const recipes = [
 ]
 
 async function main() {
-  console.log('Seeding recipes...')
+  // ─── Subscription plans ──────────────────────────────────────────────────
+  console.log('Seeding subscription plans...')
+
+  await prisma.subscriptionPlan.upsert({
+    where:  { type: 'monthly' },
+    create: { type: 'monthly', name: 'Monthly', priceKzt: 2990, priceUsd: 9.99, durationDays: 30,  description: 'Full access for 1 month' },
+    update: { name: 'Monthly', priceKzt: 2990, priceUsd: 9.99, durationDays: 30,  description: 'Full access for 1 month', isActive: true },
+  })
+
+  await prisma.subscriptionPlan.upsert({
+    where:  { type: 'annual' },
+    create: { type: 'annual', name: 'Annual', priceKzt: 24990, priceUsd: 79.99, durationDays: 365, description: 'Full access for 1 year — save 30%' },
+    update: { name: 'Annual', priceKzt: 24990, priceUsd: 79.99, durationDays: 365, description: 'Full access for 1 year — save 30%', isActive: true },
+  })
+
+  console.log('  ✓ Monthly (2,990 KZT / $9.99 / 30 days)')
+  console.log('  ✓ Annual  (24,990 KZT / $79.99 / 365 days)')
+
+  // ─── Recipes ─────────────────────────────────────────────────────────────
+  console.log('\nSeeding recipes...')
 
   for (const r of recipes) {
     const recipe = await prisma.recipe.create({
@@ -218,7 +237,7 @@ async function main() {
     console.log(`  ✓ ${recipe.title}`)
   }
 
-  console.log(`\nDone — ${recipes.length} recipes seeded.`)
+  console.log(`\nDone — 2 plans + ${recipes.length} recipes seeded.`)
 }
 
 main()

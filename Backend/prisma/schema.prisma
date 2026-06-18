@@ -32,9 +32,33 @@ enum OrderStatus {
   cancelled
 }
 
+enum OrderType {
+  purchase
+  topup
+  subscription
+}
+
+enum SubscriptionPlanType {
+  monthly
+  annual
+}
+
+enum SubscriptionStatus {
+  pending
+  active
+  cancelled
+  expired
+}
+
 enum PaymentGateway {
   bereke
   paypal
+}
+
+enum TransactionType {
+  topup
+  payment
+  refund
 }
 
 enum Lifestyle {
@@ -80,6 +104,8 @@ model User {
   profile           UserProfile?
   pantryIngredients UserIngredient[]
   orders            Order[]
+  wallet            Wallet?
+  subscriptions     UserSubscription[]
 
   @@map("users")
 }
@@ -174,6 +200,7 @@ model Order {
   amount         Float
   currency       String         @default("KZT")
   status         OrderStatus    @default(created)
+  orderType      OrderType      @default(purchase) @map("order_type")
   gateway        PaymentGateway
   gatewayOrderId String?        @map("gateway_order_id")
   paymentUrl     String?        @map("payment_url")
@@ -182,9 +209,79 @@ model Order {
   createdAt      DateTime       @default(now()) @map("created_at")
   updatedAt      DateTime       @updatedAt @map("updated_at")
 
-  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user         User               @relation(fields: [userId], references: [id], onDelete: Cascade)
+  walletTx     WalletTransaction?
+  subscription UserSubscription?
 
   @@map("orders")
+}
+
+// ─── Subscriptions ────────────────────────────────────────────────────────────
+
+model SubscriptionPlan {
+  id           String               @id @default(uuid())
+  type         SubscriptionPlanType @unique
+  name         String
+  priceKzt     Float                @map("price_kzt")
+  priceUsd     Float                @map("price_usd")
+  durationDays Int                  @map("duration_days")
+  description  String?
+  isActive     Boolean              @default(true) @map("is_active")
+  createdAt    DateTime             @default(now()) @map("created_at")
+  updatedAt    DateTime             @updatedAt @map("updated_at")
+
+  subscriptions UserSubscription[]
+
+  @@map("subscription_plans")
+}
+
+model UserSubscription {
+  id        String             @id @default(uuid())
+  userId    String             @map("user_id")
+  planId    String             @map("plan_id")
+  orderId   String?            @unique @map("order_id")
+  status    SubscriptionStatus @default(pending)
+  startedAt DateTime?          @map("started_at")
+  expiresAt DateTime?          @map("expires_at")
+  createdAt DateTime           @default(now()) @map("created_at")
+  updatedAt DateTime           @updatedAt @map("updated_at")
+
+  user  User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  plan  SubscriptionPlan @relation(fields: [planId], references: [id])
+  order Order?           @relation(fields: [orderId], references: [id], onDelete: SetNull)
+
+  @@map("user_subscriptions")
+}
+
+// ─── Wallet ───────────────────────────────────────────────────────────────────
+
+model Wallet {
+  id        String   @id @default(uuid())
+  userId    String   @unique @map("user_id")
+  balance   Float    @default(0)
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  user         User                @relation(fields: [userId], references: [id], onDelete: Cascade)
+  transactions WalletTransaction[]
+
+  @@map("wallets")
+}
+
+model WalletTransaction {
+  id          String          @id @default(uuid())
+  walletId    String          @map("wallet_id")
+  orderId     String?         @unique @map("order_id")
+  amount      Float
+  currency    String          @default("KZT")
+  type        TransactionType
+  description String?
+  createdAt   DateTime        @default(now()) @map("created_at")
+
+  wallet Wallet @relation(fields: [walletId], references: [id], onDelete: Cascade)
+  order  Order? @relation(fields: [orderId], references: [id], onDelete: SetNull)
+
+  @@map("wallet_transactions")
 }
 
 // ─── User Pantry (ingredients available at home) ──────────────────────────────

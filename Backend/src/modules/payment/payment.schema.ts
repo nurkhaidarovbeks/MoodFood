@@ -4,6 +4,7 @@ export const CheckoutSchema = z.object({
   amount: z.number().positive('Amount must be positive'),
   description: z.string().min(1).max(200).optional(),
   gateway: z.enum(['bereke', 'paypal']).default('bereke'),
+  orderType: z.enum(['purchase', 'topup', 'subscription']).default('purchase'),
 })
 
 export const PaypalSuccessQuerySchema = z.object({
@@ -18,5 +19,5 @@ export const RefundSchema = z.object({
   amount: z.number().positive().optional(),
 })
 
-export type CheckoutInput = z.infer<typeof CheckoutSchema>
+export type CheckoutInput = z.input<typeof CheckoutSchema>
 export type RefundInput = z.infer<typeof RefundSchema>
