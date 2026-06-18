@@ -20,7 +20,7 @@ export class WalletController {
 
   async getTransactions(req: AuthenticatedRequest, res: Response, next: NextFunction) {
     try {
-      const { limit, offset } = req.query as { limit: number; offset: number }
+      const { limit, offset } = req.query as unknown as { limit: number; offset: number }
       const result = await this.walletService.getTransactions(req.userId, limit, offset)
       res.json(result)
     } catch (err) {
