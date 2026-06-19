@@ -1,7 +1,5 @@
 class ApiConstants {
-  // iOS Simulator / desktop: localhost
-  // Android emulator: 10.0.2.2
-  static const String baseUrl = 'http://localhost:3000/api/v1';
+  static const String baseUrl = 'https://moodfood-backend.onrender.com/api/v1';
 
   static const String register = '/auth/register';
   static const String login = '/auth/login';
@@ -11,6 +9,8 @@ class ApiConstants {
   static const String profile = '/profile';
   static const String recipes = '/recipes';
   static const String recommendations = '/recipes/recommendations';
+  static const String pantry = '/pantry';
+  static const String pantryClear = '/pantry/clear';
 
   static const List<String> moodTags = [
     'happy',

@@ -1,13 +1,21 @@
 import 'package:flutter/material.dart';
+import '../core/models/mood_entry_model.dart';
 import '../features/auth/screens/splash_screen.dart';
 import '../features/auth/screens/welcome_screen.dart';
 import '../features/auth/screens/login_screen.dart';
 import '../features/auth/screens/register_screen.dart';
 import '../features/auth/screens/otp_screen.dart';
+import '../features/onboarding/screens/onboarding_screen.dart';
 import '../features/onboarding/screens/profile_setup_screen.dart';
 import '../features/home/screens/home_screen.dart';
+import '../features/settings/screens/settings_screen.dart';
+import '../features/premium/screens/premium_screen.dart';
 import '../features/mood/screens/mood_check_screen.dart';
 import '../features/mood/screens/mood_history_screen.dart';
+import '../features/ingredients/screens/ingredients_screen.dart';
+import '../features/recipes/screens/recipes_screen.dart';
+import '../features/recommendations/screens/recommendations_screen.dart';
+import '../features/notifications/screens/notifications_screen.dart';
 
 class AppRouter {
   static Route<dynamic> onGenerateRoute(RouteSettings settings) {
@@ -15,6 +23,8 @@ class AppRouter {
       case '/':
       case '/splash':
         return _fade(const SplashScreen());
+      case '/onboarding':
+        return _fade(const OnboardingScreen());
       case '/welcome':
         return _slide(const WelcomeScreen());
       case '/login':
@@ -35,6 +45,22 @@ class AppRouter {
         );
       case '/mood-history':
         return MaterialPageRoute(builder: (_) => const MoodHistoryScreen());
+      case '/ingredients':
+        return MaterialPageRoute(builder: (_) => const IngredientsScreen());
+      case '/recipes':
+        return MaterialPageRoute(builder: (_) => const RecipesScreen());
+      case '/recommendations':
+        final entry = settings.arguments as MoodEntry?;
+        return MaterialPageRoute(
+          builder: (_) => RecommendationsScreen(moodEntry: entry),
+          fullscreenDialog: true,
+        );
+      case '/settings':
+        return MaterialPageRoute(builder: (_) => const SettingsScreen());
+      case '/premium':
+        return MaterialPageRoute(builder: (_) => const PremiumScreen());
+      case '/notifications':
+        return MaterialPageRoute(builder: (_) => const NotificationsScreen());
       default:
         return MaterialPageRoute(
           builder: (_) => const Scaffold(

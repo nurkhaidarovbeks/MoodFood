@@ -41,6 +41,7 @@ class MoodEntry {
     'cozy': '🛋️',
     'tired': '😴',
     'stressed': '😰',
+    'sad': '😢',
   };
 
   static const Map<String, String> moodLabels = {
@@ -51,6 +52,7 @@ class MoodEntry {
     'cozy': 'Cozy',
     'tired': 'Tired',
     'stressed': 'Stressed',
+    'sad': 'Sad',
   };
 
   String get moodEmoji => moodEmojis[mood] ?? '🙂';
@@ -91,6 +93,8 @@ class MoodEntry {
         return 'energetic';
       case 'stressed':
         return 'calm';
+      case 'sad':
+        return 'happy';
       default:
         return mood;
     }

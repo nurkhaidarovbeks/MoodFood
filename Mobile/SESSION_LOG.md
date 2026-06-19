@@ -240,26 +240,92 @@ static const String baseUrl = 'https://moodfood-backend.onrender.com/api/v1';
 
 ---
 
-## Что не реализовано (для следующих эпиков)
+## Сессия 6 Mobile — 19 июня 2026 (Полный редизайн UI по Figma)
 
-| Что | Когда |
-|-----|-------|
-| Apple Sign In | Нужен entitlement Sign In with Apple в Xcode + iOS OAuth клиент |
-| Экран Pantry (кладовка) | Epic 3 фронт — API готов |
-| Экран Recipes | Epic 3 фронт — API готов |
-| Экран Recommendations | Epic 3 фронт — API готов (matchScore + missingIngredients) |
-| Mood → рецепты связка | Epic 4 |
-| Сохранённые рецепты | Epic 4 |
+> Автор: Azhara Khamitbek | Модель: Claude Sonnet 4.6  
+> Ветка: `feature/flutter-frontend-epic1`  
+> Коммит: `d5a7f05`
+
+### Что сделано
+
+#### Навигация — 5-табовый IndexedStack
+Главный экран полностью переработан. Теперь 5 табов в `BottomNavigationBar` (Material 2, не NavigationBar):
+- **Home** — сводка, быстрый mood check, карточки рецептов
+- **Recipes** — чипы-фильтры + 2-колоночная сетка
+- **AI Chat** — чат с ИИ, кнопки Camera/Gallery
+- **Tracker** — график настроения на `CustomPainter`
+- **Profile** — информация профиля, кнопки настроек
+
+Все табы в `IndexedStack` — переход между ними не сбрасывает состояние.
+
+#### Экраны — полный редизайн
+
+| Экран | Файл | Что изменено |
+|-------|------|-------------|
+| Home | `home/screens/home_screen.dart` | 5-табовая навигация, `onSwitchTab` callback, все кнопки кликабельны |
+| Onboarding | `onboarding/screens/onboarding_screen.dart` | Светлая тема по Figma, 4 слайда, skip, кликабельные точки-индикаторы |
+| Recipes | `recipes/screens/recipes_screen.dart` | Чипы фильтры (Quick Meals, Budget, Energy Boost, High Protein), 2-кол сетка с эмодзи, `DraggableScrollableSheet` |
+| Ingredients | `ingredients/screens/ingredients_screen.dart` | "What's in Your Fridge?", 4-кол сетка 24 ингредиента, match-count сортировка |
+| Mood Check | `mood/screens/mood_check_screen.dart` | Слайдеры + 6 настроений + кнопка "Get AI Recommendations" |
+| Profile Setup | `onboarding/screens/profile_setup_screen.dart` | 3-шаговый визард (Goals / Diet / Allergies) |
+| Recommendations | `recommendations/screens/recommendations_screen.dart` | **НОВЫЙ FILE** — карточки по категориям |
+| Notifications | `notifications/screens/notifications_screen.dart` | **НОВЫЙ FILE** — swipe-to-delete, счётчик непрочитанных, "Mark all read" |
+| Settings | `settings/screens/settings_screen.dart` | Все 5 пустых `onTap: () {}` заменены реальными хендлерами |
+| Premium | `premium/screens/premium_screen.dart` | Оранжевая тема, карточки Free vs Premium, Payment Sheet оверлей |
+
+#### Роутер
+`router/app_router.dart` — добавлен маршрут `/notifications`.
+
+#### Провайдеры / сервисы
+- `RecipeProvider` — добавлен режим demo (6 mock-рецептов), `loadMockData()`, `_isDemoMode` флаг
+- `RecipeService` — подключён к `/recipes` эндпоинту бэкенда
+- `IngredientsProvider` — `load()` + `toggle()` + `clear()`
+
+### Исправленные ошибки
+
+| Ошибка | Причина | Решение |
+|--------|---------|---------|
+| `type '_Map<String, dynamic>' is not a subtype of type 'String?'` | Бэкенд возвращает `{ error: { message, code } }` вложенным объектом, а фронт делал `data['error'] as String?` | `api_client.dart`: проверка `if (errorObj is Map<String, dynamic>)` с извлечением вложенных полей |
+| `Expected ':'` в `ingredients_screen.dart:74` | Каскадный оператор `..sort()` внутри тернарного выражения — парсер Dart не разбирает | Выделен `if/else` с локальной переменной `matchedRecipes` |
+| `TextDirection.ltr` undefined в `home_screen.dart` (CustomPainter) | Конфликт имён с `dart:ui` | `import 'dart:ui' as ui` + `ui.TextDirection.ltr` |
+| `use_build_context_synchronously` warning в `settings_screen.dart` | `Navigator...` вызывался с `context` после `await logout()` | Сохранён `navigator = Navigator.of(context)` до await |
+| `0xe8008014` (invalid signature) при установке | Кэш старой `--no-codesign` сборки | `flutter clean` + полная пересборка |
+| Onboarding не показывался | `onboarding_done = true` в SharedPreferences от предыдущего запуска | `auth_provider.logout()` теперь удаляет ключ `onboarding_done` |
+| Кнопки Camera/Gallery в AI Chat не работали | `onPressed: () {}` — пустой хендлер | Теперь отправляют AI-сообщение `'Analyze this photo of my food'` |
+| Кнопка "See all >" на Home ничего не делала | `onTap: () {}` — нет доступа к `setState` из дочернего виджета | `onSwitchTab` callback пробрасывается через конструктор `_HomeTab` |
+
+### Состояние на конец сессии
+
+- `flutter analyze` — **0 errors, 0 warnings** (только `info`-подсказки про `const`)
+- Все экраны реализованы и кликабельны
+- Бэкенд подключён: `https://moodfood-backend.onrender.com/api/v1`
+- Demo-режим: mock-данные загружаются, все кнопки работают
+- Коммит запушен в `feature/flutter-frontend-epic1`
+
+### Что НЕ реализовано / остаётся
+
+| Что | Приоритет | Детали |
+|-----|-----------|--------|
+| Apple Sign In | Низкий | Нужен entitlement Sign In with Apple в Xcode |
+| Реальная оплата Premium | Средний | Сейчас UI-заглушка с Payment Sheet |
+| Тёмная тема | Низкий | Тоггл в Settings есть, но реальный ThemeMode не меняется |
+| Смена языка | Низкий | Диалог "Coming soon", только английский |
+| Экран профиля (редактирование) | Средний | Profile Info → `/profile-setup`, нет отдельного edit-экрана |
+| Push-уведомления | Средний | Экран Notifications есть, но реальный push не подключён |
+| Tracker реальные данные | Высокий | Сейчас mock-данные в графике настроения |
+| Сохранённые рецепты | Средний | Epic 4 |
 
 ---
 
-## Следующий шаг — Epic 3 Frontend
+## Следующий шаг — Epic 2 / Доработка
 
-- Экран Pantry: добавить/удалить ингредиенты (API: GET/POST/DELETE /pantry)
-- Экран Recipes: список + фильтрация по настроению (API: GET /recipes?mood=calm)
-- Экран Recommendations: с matchScore и missingIngredients (API: GET /recipes/recommendations?useMyIngredients=true)
+- Подключить реальные данные в Tracker (GET /moods/history → graph)
+- Реализовать сохранение рецептов в избранное (POST /recipes/:id/save)
+- Подключить Notifications к реальным push-уведомлениям
+- Отдельный экран редактирования профиля (Profile Info)
 
 ---
 
 *Сессия 4: 9–11 июня 2026 — Flutter Frontend Epic 1, все экраны auth + onboarding, iOS деплой*  
-*Сессия 5: 13 июня 2026 — Google Sign In реализован, Apple заглушка, подключение к Render*
+*Сессия 5: 13 июня 2026 — Google Sign In реализован, Apple заглушка, подключение к Render*  
+*Сессия 6: 19 июня 2026 — Полный редизайн всех экранов по Figma, все кнопки кликабельны, исправлены критические баги*

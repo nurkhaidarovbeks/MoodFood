@@ -1,4 +1,5 @@
 import 'package:flutter/foundation.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import '../api/api_client.dart';
 import '../models/user_model.dart';
 import '../services/auth_service.dart';
@@ -21,8 +22,14 @@ class AuthProvider extends ChangeNotifier {
 
   Future<void> checkAuthStatus() async {
     final token = await TokenStorage.get();
-    _status =
-        token != null ? AuthStatus.authenticated : AuthStatus.unauthenticated;
+    if (token == 'demo_token') {
+      // Clear stale demo tokens — demo mode is session-only, not persistent
+      await TokenStorage.clear();
+      _status = AuthStatus.unauthenticated;
+    } else {
+      _status =
+          token != null ? AuthStatus.authenticated : AuthStatus.unauthenticated;
+    }
     notifyListeners();
   }
 
@@ -70,8 +77,25 @@ class AuthProvider extends ChangeNotifier {
     }
   }
 
+  Future<void> loginAsDemo() async {
+    // Demo mode is session-only — no token saved so next launch shows onboarding/welcome
+    _user = const UserModel(
+      id: 'demo',
+      email: 'demo@moodfood.app',
+      name: 'Demo User',
+      authProvider: 'demo',
+      isEmailVerified: true,
+      isProfileComplete: true,
+    );
+    _status = AuthStatus.authenticated;
+    notifyListeners();
+  }
+
   Future<void> logout() async {
     await _service.logout();
+    // Reset onboarding flag so it shows again on next cold launch
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.remove('onboarding_done');
     _user = null;
     _status = AuthStatus.unauthenticated;
     notifyListeners();

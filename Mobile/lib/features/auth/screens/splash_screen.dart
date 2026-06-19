@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import '../../../core/providers/auth_provider.dart';
 import '../../../core/providers/mood_provider.dart';
 import '../../../core/theme/app_theme.dart';
@@ -44,7 +45,13 @@ class _SplashScreenState extends State<SplashScreen>
     if (auth.isAuthenticated) {
       Navigator.pushReplacementNamed(context, '/home');
     } else {
-      Navigator.pushReplacementNamed(context, '/welcome');
+      final prefs = await SharedPreferences.getInstance();
+      final done = prefs.getBool('onboarding_done') ?? false;
+      if (!mounted) return;
+      Navigator.pushReplacementNamed(
+        context,
+        done ? '/welcome' : '/onboarding',
+      );
     }
   }
 

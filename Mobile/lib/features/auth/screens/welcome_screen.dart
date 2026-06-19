@@ -1,4 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
+import '../../../core/providers/auth_provider.dart';
+import '../../../core/providers/recipe_provider.dart';
 import '../../../core/theme/app_theme.dart';
 
 class WelcomeScreen extends StatelessWidget {
@@ -70,7 +73,27 @@ class WelcomeScreen extends StatelessWidget {
                     Navigator.pushNamed(context, '/login'),
                 child: const Text('Sign In'),
               ),
-              const SizedBox(height: 32),
+              const SizedBox(height: 16),
+              TextButton(
+                onPressed: () async {
+                  final auth = context.read<AuthProvider>();
+                  final recipes = context.read<RecipeProvider>();
+                  await auth.loginAsDemo();
+                  recipes.loadMockData();
+                  if (context.mounted) {
+                    Navigator.pushReplacementNamed(context, '/home');
+                  }
+                },
+                child: const Text(
+                  'Try Demo (no login needed)',
+                  style: TextStyle(
+                    color: AppTheme.textMedium,
+                    fontSize: 13,
+                    decoration: TextDecoration.underline,
+                  ),
+                ),
+              ),
+              const SizedBox(height: 16),
             ],
           ),
         ),
