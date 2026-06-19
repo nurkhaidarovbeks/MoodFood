@@ -52,8 +52,17 @@ class ApiClient {
     if (e.response != null) {
       final data = e.response!.data;
       if (data is Map<String, dynamic>) {
-        final message = data['message'] as String? ?? 'Something went wrong';
-        final code = data['error'] as String?;
+        // Backend returns { error: { message, code } } — parse nested object
+        final errorObj = data['error'];
+        final String message;
+        final String? code;
+        if (errorObj is Map<String, dynamic>) {
+          message = errorObj['message'] as String? ?? 'Something went wrong';
+          code = errorObj['code'] as String?;
+        } else {
+          message = data['message'] as String? ?? 'Something went wrong';
+          code = null;
+        }
         return ApiException(
           _friendlyMessage(code, message),
           code: code,

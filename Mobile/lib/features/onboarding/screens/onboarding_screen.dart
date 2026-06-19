@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import '../../../core/theme/app_theme.dart';
 
 class OnboardingScreen extends StatefulWidget {
   const OnboardingScreen({super.key});
@@ -15,38 +16,44 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
   static const _pages = [
     _PageData(
       emoji: '🥗',
+      bgColor: Color(0xFFE8F5E9),
+      iconColor: Color(0xFF7CB342),
       title: 'Eat Smart,\nFeel Better',
       subtitle:
-          'Track your mood, discover meals that match how you feel, and build healthy habits that last.',
-      colors: [Color(0xFF1B4332), Color(0xFF052E16)],
+          'Discover meals that match how you feel and help you build energy, focus, and balance.',
     ),
     _PageData(
       emoji: '🤖',
+      bgColor: Color(0xFFE3F2FD),
+      iconColor: Color(0xFF1976D2),
       title: 'AI-Powered\nRecommendations',
       subtitle:
-          'Get personalized meal suggestions based on your mood, energy levels, and goals.',
-      colors: [Color(0xFF1E3A5F), Color(0xFF0A1628)],
+          'Get personalized meal suggestions based on your mood, energy, and daily goals.',
     ),
     _PageData(
       emoji: '📊',
+      bgColor: Color(0xFFFFF8E1),
+      iconColor: Color(0xFFF9A825),
       title: 'Track Your\nProgress',
       subtitle:
-          'Monitor your habits, mood patterns, and see how your nutrition impacts your daily life.',
-      colors: [Color(0xFF164E63), Color(0xFF0C2A34)],
+          'Monitor habits, mood patterns, and see how nutrition impacts your daily life.',
     ),
     _PageData(
       emoji: '🌱',
+      bgColor: Color(0xFFF3E5F5),
+      iconColor: Color(0xFF9C27B0),
       title: 'Build Healthy\nHabits',
       subtitle:
-          'Create sustainable routines that support your mental and physical wellness.',
-      colors: [Color(0xFF14532D), Color(0xFF052E16)],
+          'Create sustainable routines that support your mental and physical wellness every day.',
     ),
   ];
 
+  bool get _isLast => _page == _pages.length - 1;
+
   void _next() {
-    if (_page < _pages.length - 1) {
+    if (!_isLast) {
       _controller.nextPage(
-        duration: const Duration(milliseconds: 320),
+        duration: const Duration(milliseconds: 300),
         curve: Curves.easeInOut,
       );
     } else {
@@ -71,49 +78,50 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
   Widget build(BuildContext context) {
     final bottom = MediaQuery.of(context).padding.bottom;
     final top = MediaQuery.of(context).padding.top;
-    final isLast = _page == _pages.length - 1;
 
     return Scaffold(
+      backgroundColor: AppTheme.background,
       body: Stack(
         children: [
+          // Page content
           PageView.builder(
             controller: _controller,
             onPageChanged: (i) => setState(() => _page = i),
             itemCount: _pages.length,
-            itemBuilder: (_, i) => _PageView(
+            itemBuilder: (_, i) => _OnboardingPage(
               data: _pages[i],
-              bottomPadding: bottom + 140,
               topPadding: top,
             ),
           ),
 
-          // Skip button (hidden on last page)
-          if (!isLast)
+          // Skip button
+          if (!_isLast)
             Positioned(
-              right: 24,
-              top: top + 16,
+              top: top + 12,
+              right: 20,
               child: GestureDetector(
                 onTap: _finish,
                 child: Container(
-                  width: 65,
-                  height: 40,
-                  alignment: Alignment.center,
-                  child: Text(
+                  padding: const EdgeInsets.symmetric(
+                      horizontal: 16, vertical: 8),
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(20),
+                    border: Border.all(color: AppTheme.divider),
+                  ),
+                  child: const Text(
                     'Skip',
-                    textAlign: TextAlign.center,
                     style: TextStyle(
-                      color: Colors.white.withValues(alpha: 0.90),
-                      fontSize: 16,
-                      fontFamily: 'Inter',
-                      fontWeight: FontWeight.w500,
-                      height: 1.50,
+                      fontSize: 13,
+                      fontWeight: FontWeight.w600,
+                      color: AppTheme.textSecondary,
                     ),
                   ),
                 ),
               ),
             ),
 
-          // Bottom controls: dots + button
+          // Bottom controls
           Positioned(
             left: 24,
             right: 24,
@@ -126,42 +134,44 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: List.generate(_pages.length, (i) {
                     final active = i == _page;
-                    return AnimatedContainer(
-                      duration: const Duration(milliseconds: 200),
-                      margin: const EdgeInsets.symmetric(horizontal: 4),
-                      width: active ? 32 : 8,
-                      height: 8,
-                      decoration: BoxDecoration(
-                        color: active
-                            ? Colors.white
-                            : Colors.white.withValues(alpha: 0.40),
-                        borderRadius: BorderRadius.circular(100),
+                    return GestureDetector(
+                      onTap: () => _controller.animateToPage(
+                        i,
+                        duration: const Duration(milliseconds: 300),
+                        curve: Curves.easeInOut,
+                      ),
+                      child: AnimatedContainer(
+                        duration: const Duration(milliseconds: 250),
+                        margin: const EdgeInsets.symmetric(horizontal: 4),
+                        width: active ? 28 : 8,
+                        height: 8,
+                        decoration: BoxDecoration(
+                          color: active
+                              ? AppTheme.primary
+                              : AppTheme.divider,
+                          borderRadius: BorderRadius.circular(4),
+                        ),
                       ),
                     );
                   }),
                 ),
-                const SizedBox(height: 16),
-                // Next / Get Started button
+                const SizedBox(height: 20),
+
+                // Next / Get Started
                 GestureDetector(
                   onTap: _next,
-                  child: Container(
+                  child: AnimatedContainer(
+                    duration: const Duration(milliseconds: 200),
                     width: double.infinity,
-                    padding: const EdgeInsets.symmetric(vertical: 16),
+                    height: 56,
                     decoration: BoxDecoration(
-                      color: Colors.white,
-                      borderRadius: BorderRadius.circular(16),
-                      boxShadow: const [
+                      color: AppTheme.primary,
+                      borderRadius: BorderRadius.circular(20),
+                      boxShadow: [
                         BoxShadow(
-                          color: Color(0x19000000),
-                          blurRadius: 6,
-                          offset: Offset(0, 4),
-                          spreadRadius: -4,
-                        ),
-                        BoxShadow(
-                          color: Color(0x19000000),
-                          blurRadius: 15,
-                          offset: Offset(0, 10),
-                          spreadRadius: -3,
+                          color: AppTheme.primary.withValues(alpha: 0.35),
+                          blurRadius: 12,
+                          offset: const Offset(0, 4),
                         ),
                       ],
                     ),
@@ -169,21 +179,18 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
                         Text(
-                          isLast ? 'Get Started' : 'Next',
-                          textAlign: TextAlign.center,
+                          _isLast ? 'Get Started' : 'Next',
                           style: const TextStyle(
-                            color: Color(0xFF101828),
+                            color: Colors.white,
                             fontSize: 16,
-                            fontFamily: 'Inter',
-                            fontWeight: FontWeight.w600,
-                            height: 1.50,
+                            fontWeight: FontWeight.w700,
                           ),
                         ),
                         const SizedBox(width: 8),
                         const Icon(
-                          Icons.arrow_forward,
+                          Icons.arrow_forward_rounded,
+                          color: Colors.white,
                           size: 20,
-                          color: Color(0xFF101828),
                         ),
                       ],
                     ),
@@ -200,121 +207,138 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
 
 class _PageData {
   final String emoji;
+  final Color bgColor;
+  final Color iconColor;
   final String title;
   final String subtitle;
-  final List<Color> colors;
 
   const _PageData({
     required this.emoji,
+    required this.bgColor,
+    required this.iconColor,
     required this.title,
     required this.subtitle,
-    required this.colors,
   });
 }
 
-class _PageView extends StatelessWidget {
+class _OnboardingPage extends StatelessWidget {
   final _PageData data;
-  final double bottomPadding;
   final double topPadding;
 
-  const _PageView({
-    required this.data,
-    required this.bottomPadding,
-    required this.topPadding,
-  });
+  const _OnboardingPage({required this.data, required this.topPadding});
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      width: double.infinity,
-      height: double.infinity,
-      decoration: BoxDecoration(
-        gradient: LinearGradient(
-          begin: Alignment.topCenter,
-          end: Alignment.bottomCenter,
-          colors: data.colors,
-        ),
-      ),
-      child: Container(
-        padding: EdgeInsets.fromLTRB(24, topPadding + 16, 24, 0),
-        decoration: BoxDecoration(
-          gradient: LinearGradient(
-            begin: Alignment.topCenter,
-            end: Alignment.bottomCenter,
-            colors: [
-              Colors.black.withValues(alpha: 0.10),
-              Colors.black.withValues(alpha: 0.40),
-              Colors.black.withValues(alpha: 0.60),
-            ],
+    return Padding(
+      padding: EdgeInsets.fromLTRB(28, topPadding + 60, 28, 160),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // Illustration container
+          Expanded(
+            flex: 5,
+            child: Center(
+              child: Container(
+                width: double.infinity,
+                decoration: BoxDecoration(
+                  color: data.bgColor,
+                  borderRadius: BorderRadius.circular(32),
+                ),
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Container(
+                      width: 120,
+                      height: 120,
+                      decoration: BoxDecoration(
+                        color: data.iconColor.withValues(alpha: 0.15),
+                        shape: BoxShape.circle,
+                        border: Border.all(
+                          color: data.iconColor.withValues(alpha: 0.3),
+                          width: 2,
+                        ),
+                      ),
+                      child: Center(
+                        child: Text(
+                          data.emoji,
+                          style: const TextStyle(fontSize: 56),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 24),
+                    // Feature chips
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: _featureChips(data.iconColor),
+                    ),
+                  ],
+                ),
+              ),
+            ),
           ),
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // Placeholder for skip button height
-            const SizedBox(height: 40),
 
-            // Push content to bottom third of screen
-            const Spacer(),
+          const SizedBox(height: 32),
 
-            // Icon circle
-            Container(
-              width: 80,
-              height: 80,
-              decoration: ShapeDecoration(
-                color: Colors.white.withValues(alpha: 0.20),
-                shape: RoundedRectangleBorder(
-                  side: BorderSide(
-                    width: 1,
-                    color: Colors.white.withValues(alpha: 0.30),
+          // Title
+          Expanded(
+            flex: 3,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  data.title,
+                  style: const TextStyle(
+                    fontSize: 32,
+                    fontWeight: FontWeight.w800,
+                    color: AppTheme.textDark,
+                    height: 1.15,
                   ),
-                  borderRadius: BorderRadius.circular(40),
                 ),
-              ),
-              child: Center(
-                child: Text(
-                  data.emoji,
-                  style: const TextStyle(fontSize: 36),
+                const SizedBox(height: 12),
+                Text(
+                  data.subtitle,
+                  style: const TextStyle(
+                    fontSize: 15,
+                    color: AppTheme.textSecondary,
+                    height: 1.6,
+                    fontWeight: FontWeight.w400,
+                  ),
                 ),
-              ),
+              ],
             ),
-            const SizedBox(height: 24),
-
-            // Title
-            SizedBox(
-              width: double.infinity,
-              child: Text(
-                data.title,
-                textAlign: TextAlign.left,
-                style: const TextStyle(
-                  color: Colors.white,
-                  fontSize: 36,
-                  fontFamily: 'Inter',
-                  fontWeight: FontWeight.w700,
-                  height: 1.11,
-                ),
-              ),
-            ),
-            const SizedBox(height: 16),
-
-            // Subtitle
-            Text(
-              data.subtitle,
-              textAlign: TextAlign.left,
-              style: TextStyle(
-                color: Colors.white.withValues(alpha: 0.90),
-                fontSize: 18,
-                fontFamily: 'Inter',
-                fontWeight: FontWeight.w400,
-                height: 1.63,
-              ),
-            ),
-
-            // Bottom spacing for controls overlay
-            SizedBox(height: bottomPadding),
-          ],
-        ),
+          ),
+        ],
       ),
     );
+  }
+
+  List<Widget> _featureChips(Color color) {
+    final Map<String, List<String>> chips = {
+      '🥗': ['😊 Mood', '⚡ Energy'],
+      '🤖': ['🤖 AI', '✨ Smart'],
+      '📊': ['📈 Track', '🏆 Goals'],
+      '🌱': ['🌿 Habits', '💪 Health'],
+    };
+    final list = chips[data.emoji] ?? [];
+    return list
+        .map(
+          (c) => Container(
+            margin: const EdgeInsets.symmetric(horizontal: 4),
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+            decoration: BoxDecoration(
+              color: color.withValues(alpha: 0.15),
+              borderRadius: BorderRadius.circular(20),
+            ),
+            child: Text(
+              c,
+              style: TextStyle(
+                fontSize: 12,
+                fontWeight: FontWeight.w600,
+                color: color,
+              ),
+            ),
+          ),
+        )
+        .toList();
   }
 }

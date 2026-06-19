@@ -5,6 +5,9 @@ import '../../../core/providers/ingredients_provider.dart';
 import '../../../core/providers/recipe_provider.dart';
 import '../../../core/theme/app_theme.dart';
 
+// Chip filter definition
+enum _RecipeChip { all, quick, budget, energy, protein }
+
 class RecipesScreen extends StatefulWidget {
   const RecipesScreen({super.key});
 
@@ -13,6 +16,9 @@ class RecipesScreen extends StatefulWidget {
 }
 
 class _RecipesScreenState extends State<RecipesScreen> {
+  _RecipeChip _activeChip = _RecipeChip.all;
+  String _searchQuery = '';
+
   @override
   void initState() {
     super.initState();
@@ -22,214 +28,408 @@ class _RecipesScreenState extends State<RecipesScreen> {
     });
   }
 
+  List<Recipe> _filter(List<Recipe> all) {
+    var list = all;
+
+    if (_searchQuery.isNotEmpty) {
+      list = list
+          .where((r) =>
+              r.title.toLowerCase().contains(_searchQuery.toLowerCase()))
+          .toList();
+    }
+
+    switch (_activeChip) {
+      case _RecipeChip.quick:
+        list = list
+            .where((r) => r.cookingTimeMin != null && r.cookingTimeMin! <= 15)
+            .toList();
+      case _RecipeChip.budget:
+        list = list
+            .where((r) => r.estimatedCost != null && r.estimatedCost! <= 400)
+            .toList();
+      case _RecipeChip.energy:
+        list = list
+            .where((r) =>
+                r.moodTags.contains('energetic') ||
+                r.moodTags.contains('happy'))
+            .toList();
+      case _RecipeChip.protein:
+        list = list
+            .where((r) => r.proteinG != null && r.proteinG! >= 20)
+            .toList();
+      case _RecipeChip.all:
+        break;
+    }
+
+    return list;
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: AppTheme.background,
-      appBar: AppBar(
-        title: const Text('Recipes'),
-        backgroundColor: AppTheme.surface,
-        actions: [_FilterToggle()],
-      ),
-      body: Consumer2<RecipeProvider, IngredientsProvider>(
-        builder: (_, recipes, ingredients, _) {
-          if (recipes.loading) {
-            return const Center(
-              child: CircularProgressIndicator(
-                color: AppTheme.primary,
-              ),
-            );
-          }
-
-          if (recipes.error != null) {
-            return _ErrorState(
-              message: recipes.error!,
-              onRetry: () => context.read<RecipeProvider>().fetchRecipes(),
-            );
-          }
-
-          final filtered = recipes.filtered(ingredients.ingredients);
-
-          if (recipes.recipes.isEmpty) {
-            return _EmptyState(
-              message: 'No recipes found.\nMake sure the backend is running.',
-              onRetry: () => context.read<RecipeProvider>().fetchRecipes(),
-            );
-          }
-
-          if (filtered.isEmpty && recipes.filter == RecipeFilter.canMake) {
-            return const _EmptyState(
-              message:
-                  'None of your recipes match your current fridge.\nAdd more ingredients or switch to All.',
-              onRetry: null,
-            );
-          }
-
-          return Column(
-            children: [
-              _StatsBar(
-                total: recipes.recipes.length,
-                canMake: recipes.recipes
-                    .where((r) => r.canMakeWith(ingredients.ingredients))
-                    .length,
-                pantryCount: ingredients.ingredients.length,
-              ),
-              Expanded(
-                child: ListView.separated(
-                  padding: const EdgeInsets.fromLTRB(16, 12, 16, 24),
-                  itemCount: filtered.length,
-                  separatorBuilder: (_, _) => const SizedBox(height: 12),
-                  itemBuilder: (_, i) => _RecipeCard(
-                    recipe: filtered[i],
-                    pantry: ingredients.ingredients,
-                  ),
-                ),
-              ),
-            ],
-          );
-        },
-      ),
-    );
-  }
-}
-
-class _FilterToggle extends StatelessWidget {
-  @override
-  Widget build(BuildContext context) {
-    return Consumer<RecipeProvider>(
-      builder: (_, prov, _) {
-        final isCanMake = prov.filter == RecipeFilter.canMake;
-        return Padding(
-          padding: const EdgeInsets.only(right: 12),
-          child: GestureDetector(
-            onTap: () => prov.setFilter(
-              isCanMake ? RecipeFilter.all : RecipeFilter.canMake,
-            ),
-            child: Container(
-              padding:
-                  const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-              decoration: BoxDecoration(
-                color: isCanMake
-                    ? AppTheme.primary
-                    : AppTheme.primary.withValues(alpha: 0.1),
-                borderRadius: BorderRadius.circular(20),
-              ),
+      body: SafeArea(
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // Header
+            Padding(
+              padding: const EdgeInsets.fromLTRB(20, 16, 20, 8),
               child: Row(
-                mainAxisSize: MainAxisSize.min,
                 children: [
-                  Icon(
-                    Icons.kitchen_outlined,
-                    size: 14,
-                    color: isCanMake ? Colors.white : AppTheme.primary,
+                  const Expanded(
+                    child: Text(
+                      'Recipes',
+                      style: TextStyle(
+                        fontSize: 26,
+                        fontWeight: FontWeight.w800,
+                        color: AppTheme.textDark,
+                      ),
+                    ),
                   ),
-                  const SizedBox(width: 4),
-                  Text(
-                    'Can make',
-                    style: TextStyle(
-                      fontSize: 12,
-                      fontWeight: FontWeight.w600,
-                      color: isCanMake ? Colors.white : AppTheme.primary,
+                  GestureDetector(
+                    onTap: () =>
+                        Navigator.pushNamed(context, '/ingredients'),
+                    child: Container(
+                      width: 40,
+                      height: 40,
+                      decoration: BoxDecoration(
+                        color: Colors.white,
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(color: AppTheme.divider),
+                      ),
+                      child: const Icon(
+                        Icons.kitchen_outlined,
+                        size: 20,
+                        color: AppTheme.textDark,
+                      ),
                     ),
                   ),
                 ],
               ),
             ),
-          ),
-        );
-      },
-    );
-  }
-}
 
-class _StatsBar extends StatelessWidget {
-  final int total;
-  final int canMake;
-  final int pantryCount;
+            // Search bar
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16),
+              child: Row(
+                children: [
+                  Expanded(
+                    child: Container(
+                      height: 44,
+                      decoration: BoxDecoration(
+                        color: Colors.white,
+                        borderRadius: BorderRadius.circular(14),
+                        border: Border.all(color: AppTheme.divider),
+                      ),
+                      child: Row(
+                        children: [
+                          const SizedBox(width: 12),
+                          const Icon(
+                            Icons.search,
+                            size: 18,
+                            color: AppTheme.textSecondary,
+                          ),
+                          const SizedBox(width: 8),
+                          Expanded(
+                            child: TextField(
+                              onChanged: (v) =>
+                                  setState(() => _searchQuery = v),
+                              decoration: const InputDecoration(
+                                hintText: 'Search recipes...',
+                                hintStyle: TextStyle(
+                                  fontSize: 13,
+                                  color: AppTheme.textSecondary,
+                                ),
+                                border: InputBorder.none,
+                                enabledBorder: InputBorder.none,
+                                focusedBorder: InputBorder.none,
+                                contentPadding: EdgeInsets.zero,
+                                filled: false,
+                              ),
+                              style: const TextStyle(
+                                fontSize: 13,
+                                color: AppTheme.textDark,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  Container(
+                    width: 44,
+                    height: 44,
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(14),
+                      border: Border.all(color: AppTheme.divider),
+                    ),
+                    child: const Icon(
+                      Icons.tune,
+                      size: 20,
+                      color: AppTheme.textDark,
+                    ),
+                  ),
+                ],
+              ),
+            ),
 
-  const _StatsBar({
-    required this.total,
-    required this.canMake,
-    required this.pantryCount,
-  });
+            const SizedBox(height: 12),
 
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      color: AppTheme.surface,
-      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
-      child: Row(
-        children: [
-          _Stat(label: 'Total', value: '$total'),
-          const SizedBox(width: 20),
-          _Stat(
-            label: 'Can make',
-            value: '$canMake',
-            valueColor: AppTheme.primary,
-          ),
-          const SizedBox(width: 20),
-          _Stat(label: 'In fridge', value: '$pantryCount items'),
-        ],
+            // Chip filters
+            SizedBox(
+              height: 36,
+              child: ListView(
+                scrollDirection: Axis.horizontal,
+                padding: const EdgeInsets.symmetric(horizontal: 16),
+                children: [
+                  _ChipFilter(
+                    icon: Icons.favorite_outline,
+                    label: 'All Recipes',
+                    active: _activeChip == _RecipeChip.all,
+                    onTap: () =>
+                        setState(() => _activeChip = _RecipeChip.all),
+                  ),
+                  _ChipFilter(
+                    icon: Icons.access_time_outlined,
+                    label: 'Quick Meals',
+                    active: _activeChip == _RecipeChip.quick,
+                    onTap: () =>
+                        setState(() => _activeChip = _RecipeChip.quick),
+                  ),
+                  _ChipFilter(
+                    icon: Icons.attach_money,
+                    label: 'Budget',
+                    active: _activeChip == _RecipeChip.budget,
+                    onTap: () =>
+                        setState(() => _activeChip = _RecipeChip.budget),
+                  ),
+                  _ChipFilter(
+                    icon: Icons.bolt,
+                    label: 'Energy Boost',
+                    active: _activeChip == _RecipeChip.energy,
+                    onTap: () =>
+                        setState(() => _activeChip = _RecipeChip.energy),
+                  ),
+                  _ChipFilter(
+                    icon: Icons.trending_up,
+                    label: 'High Protein',
+                    active: _activeChip == _RecipeChip.protein,
+                    onTap: () =>
+                        setState(() => _activeChip = _RecipeChip.protein),
+                  ),
+                ],
+              ),
+            ),
+
+            const SizedBox(height: 8),
+
+            // Recipe list
+            Expanded(
+              child: Consumer2<RecipeProvider, IngredientsProvider>(
+                builder: (_, recipesProv, ingredients, _) {
+                  if (recipesProv.loading) {
+                    return const Center(
+                      child: CircularProgressIndicator(
+                        color: AppTheme.primary,
+                      ),
+                    );
+                  }
+
+                  if (recipesProv.error != null) {
+                    return _ErrorState(
+                      message: recipesProv.error!,
+                      onRetry: () =>
+                          context.read<RecipeProvider>().fetchRecipes(),
+                    );
+                  }
+
+                  final filtered = _filter(recipesProv.recipes);
+
+                  return CustomScrollView(
+                    slivers: [
+                      SliverToBoxAdapter(
+                        child: Padding(
+                          padding: const EdgeInsets.fromLTRB(20, 8, 20, 12),
+                          child: Text(
+                            '${filtered.length} recipe${filtered.length == 1 ? '' : 's'} found',
+                            style: const TextStyle(
+                              fontSize: 13,
+                              color: AppTheme.textSecondary,
+                            ),
+                          ),
+                        ),
+                      ),
+                      if (filtered.isEmpty)
+                        const SliverFillRemaining(
+                          child: Center(
+                            child: Column(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Text('🍽️',
+                                    style: TextStyle(fontSize: 48)),
+                                SizedBox(height: 12),
+                                Text(
+                                  'No recipes found',
+                                  style: TextStyle(
+                                    fontSize: 15,
+                                    color: AppTheme.textSecondary,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        )
+                      else
+                        SliverPadding(
+                          padding:
+                              const EdgeInsets.fromLTRB(16, 0, 16, 24),
+                          sliver: SliverGrid(
+                            delegate: SliverChildBuilderDelegate(
+                              (_, i) => _RecipeGridCard(
+                                recipe: filtered[i],
+                                pantry: ingredients.ingredients,
+                              ),
+                              childCount: filtered.length,
+                            ),
+                            gridDelegate:
+                                const SliverGridDelegateWithFixedCrossAxisCount(
+                              crossAxisCount: 2,
+                              crossAxisSpacing: 12,
+                              mainAxisSpacing: 12,
+                              childAspectRatio: 0.78,
+                            ),
+                          ),
+                        ),
+                    ],
+                  );
+                },
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
 }
 
-class _Stat extends StatelessWidget {
+class _ChipFilter extends StatelessWidget {
+  final IconData icon;
   final String label;
-  final String value;
-  final Color? valueColor;
+  final bool active;
+  final VoidCallback onTap;
 
-  const _Stat({required this.label, required this.value, this.valueColor});
+  const _ChipFilter({
+    required this.icon,
+    required this.label,
+    required this.active,
+    required this.onTap,
+  });
 
   @override
   Widget build(BuildContext context) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          value,
-          style: TextStyle(
-            fontSize: 18,
-            fontWeight: FontWeight.w800,
-            color: valueColor ?? AppTheme.textDark,
+    return GestureDetector(
+      onTap: onTap,
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 180),
+        margin: const EdgeInsets.only(right: 8),
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+        decoration: BoxDecoration(
+          color: active ? AppTheme.primary : Colors.white,
+          borderRadius: BorderRadius.circular(20),
+          border: Border.all(
+            color: active ? AppTheme.primary : AppTheme.divider,
           ),
         ),
-        Text(
-          label,
-          style: const TextStyle(fontSize: 11, color: AppTheme.textMedium),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(
+              icon,
+              size: 14,
+              color: active ? Colors.white : AppTheme.textSecondary,
+            ),
+            const SizedBox(width: 5),
+            Text(
+              label,
+              style: TextStyle(
+                fontSize: 12,
+                fontWeight: FontWeight.w600,
+                color: active ? Colors.white : AppTheme.textSecondary,
+              ),
+            ),
+          ],
         ),
-      ],
+      ),
     );
   }
 }
 
-class _RecipeCard extends StatelessWidget {
+class _RecipeGridCard extends StatelessWidget {
   final Recipe recipe;
   final List<String> pantry;
 
-  const _RecipeCard({required this.recipe, required this.pantry});
+  const _RecipeGridCard({required this.recipe, required this.pantry});
+
+  static const _emojis = {
+    'Scrambled Eggs': '🍳',
+    'Chicken': '🍗',
+    'Banana': '🍌',
+    'Pasta': '🍝',
+    'Yogurt': '🥣',
+    'Tuna': '🐟',
+    'Avocado': '🥑',
+    'Quinoa': '🥗',
+    'Salmon': '🐟',
+    'Berry': '🫐',
+    'Stir Fry': '🥘',
+    'Lentil': '🍲',
+  };
+
+  String get _emoji {
+    for (final entry in _emojis.entries) {
+      if (recipe.title.contains(entry.key)) return entry.value;
+    }
+    return '🍽️';
+  }
+
+  String get _difficulty {
+    switch (recipe.difficulty?.toLowerCase()) {
+      case 'easy':
+        return 'Easy';
+      case 'medium':
+        return 'Medium';
+      case 'hard':
+        return 'Hard';
+      default:
+        return 'Easy';
+    }
+  }
+
+  Color get _difficultyColor {
+    switch (recipe.difficulty?.toLowerCase()) {
+      case 'medium':
+        return const Color(0xFFF57C00);
+      case 'hard':
+        return const Color(0xFFD32F2F);
+      default:
+        return AppTheme.primary;
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
-    final matchCount = recipe.matchCount(pantry);
-    final totalCount = recipe.ingredients.length;
-    final canMake = recipe.canMakeWith(pantry);
-
     return GestureDetector(
       onTap: () => _showDetail(context),
       child: Container(
-        padding: const EdgeInsets.all(16),
         decoration: BoxDecoration(
-          color: AppTheme.surface,
-          borderRadius: BorderRadius.circular(20),
-          border: Border.all(
-            color: canMake && pantry.isNotEmpty
-                ? AppTheme.primary.withValues(alpha: 0.4)
-                : AppTheme.divider,
-          ),
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(18),
           boxShadow: [
             BoxShadow(
-              color: Colors.black.withValues(alpha: 0.04),
+              color: Colors.black.withValues(alpha: 0.05),
               blurRadius: 8,
               offset: const Offset(0, 2),
             ),
@@ -238,97 +438,90 @@ class _RecipeCard extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Expanded(
-                  child: Text(
+            // Food image area
+            Container(
+              height: 110,
+              decoration: BoxDecoration(
+                color: AppTheme.background,
+                borderRadius: const BorderRadius.vertical(
+                  top: Radius.circular(18),
+                ),
+              ),
+              child: Center(
+                child: Text(
+                  _emoji,
+                  style: const TextStyle(fontSize: 52),
+                ),
+              ),
+            ),
+            Padding(
+              padding: const EdgeInsets.fromLTRB(10, 8, 10, 10),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
                     recipe.title,
                     style: const TextStyle(
-                      fontSize: 16,
+                      fontSize: 13,
                       fontWeight: FontWeight.w700,
                       color: AppTheme.textDark,
+                      height: 1.2,
                     ),
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
                   ),
-                ),
-                if (canMake && pantry.isNotEmpty) ...[
-                  const SizedBox(width: 8),
+                  const SizedBox(height: 6),
+                  Row(
+                    children: [
+                      const Icon(
+                        Icons.access_time_outlined,
+                        size: 11,
+                        color: AppTheme.textSecondary,
+                      ),
+                      const SizedBox(width: 3),
+                      Text(
+                        '${recipe.cookingTimeMin ?? '?'} min',
+                        style: const TextStyle(
+                          fontSize: 11,
+                          color: AppTheme.textSecondary,
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      const Icon(
+                        Icons.local_fire_department_outlined,
+                        size: 11,
+                        color: AppTheme.textSecondary,
+                      ),
+                      const SizedBox(width: 3),
+                      Text(
+                        '${recipe.calories?.toInt() ?? '?'}',
+                        style: const TextStyle(
+                          fontSize: 11,
+                          color: AppTheme.textSecondary,
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 6),
                   Container(
                     padding: const EdgeInsets.symmetric(
-                      horizontal: 8,
-                      vertical: 4,
-                    ),
+                        horizontal: 8, vertical: 3),
                     decoration: BoxDecoration(
-                      color: AppTheme.primary,
-                      borderRadius: BorderRadius.circular(10),
+                      color: _difficultyColor.withValues(alpha: 0.1),
+                      borderRadius: BorderRadius.circular(8),
                     ),
-                    child: const Text(
-                      '✓ Can make',
+                    child: Text(
+                      _difficulty,
                       style: TextStyle(
-                        color: Colors.white,
-                        fontSize: 11,
-                        fontWeight: FontWeight.w600,
+                        fontSize: 10,
+                        fontWeight: FontWeight.w700,
+                        color: _difficultyColor,
                       ),
                     ),
                   ),
                 ],
-              ],
-            ),
-            const SizedBox(height: 10),
-            Wrap(
-              spacing: 12,
-              children: [
-                if (recipe.cookingTimeMin != null)
-                  _MetaChip(
-                    icon: Icons.timer_outlined,
-                    label: '${recipe.cookingTimeMin} min',
-                  ),
-                if (recipe.difficultyLabel.isNotEmpty)
-                  _MetaChip(
-                    icon: Icons.bar_chart,
-                    label: recipe.difficultyLabel,
-                  ),
-                if (recipe.calories != null)
-                  _MetaChip(
-                    icon: Icons.local_fire_department_outlined,
-                    label: '${recipe.calories!.toInt()} cal',
-                  ),
-              ],
-            ),
-            if (totalCount > 0 && pantry.isNotEmpty) ...[
-              const SizedBox(height: 10),
-              _IngredientMatchBar(
-                matchCount: matchCount,
-                totalCount: totalCount,
               ),
-            ],
-            if (recipe.moodTags.isNotEmpty) ...[
-              const SizedBox(height: 10),
-              Wrap(
-                spacing: 6,
-                children: recipe.moodTags
-                    .take(3)
-                    .map((tag) => Container(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 8,
-                            vertical: 3,
-                          ),
-                          decoration: BoxDecoration(
-                            color: AppTheme.primary.withValues(alpha: 0.08),
-                            borderRadius: BorderRadius.circular(20),
-                          ),
-                          child: Text(
-                            tag,
-                            style: const TextStyle(
-                              fontSize: 11,
-                              color: AppTheme.primary,
-                              fontWeight: FontWeight.w500,
-                            ),
-                          ),
-                        ))
-                    .toList(),
-              ),
-            ],
+            ),
           ],
         ),
       ),
@@ -345,83 +538,32 @@ class _RecipeCard extends StatelessWidget {
   }
 }
 
-class _MetaChip extends StatelessWidget {
-  final IconData icon;
-  final String label;
-
-  const _MetaChip({required this.icon, required this.label});
-
-  @override
-  Widget build(BuildContext context) {
-    return Row(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        Icon(icon, size: 13, color: AppTheme.textMedium),
-        const SizedBox(width: 3),
-        Text(
-          label,
-          style: const TextStyle(fontSize: 12, color: AppTheme.textMedium),
-        ),
-      ],
-    );
-  }
-}
-
-class _IngredientMatchBar extends StatelessWidget {
-  final int matchCount;
-  final int totalCount;
-
-  const _IngredientMatchBar({
-    required this.matchCount,
-    required this.totalCount,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    final ratio = totalCount > 0 ? matchCount / totalCount : 0.0;
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Row(
-          children: [
-            Text(
-              '$matchCount / $totalCount ingredients available',
-              style: const TextStyle(fontSize: 12, color: AppTheme.textMedium),
-            ),
-          ],
-        ),
-        const SizedBox(height: 4),
-        ClipRRect(
-          borderRadius: BorderRadius.circular(4),
-          child: LinearProgressIndicator(
-            value: ratio,
-            minHeight: 5,
-            backgroundColor: AppTheme.divider,
-            color: ratio == 1.0 ? AppTheme.primary : AppTheme.accentAmber,
-          ),
-        ),
-      ],
-    );
-  }
-}
-
-class _RecipeDetailSheet extends StatelessWidget {
+class _RecipeDetailSheet extends StatefulWidget {
   final Recipe recipe;
   final List<String> pantry;
 
   const _RecipeDetailSheet({required this.recipe, required this.pantry});
 
   @override
+  State<_RecipeDetailSheet> createState() => _RecipeDetailSheetState();
+}
+
+class _RecipeDetailSheetState extends State<_RecipeDetailSheet> {
+  bool _showIngredients = true;
+  bool _showInstructions = false;
+
+  @override
   Widget build(BuildContext context) {
-    final pantryLower = pantry.map((e) => e.toLowerCase()).toSet();
+    final pantryLower =
+        widget.pantry.map((e) => e.toLowerCase()).toSet();
 
     return DraggableScrollableSheet(
-      initialChildSize: 0.75,
+      initialChildSize: 0.88,
       maxChildSize: 0.95,
-      minChildSize: 0.4,
+      minChildSize: 0.5,
       builder: (_, controller) => Container(
         decoration: const BoxDecoration(
-          color: AppTheme.surface,
+          color: Colors.white,
           borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
         ),
         child: Column(
@@ -438,112 +580,291 @@ class _RecipeDetailSheet extends StatelessWidget {
             Expanded(
               child: ListView(
                 controller: controller,
-                padding: const EdgeInsets.fromLTRB(20, 16, 20, 32),
+                padding: EdgeInsets.zero,
                 children: [
-                  Text(
-                    recipe.title,
-                    style: const TextStyle(
-                      fontSize: 22,
-                      fontWeight: FontWeight.w800,
-                      color: AppTheme.textDark,
+                  // Food image area
+                  Container(
+                    height: 180,
+                    color: AppTheme.background,
+                    child: Stack(
+                      children: [
+                        const Center(
+                          child: Text('🥑',
+                              style: TextStyle(fontSize: 80)),
+                        ),
+                        Positioned(
+                          top: 12,
+                          right: 12,
+                          child: Row(
+                            children: [
+                              _IconButton(Icons.favorite_border),
+                              const SizedBox(width: 8),
+                              _IconButton(Icons.share_outlined),
+                            ],
+                          ),
+                        ),
+                      ],
                     ),
                   ),
-                  const SizedBox(height: 12),
-                  Wrap(
-                    spacing: 16,
-                    children: [
-                      if (recipe.cookingTimeMin != null)
-                        _DetailStat(
-                          icon: Icons.timer_outlined,
-                          label: '${recipe.cookingTimeMin} min',
+                  Padding(
+                    padding: const EdgeInsets.fromLTRB(20, 16, 20, 8),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          widget.recipe.title,
+                          style: const TextStyle(
+                            fontSize: 22,
+                            fontWeight: FontWeight.w800,
+                            color: AppTheme.textDark,
+                          ),
                         ),
-                      if (recipe.difficultyLabel.isNotEmpty)
-                        _DetailStat(
-                          icon: Icons.bar_chart,
-                          label: recipe.difficultyLabel,
-                        ),
-                      if (recipe.calories != null)
-                        _DetailStat(
-                          icon: Icons.local_fire_department_outlined,
-                          label: '${recipe.calories!.toInt()} cal',
-                        ),
-                      if (recipe.proteinG != null)
-                        _DetailStat(
-                          icon: Icons.fitness_center_outlined,
-                          label: '${recipe.proteinG!.toInt()}g protein',
-                        ),
-                    ],
-                  ),
-                  if (recipe.ingredients.isNotEmpty) ...[
-                    const SizedBox(height: 20),
-                    const Text(
-                      'Ingredients',
-                      style: TextStyle(
-                        fontSize: 16,
-                        fontWeight: FontWeight.w700,
-                        color: AppTheme.textDark,
-                      ),
-                    ),
-                    const SizedBox(height: 10),
-                    ...recipe.ingredients.map((ing) {
-                      final have = pantryLower.contains(ing.name.toLowerCase());
-                      return Padding(
-                        padding: const EdgeInsets.only(bottom: 8),
-                        child: Row(
+                        const SizedBox(height: 8),
+                        Row(
                           children: [
-                            Icon(
-                              have
-                                  ? Icons.check_circle
-                                  : Icons.radio_button_unchecked,
-                              size: 18,
-                              color: have
-                                  ? AppTheme.primary
-                                  : AppTheme.textMedium,
+                            _MetaItem(
+                              Icons.access_time_outlined,
+                              '${widget.recipe.cookingTimeMin ?? 15} min',
                             ),
-                            const SizedBox(width: 10),
-                            Expanded(
-                              child: Text(
-                                [
-                                  if (ing.amount != null) ing.amount!,
-                                  if (ing.unit != null) ing.unit!,
-                                  ing.name,
-                                ].join(' '),
-                                style: TextStyle(
-                                  fontSize: 14,
-                                  color: have
-                                      ? AppTheme.textDark
-                                      : AppTheme.textMedium,
-                                  fontWeight: have
-                                      ? FontWeight.w500
-                                      : FontWeight.normal,
-                                ),
-                              ),
+                            const SizedBox(width: 16),
+                            _MetaItem(
+                              Icons.local_fire_department_outlined,
+                              '${widget.recipe.calories?.toInt() ?? 320} cal',
+                            ),
+                            const SizedBox(width: 16),
+                            const _MetaItem(
+                              Icons.people_outlined,
+                              '2 servings',
                             ),
                           ],
                         ),
-                      );
-                    }),
-                  ],
-                  if (recipe.steps != null && recipe.steps!.isNotEmpty) ...[
-                    const SizedBox(height: 20),
-                    const Text(
-                      'Instructions',
-                      style: TextStyle(
-                        fontSize: 16,
-                        fontWeight: FontWeight.w700,
-                        color: AppTheme.textDark,
-                      ),
+                        const SizedBox(height: 12),
+                        const Text(
+                          'A nutritious and delicious meal packed with healthy fats and energy-boosting ingredients.',
+                          style: TextStyle(
+                            fontSize: 13,
+                            color: AppTheme.textSecondary,
+                            height: 1.5,
+                          ),
+                        ),
+                        const SizedBox(height: 16),
+
+                        // Health Benefits
+                        Container(
+                          padding: const EdgeInsets.all(12),
+                          decoration: BoxDecoration(
+                            color: const Color(0xFFFFFDE7),
+                            borderRadius: BorderRadius.circular(14),
+                          ),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              const Row(
+                                children: [
+                                  Text('✨',
+                                      style: TextStyle(fontSize: 14)),
+                                  SizedBox(width: 6),
+                                  Text(
+                                    'Health Benefits',
+                                    style: TextStyle(
+                                      fontSize: 13,
+                                      fontWeight: FontWeight.w700,
+                                      color: AppTheme.textDark,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                              const SizedBox(height: 8),
+                              ...const [
+                                'Rich in healthy fats for sustained energy',
+                                'High in fiber for better digestion',
+                                'Contains B vitamins for mood support',
+                              ].map(
+                                (b) => Padding(
+                                  padding:
+                                      const EdgeInsets.only(bottom: 4),
+                                  child: Row(
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
+                                    children: [
+                                      const Icon(Icons.add,
+                                          size: 14,
+                                          color: AppTheme.primary),
+                                      const SizedBox(width: 6),
+                                      Expanded(
+                                        child: Text(
+                                          b,
+                                          style: const TextStyle(
+                                            fontSize: 12,
+                                            color:
+                                                AppTheme.textSecondary,
+                                          ),
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                        const SizedBox(height: 16),
+
+                        // Ingredients collapsible
+                        _CollapsibleSection(
+                          title: 'Ingredients',
+                          isOpen: _showIngredients,
+                          onToggle: () => setState(
+                              () => _showIngredients = !_showIngredients),
+                          child: widget.recipe.ingredients.isEmpty
+                              ? const Text(
+                                  'No ingredient data',
+                                  style: TextStyle(
+                                      fontSize: 13,
+                                      color: AppTheme.textSecondary),
+                                )
+                              : Column(
+                                  children: widget.recipe.ingredients
+                                      .map((ing) {
+                                    final have = pantryLower.contains(
+                                        ing.name.toLowerCase());
+                                    return Padding(
+                                      padding: const EdgeInsets.only(
+                                          bottom: 8),
+                                      child: Row(
+                                        children: [
+                                          Expanded(
+                                            child: Text(
+                                              ing.name,
+                                              style: const TextStyle(
+                                                  fontSize: 13,
+                                                  color:
+                                                      AppTheme.textDark),
+                                            ),
+                                          ),
+                                          Text(
+                                            '${ing.amount ?? ''} ${ing.unit ?? ''}',
+                                            style: const TextStyle(
+                                                fontSize: 13,
+                                                color: AppTheme
+                                                    .textSecondary),
+                                          ),
+                                          if (have)
+                                            const Icon(
+                                              Icons.check_circle,
+                                              size: 14,
+                                              color: AppTheme.primary,
+                                            ),
+                                        ],
+                                      ),
+                                    );
+                                  }).toList(),
+                                ),
+                        ),
+                        const SizedBox(height: 10),
+
+                        // Instructions collapsible
+                        _CollapsibleSection(
+                          title: 'Instructions',
+                          isOpen: _showInstructions,
+                          onToggle: () => setState(() =>
+                              _showInstructions = !_showInstructions),
+                          child: widget.recipe.steps == null ||
+                                  widget.recipe.steps!.isEmpty
+                              ? const Text(
+                                  'No instructions available',
+                                  style: TextStyle(
+                                      fontSize: 13,
+                                      color: AppTheme.textSecondary),
+                                )
+                              : Column(
+                                  crossAxisAlignment:
+                                      CrossAxisAlignment.start,
+                                  children: widget.recipe.steps!
+                                      .split('\n')
+                                      .where((s) => s.trim().isNotEmpty)
+                                      .toList()
+                                      .asMap()
+                                      .entries
+                                      .map(
+                                        (e) => Padding(
+                                          padding: const EdgeInsets.only(
+                                              bottom: 10),
+                                          child: Row(
+                                            crossAxisAlignment:
+                                                CrossAxisAlignment.start,
+                                            children: [
+                                              Container(
+                                                width: 22,
+                                                height: 22,
+                                                decoration: BoxDecoration(
+                                                  color: AppTheme.primary,
+                                                  borderRadius:
+                                                      BorderRadius.circular(
+                                                          6),
+                                                ),
+                                                child: Center(
+                                                  child: Text(
+                                                    '${e.key + 1}',
+                                                    style: const TextStyle(
+                                                      fontSize: 11,
+                                                      fontWeight:
+                                                          FontWeight.w700,
+                                                      color: Colors.white,
+                                                    ),
+                                                  ),
+                                                ),
+                                              ),
+                                              const SizedBox(width: 10),
+                                              Expanded(
+                                                child: Text(
+                                                  e.value.replaceFirst(
+                                                      RegExp(r'^\d+\.\s*'),
+                                                      ''),
+                                                  style: const TextStyle(
+                                                    fontSize: 13,
+                                                    color:
+                                                        AppTheme.textDark,
+                                                    height: 1.5,
+                                                  ),
+                                                ),
+                                              ),
+                                            ],
+                                          ),
+                                        ),
+                                      )
+                                      .toList(),
+                                ),
+                        ),
+                        const SizedBox(height: 20),
+
+                        // Start Cooking button
+                        SizedBox(
+                          width: double.infinity,
+                          height: 52,
+                          child: ElevatedButton(
+                            onPressed: () => Navigator.pop(context),
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: AppTheme.primary,
+                              foregroundColor: Colors.white,
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(16),
+                              ),
+                              elevation: 0,
+                            ),
+                            child: const Text(
+                              'Start Cooking',
+                              style: TextStyle(
+                                fontSize: 16,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                          ),
+                        ),
+                        const SizedBox(height: 16),
+                      ],
                     ),
-                    const SizedBox(height: 8),
-                    Text(
-                      recipe.steps!,
-                      style: const TextStyle(
-                        fontSize: 14,
-                        color: AppTheme.textMedium,
-                        height: 1.6,
-                      ),
-                    ),
-                  ],
+                  ),
                 ],
               ),
             ),
@@ -554,66 +875,107 @@ class _RecipeDetailSheet extends StatelessWidget {
   }
 }
 
-class _DetailStat extends StatelessWidget {
+class _IconButton extends StatelessWidget {
+  final IconData icon;
+  const _IconButton(this.icon);
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: 36,
+      height: 36,
+      decoration: BoxDecoration(
+        color: Colors.white,
+        shape: BoxShape.circle,
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.1),
+            blurRadius: 6,
+          ),
+        ],
+      ),
+      child: Icon(icon, size: 18, color: AppTheme.textDark),
+    );
+  }
+}
+
+class _MetaItem extends StatelessWidget {
   final IconData icon;
   final String label;
-
-  const _DetailStat({required this.icon, required this.label});
+  const _MetaItem(this.icon, this.label);
 
   @override
   Widget build(BuildContext context) {
     return Row(
       mainAxisSize: MainAxisSize.min,
       children: [
-        Icon(icon, size: 16, color: AppTheme.textMedium),
+        Icon(icon, size: 14, color: AppTheme.textSecondary),
         const SizedBox(width: 4),
         Text(
           label,
-          style: const TextStyle(fontSize: 13, color: AppTheme.textMedium),
+          style: const TextStyle(
+            fontSize: 12,
+            color: AppTheme.textSecondary,
+          ),
         ),
       ],
     );
   }
 }
 
-class _EmptyState extends StatelessWidget {
-  final String message;
-  final VoidCallback? onRetry;
+class _CollapsibleSection extends StatelessWidget {
+  final String title;
+  final bool isOpen;
+  final VoidCallback onToggle;
+  final Widget child;
 
-  const _EmptyState({required this.message, this.onRetry});
+  const _CollapsibleSection({
+    required this.title,
+    required this.isOpen,
+    required this.onToggle,
+    required this.child,
+  });
 
   @override
   Widget build(BuildContext context) {
-    return Center(
-      child: Padding(
-        padding: const EdgeInsets.all(32),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            const Text('🍽️', style: TextStyle(fontSize: 56)),
-            const SizedBox(height: 16),
-            Text(
-              message,
-              textAlign: TextAlign.center,
-              style: const TextStyle(
-                fontSize: 15,
-                color: AppTheme.textMedium,
-                height: 1.5,
+    return Column(
+      children: [
+        GestureDetector(
+          onTap: onToggle,
+          child: Container(
+            padding: const EdgeInsets.symmetric(vertical: 12),
+            decoration: const BoxDecoration(
+              border: Border(
+                bottom: BorderSide(color: Color(0xFFEEEEEE)),
               ),
             ),
-            if (onRetry != null) ...[
-              const SizedBox(height: 20),
-              ElevatedButton(
-                onPressed: onRetry,
-                style: ElevatedButton.styleFrom(
-                  minimumSize: const Size(140, 44),
+            child: Row(
+              children: [
+                Text(
+                  title,
+                  style: const TextStyle(
+                    fontSize: 15,
+                    fontWeight: FontWeight.w700,
+                    color: AppTheme.textDark,
+                  ),
                 ),
-                child: const Text('Retry'),
-              ),
-            ],
-          ],
+                const Spacer(),
+                Icon(
+                  isOpen
+                      ? Icons.keyboard_arrow_up
+                      : Icons.keyboard_arrow_down,
+                  color: AppTheme.textSecondary,
+                ),
+              ],
+            ),
+          ),
         ),
-      ),
+        if (isOpen)
+          Padding(
+            padding: const EdgeInsets.only(top: 12),
+            child: child,
+          ),
+      ],
     );
   }
 }
@@ -632,22 +994,16 @@ class _ErrorState extends StatelessWidget {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            const Icon(
-              Icons.cloud_off_outlined,
-              size: 56,
-              color: AppTheme.textMedium,
-            ),
-            const SizedBox(height: 16),
+            const Icon(Icons.cloud_off_outlined,
+                size: 48, color: AppTheme.textSecondary),
+            const SizedBox(height: 12),
             Text(
               message,
               textAlign: TextAlign.center,
               style: const TextStyle(
-                fontSize: 15,
-                color: AppTheme.textMedium,
-                height: 1.5,
-              ),
+                  fontSize: 14, color: AppTheme.textSecondary),
             ),
-            const SizedBox(height: 20),
+            const SizedBox(height: 16),
             ElevatedButton(
               onPressed: onRetry,
               style: ElevatedButton.styleFrom(

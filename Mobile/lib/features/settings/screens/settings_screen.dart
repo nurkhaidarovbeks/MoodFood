@@ -11,132 +11,353 @@ class SettingsScreen extends StatefulWidget {
 }
 
 class _SettingsScreenState extends State<SettingsScreen> {
-  bool _notifMood = true;
-  bool _notifRecipes = true;
-  bool _notifTips = false;
-  String _dietaryPref = 'No restrictions';
-  String _language = 'English';
+  bool _notificationsEnabled = true;
+  bool _darkModeEnabled = false;
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: AppTheme.background,
-      appBar: AppBar(
-        title: const Text('Settings'),
-        backgroundColor: AppTheme.surface,
-        elevation: 0,
-      ),
-      body: ListView(
-        padding: const EdgeInsets.symmetric(vertical: 16),
-        children: [
-          const _SectionHeader('Notifications'),
-          _ToggleTile(
-            icon: Icons.mood_outlined,
-            title: 'Mood reminders',
-            subtitle: 'Daily check-in reminders',
-            value: _notifMood,
-            onChanged: (v) => setState(() => _notifMood = v),
-          ),
-          _ToggleTile(
-            icon: Icons.restaurant_menu_outlined,
-            title: 'Recipe suggestions',
-            subtitle: 'New recipe recommendations',
-            value: _notifRecipes,
-            onChanged: (v) => setState(() => _notifRecipes = v),
-          ),
-          _ToggleTile(
-            icon: Icons.lightbulb_outline,
-            title: 'Health tips',
-            subtitle: 'Weekly wellness tips',
-            value: _notifTips,
-            onChanged: (v) => setState(() => _notifTips = v),
-          ),
-          const SizedBox(height: 8),
-          const _SectionHeader('Preferences'),
-          _OptionTile(
-            icon: Icons.restaurant_outlined,
-            title: 'Dietary preference',
-            value: _dietaryPref,
-            options: const [
-              'No restrictions',
-              'Vegetarian',
-              'Vegan',
-              'Gluten-free',
-              'Lactose-free',
-              'Halal',
-            ],
-            onChanged: (v) => setState(() => _dietaryPref = v),
-          ),
-          _OptionTile(
-            icon: Icons.language_outlined,
-            title: 'Language',
-            value: _language,
-            options: const ['English', 'Русский', 'Қазақша'],
-            onChanged: (v) => setState(() => _language = v),
-          ),
-          const SizedBox(height: 8),
-          const _SectionHeader('Account'),
-          _NavTile(
-            icon: Icons.workspace_premium_outlined,
-            title: 'MoodFood Premium',
-            subtitle: 'Unlock all features',
-            iconColor: const Color(0xFFFFB300),
-            onTap: () => Navigator.pushNamed(context, '/premium'),
-          ),
-          _NavTile(
-            icon: Icons.privacy_tip_outlined,
-            title: 'Privacy Policy',
-            onTap: () {},
-          ),
-          _NavTile(
-            icon: Icons.description_outlined,
-            title: 'Terms of Service',
-            onTap: () {},
-          ),
-          _NavTile(
-            icon: Icons.info_outline,
-            title: 'About MoodFood',
-            subtitle: 'Version 1.0.0',
-            onTap: () {},
-          ),
-          const SizedBox(height: 8),
-          const _SectionHeader('Danger zone'),
-          _NavTile(
-            icon: Icons.logout,
-            title: 'Sign Out',
-            iconColor: AppTheme.errorColor,
-            titleColor: AppTheme.errorColor,
-            onTap: () async {
-              final confirmed = await showDialog<bool>(
-                context: context,
-                builder: (_) => AlertDialog(
-                  title: const Text('Sign out?'),
-                  content:
-                      const Text('You will need to log in again to access your account.'),
-                  actions: [
-                    TextButton(
-                      onPressed: () => Navigator.pop(context, false),
-                      child: const Text('Cancel'),
-                    ),
-                    TextButton(
-                      onPressed: () => Navigator.pop(context, true),
-                      child: const Text(
-                        'Sign Out',
-                        style: TextStyle(color: AppTheme.errorColor),
+      body: SafeArea(
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // Header
+            Padding(
+              padding: const EdgeInsets.fromLTRB(20, 16, 20, 8),
+              child: Row(
+                children: [
+                  GestureDetector(
+                    onTap: () => Navigator.pop(context),
+                    child: Container(
+                      width: 36,
+                      height: 36,
+                      decoration: BoxDecoration(
+                        color: Colors.white,
+                        shape: BoxShape.circle,
+                        border: Border.all(color: AppTheme.divider),
+                      ),
+                      child: const Icon(
+                        Icons.arrow_back,
+                        size: 18,
+                        color: AppTheme.textDark,
                       ),
                     ),
-                  ],
-                ),
-              );
-              if (confirmed == true && context.mounted) {
-                await context.read<AuthProvider>().logout();
-                if (context.mounted) {
-                  Navigator.pushReplacementNamed(context, '/welcome');
-                }
-              }
-            },
+                  ),
+                  const SizedBox(width: 12),
+                  const Text(
+                    'Settings',
+                    style: TextStyle(
+                      fontSize: 26,
+                      fontWeight: FontWeight.w800,
+                      color: AppTheme.textDark,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+
+            Expanded(
+              child: ListView(
+                padding: const EdgeInsets.symmetric(horizontal: 16),
+                children: [
+                  const SizedBox(height: 8),
+
+                  // Account
+                  _SectionHeader(label: 'Account'),
+                  _SettingsCard(children: [
+                    _SettingsTile(
+                      icon: Icons.person_outline,
+                      label: 'Profile Info',
+                      onTap: () =>
+                          Navigator.pushNamed(context, '/profile-setup'),
+                    ),
+                    _Divider(),
+                    _SettingsTile(
+                      icon: Icons.lock_outline,
+                      label: 'Privacy & Security',
+                      onTap: () => _showSecurityInfo(context),
+                    ),
+                    _Divider(),
+                    _SettingsTile(
+                      icon: Icons.language_outlined,
+                      label: 'Language',
+                      trailing: const Text(
+                        'English',
+                        style: TextStyle(
+                          fontSize: 13,
+                          color: AppTheme.textSecondary,
+                        ),
+                      ),
+                      onTap: () => _showLanguagePicker(context),
+                    ),
+                  ]),
+
+                  const SizedBox(height: 16),
+
+                  // Preferences
+                  _SectionHeader(label: 'Preferences'),
+                  _SettingsCard(children: [
+                    _ToggleTile(
+                      icon: Icons.notifications_outlined,
+                      label: 'Notifications',
+                      value: _notificationsEnabled,
+                      onChanged: (v) =>
+                          setState(() => _notificationsEnabled = v),
+                    ),
+                    _Divider(),
+                    _ToggleTile(
+                      icon: Icons.dark_mode_outlined,
+                      label: 'Dark Mode',
+                      value: _darkModeEnabled,
+                      onChanged: (v) =>
+                          setState(() => _darkModeEnabled = v),
+                    ),
+                  ]),
+
+                  const SizedBox(height: 16),
+
+                  // Health
+                  _SectionHeader(label: 'Health'),
+                  _SettingsCard(children: [
+                    _SettingsTile(
+                      icon: Icons.restaurant_outlined,
+                      label: 'Dietary Preferences',
+                      onTap: () =>
+                          Navigator.pushNamed(context, '/profile-setup'),
+                    ),
+                    _Divider(),
+                    _SettingsTile(
+                      icon: Icons.warning_amber_outlined,
+                      label: 'Allergies',
+                      onTap: () =>
+                          Navigator.pushNamed(context, '/profile-setup'),
+                    ),
+                    _Divider(),
+                    _SettingsTile(
+                      icon: Icons.track_changes_outlined,
+                      label: 'Health Goals',
+                      onTap: () =>
+                          Navigator.pushNamed(context, '/profile-setup'),
+                    ),
+                  ]),
+
+                  const SizedBox(height: 16),
+
+                  // Info
+                  _SectionHeader(label: 'Info'),
+                  _SettingsCard(children: [
+                    _SettingsTile(
+                      icon: Icons.info_outline,
+                      label: 'About',
+                      onTap: () => _showAbout(context),
+                    ),
+                    _Divider(),
+                    _SettingsTile(
+                      icon: Icons.privacy_tip_outlined,
+                      label: 'Privacy Policy',
+                      onTap: () => _showPrivacyPolicy(context),
+                    ),
+                    _Divider(),
+                    _SettingsTile(
+                      icon: Icons.description_outlined,
+                      label: 'Terms of Service',
+                      onTap: () => _showTermsOfService(context),
+                    ),
+                  ]),
+
+                  const SizedBox(height: 24),
+
+                  // Log Out
+                  SizedBox(
+                    width: double.infinity,
+                    height: 52,
+                    child: ElevatedButton(
+                      onPressed: () => _confirmLogout(context),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: const Color(0xFFFFEBEE),
+                        foregroundColor: const Color(0xFFD32F2F),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(16),
+                        ),
+                        elevation: 0,
+                      ),
+                      child: const Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Icon(Icons.logout, size: 18),
+                          SizedBox(width: 8),
+                          Text(
+                            'Log Out',
+                            style: TextStyle(
+                              fontSize: 15,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+
+                  const SizedBox(height: 16),
+
+                  // Version footer
+                  const Center(
+                    child: Text(
+                      'MoodFood v1.0.0',
+                      style: TextStyle(
+                        fontSize: 12,
+                        color: AppTheme.textSecondary,
+                      ),
+                    ),
+                  ),
+
+                  const SizedBox(height: 32),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  void _confirmLogout(BuildContext context) {
+    showDialog<void>(
+      context: context,
+      builder: (_) => AlertDialog(
+        title: const Text('Log Out'),
+        content: const Text('Are you sure you want to log out?'),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Cancel'),
           ),
-          const SizedBox(height: 32),
+          TextButton(
+            onPressed: () async {
+              final authProvider = context.read<AuthProvider>();
+              final navigator = Navigator.of(context);
+              navigator.pop();
+              await authProvider.logout();
+              if (!mounted) return;
+              navigator.pushNamedAndRemoveUntil('/welcome', (_) => false);
+            },
+            style: TextButton.styleFrom(
+                foregroundColor: const Color(0xFFD32F2F)),
+            child: const Text('Log Out'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _showSecurityInfo(BuildContext context) {
+    showDialog<void>(
+      context: context,
+      builder: (_) => AlertDialog(
+        title: const Text('Privacy & Security'),
+        content: const Text(
+          'Your data is encrypted and stored securely. '
+          'To change your password, log out and use "Forgot Password" on the sign-in screen.\n\n'
+          'We never share your personal data with third parties.',
+        ),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('OK'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _showLanguagePicker(BuildContext context) {
+    showDialog<void>(
+      context: context,
+      builder: (_) => AlertDialog(
+        title: const Text('Language'),
+        content: const Text(
+          'MoodFood is currently available in English.\n\nMore languages coming soon!',
+        ),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('OK'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _showPrivacyPolicy(BuildContext context) {
+    showDialog<void>(
+      context: context,
+      builder: (_) => AlertDialog(
+        title: const Text('Privacy Policy'),
+        content: const SingleChildScrollView(
+          child: Text(
+            'MoodFood ("we") collects only the information needed to provide personalized nutrition recommendations.\n\n'
+            '• Account data: email and name for authentication.\n'
+            '• Health data: mood logs and dietary preferences, stored securely.\n'
+            '• We do not sell your data to third parties.\n'
+            '• You may delete your account and all data at any time.\n\n'
+            'For questions, contact support@moodfood.app',
+          ),
+        ),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Close'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _showTermsOfService(BuildContext context) {
+    showDialog<void>(
+      context: context,
+      builder: (_) => AlertDialog(
+        title: const Text('Terms of Service'),
+        content: const SingleChildScrollView(
+          child: Text(
+            'By using MoodFood you agree to the following:\n\n'
+            '• MoodFood provides wellness suggestions, not medical advice.\n'
+            '• Always consult a healthcare professional for medical decisions.\n'
+            '• You are responsible for maintaining your account credentials.\n'
+            '• We reserve the right to update these terms with notice.\n\n'
+            'Last updated: June 2025',
+          ),
+        ),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Close'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _showAbout(BuildContext context) {
+    showDialog<void>(
+      context: context,
+      builder: (_) => AlertDialog(
+        title: const Text('About MoodFood'),
+        content: const Text(
+          'MoodFood helps you track your mood and discover personalized food recommendations for better mental and physical wellbeing.\n\nVersion 1.0.0',
+        ),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('OK'),
+          ),
         ],
       ),
     );
@@ -144,20 +365,101 @@ class _SettingsScreenState extends State<SettingsScreen> {
 }
 
 class _SectionHeader extends StatelessWidget {
-  final String title;
-  const _SectionHeader(this.title);
+  final String label;
+  const _SectionHeader({required this.label});
 
   @override
   Widget build(BuildContext context) {
     return Padding(
-      padding: const EdgeInsets.fromLTRB(20, 8, 20, 4),
+      padding: const EdgeInsets.only(left: 4, bottom: 8),
       child: Text(
-        title.toUpperCase(),
+        label,
         style: const TextStyle(
-          fontSize: 11,
+          fontSize: 12,
           fontWeight: FontWeight.w700,
-          color: AppTheme.textLight,
-          letterSpacing: 1.0,
+          color: AppTheme.textSecondary,
+          letterSpacing: 0.8,
+        ),
+      ),
+    );
+  }
+}
+
+class _SettingsCard extends StatelessWidget {
+  final List<Widget> children;
+  const _SettingsCard({required this.children});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(18),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.04),
+            blurRadius: 8,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: Column(children: children),
+    );
+  }
+}
+
+class _SettingsTile extends StatelessWidget {
+  final IconData icon;
+  final String label;
+  final Widget? trailing;
+  final VoidCallback onTap;
+
+  const _SettingsTile({
+    required this.icon,
+    required this.label,
+    this.trailing,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(18),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+          child: Row(
+            children: [
+              Container(
+                width: 34,
+                height: 34,
+                decoration: BoxDecoration(
+                  color: AppTheme.background,
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: Icon(icon, size: 18, color: AppTheme.textDark),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Text(
+                  label,
+                  style: const TextStyle(
+                    fontSize: 14,
+                    fontWeight: FontWeight.w500,
+                    color: AppTheme.textDark,
+                  ),
+                ),
+              ),
+              trailing ??
+                  const Icon(
+                    Icons.chevron_right,
+                    size: 18,
+                    color: AppTheme.textSecondary,
+                  ),
+            ],
+          ),
         ),
       ),
     );
@@ -166,168 +468,63 @@ class _SectionHeader extends StatelessWidget {
 
 class _ToggleTile extends StatelessWidget {
   final IconData icon;
-  final String title;
-  final String subtitle;
+  final String label;
   final bool value;
   final ValueChanged<bool> onChanged;
 
   const _ToggleTile({
     required this.icon,
-    required this.title,
-    required this.subtitle,
+    required this.label,
     required this.value,
     required this.onChanged,
   });
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 3),
-      decoration: BoxDecoration(
-        color: AppTheme.surface,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: AppTheme.divider),
-      ),
-      child: ListTile(
-        leading: Icon(icon, color: AppTheme.primary, size: 22),
-        title: Text(
-          title,
-          style: const TextStyle(
-            fontSize: 15,
-            fontWeight: FontWeight.w600,
-            color: AppTheme.textDark,
-          ),
-        ),
-        subtitle: Text(
-          subtitle,
-          style: const TextStyle(fontSize: 12, color: AppTheme.textLight),
-        ),
-        trailing: Switch(
-          value: value,
-          onChanged: onChanged,
-          activeThumbColor: AppTheme.primary,
-        ),
-      ),
-    );
-  }
-}
-
-class _OptionTile extends StatelessWidget {
-  final IconData icon;
-  final String title;
-  final String value;
-  final List<String> options;
-  final ValueChanged<String> onChanged;
-
-  const _OptionTile({
-    required this.icon,
-    required this.title,
-    required this.value,
-    required this.options,
-    required this.onChanged,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 3),
-      decoration: BoxDecoration(
-        color: AppTheme.surface,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: AppTheme.divider),
-      ),
-      child: ListTile(
-        leading: Icon(icon, color: AppTheme.primary, size: 22),
-        title: Text(
-          title,
-          style: const TextStyle(
-            fontSize: 15,
-            fontWeight: FontWeight.w600,
-            color: AppTheme.textDark,
-          ),
-        ),
-        trailing: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Text(
-              value,
-              style: const TextStyle(fontSize: 13, color: AppTheme.textMedium),
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+      child: Row(
+        children: [
+          Container(
+            width: 34,
+            height: 34,
+            decoration: BoxDecoration(
+              color: AppTheme.background,
+              borderRadius: BorderRadius.circular(10),
             ),
-            const SizedBox(width: 4),
-            const Icon(Icons.chevron_right, color: AppTheme.textLight, size: 20),
-          ],
-        ),
-        onTap: () => showModalBottomSheet<void>(
-          context: context,
-          builder: (_) => ListView(
-            shrinkWrap: true,
-            padding: const EdgeInsets.symmetric(vertical: 16),
-            children: options
-                .map(
-                  (opt) => ListTile(
-                    title: Text(opt),
-                    trailing: opt == value
-                        ? const Icon(Icons.check, color: AppTheme.primary)
-                        : null,
-                    onTap: () {
-                      onChanged(opt);
-                      Navigator.pop(context);
-                    },
-                  ),
-                )
-                .toList(),
+            child: Icon(icon, size: 18, color: AppTheme.textDark),
           ),
-        ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Text(
+              label,
+              style: const TextStyle(
+                fontSize: 14,
+                fontWeight: FontWeight.w500,
+                color: AppTheme.textDark,
+              ),
+            ),
+          ),
+          Switch(
+            value: value,
+            onChanged: onChanged,
+            activeThumbColor: AppTheme.primary,
+            activeTrackColor: AppTheme.primary.withValues(alpha: 0.4),
+          ),
+        ],
       ),
     );
   }
 }
 
-class _NavTile extends StatelessWidget {
-  final IconData icon;
-  final String title;
-  final String? subtitle;
-  final Color? iconColor;
-  final Color? titleColor;
-  final VoidCallback onTap;
-
-  const _NavTile({
-    required this.icon,
-    required this.title,
-    this.subtitle,
-    this.iconColor,
-    this.titleColor,
-    required this.onTap,
-  });
-
+class _Divider extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
-    return Container(
-      margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 3),
-      decoration: BoxDecoration(
-        color: AppTheme.surface,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: AppTheme.divider),
-      ),
-      child: ListTile(
-        leading: Icon(icon, color: iconColor ?? AppTheme.primary, size: 22),
-        title: Text(
-          title,
-          style: TextStyle(
-            fontSize: 15,
-            fontWeight: FontWeight.w600,
-            color: titleColor ?? AppTheme.textDark,
-          ),
-        ),
-        subtitle: subtitle != null
-            ? Text(
-                subtitle!,
-                style: const TextStyle(fontSize: 12, color: AppTheme.textLight),
-              )
-            : null,
-        trailing: const Icon(Icons.chevron_right, color: AppTheme.textLight, size: 20),
-        onTap: onTap,
-      ),
+    return const Divider(
+      height: 1,
+      indent: 62,
+      endIndent: 16,
+      color: Color(0xFFF0F0F0),
     );
   }
 }

@@ -178,20 +178,53 @@ class RecipeProvider extends ChangeNotifier {
     notifyListeners();
   }
 
-  Future<void> fetchRecommendations({String? mood}) async {
-    if (_isDemoMode) return;
-    _loading = true;
-    _error = null;
+  // ── Recommendations (separate state from recipes list) ──────────────────────
+
+  List<Recipe> _recommendations = [];
+  bool _recommendationsLoading = false;
+  String? _recommendationsError;
+
+  List<Recipe> get recommendations => _recommendations;
+  bool get recommendationsLoading => _recommendationsLoading;
+  String? get recommendationsError => _recommendationsError;
+
+  Future<void> fetchRecommendations({
+    String? mood,
+    bool useMyIngredients = false,
+  }) async {
+    if (_isDemoMode) {
+      _loadMockRecommendations(mood);
+      return;
+    }
+    _recommendationsLoading = true;
+    _recommendationsError = null;
     notifyListeners();
     try {
-      _recipes = await _service.getRecommendations(mood: mood);
+      _recommendations = await _service.getRecommendations(
+        mood: mood,
+        limit: 3,
+        useMyIngredients: useMyIngredients,
+      );
     } on DioException catch (e) {
-      _error = ApiClient.instance.handleError(e).message;
+      _recommendationsError = ApiClient.instance.handleError(e).message;
     } catch (e) {
-      _error = 'Failed to load recommendations';
+      _recommendationsError = 'Failed to load recommendations';
     } finally {
-      _loading = false;
+      _recommendationsLoading = false;
       notifyListeners();
     }
+  }
+
+  void _loadMockRecommendations(String? mood) {
+    final moodKey = mood ?? 'happy';
+    final pool = _recipes.where((r) => r.moodTags.contains(moodKey)).toList();
+    if (pool.isEmpty) {
+      _recommendations = _recipes.take(3).toList();
+    } else {
+      _recommendations = pool.take(3).toList();
+    }
+    _recommendationsLoading = false;
+    _recommendationsError = null;
+    notifyListeners();
   }
 }

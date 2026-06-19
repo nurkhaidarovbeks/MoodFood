@@ -13,131 +13,208 @@ class MoodCheckScreen extends StatefulWidget {
 
 class _MoodCheckScreenState extends State<MoodCheckScreen> {
   String? _selectedMood;
-  int _energyLevel = 3;
-  String? _stressLevel;
-  String? _sleepQuality;
+  double _energyLevel = 5;
+  double _sleepQuality = 5;
+  double _stressLevel = 5;
 
+  // 6 moods matching Figma design
   static const _moods = [
     ('happy', '😊', 'Happy'),
     ('energetic', '⚡', 'Energetic'),
     ('calm', '😌', 'Calm'),
-    ('focused', '🎯', 'Focused'),
-    ('cozy', '🛋️', 'Cozy'),
     ('tired', '😴', 'Tired'),
     ('stressed', '😰', 'Stressed'),
+    ('sad', '😢', 'Sad'),
   ];
 
-  static const _stressOptions = [
-    ('low', '🟢', 'Low'),
-    ('medium', '🟡', 'Medium'),
-    ('high', '🔴', 'High'),
-  ];
+  String _sleepCategory(double v) {
+    if (v <= 3) return 'poor';
+    if (v <= 7) return 'normal';
+    return 'good';
+  }
 
-  static const _sleepOptions = [
-    ('poor', '😔', 'Poor'),
-    ('normal', '😐', 'Normal'),
-    ('good', '😊', 'Good'),
-  ];
+  String _stressCategory(double v) {
+    if (v <= 3) return 'low';
+    if (v <= 7) return 'medium';
+    return 'high';
+  }
 
-  bool get _canSave =>
-      _selectedMood != null &&
-      _stressLevel != null &&
-      _sleepQuality != null;
+  int _energyInt(double v) => ((v / 2).ceil()).clamp(1, 5);
 
-  Future<void> _save() async {
-    if (!_canSave) return;
+  Future<void> _submit() async {
+    if (_selectedMood == null) return;
 
     final entry = MoodEntry(
       id: DateTime.now().millisecondsSinceEpoch.toString(),
       timestamp: DateTime.now(),
       mood: _selectedMood!,
-      energyLevel: _energyLevel,
-      stressLevel: _stressLevel!,
-      sleepQuality: _sleepQuality!,
+      energyLevel: _energyInt(_energyLevel),
+      stressLevel: _stressCategory(_stressLevel),
+      sleepQuality: _sleepCategory(_sleepQuality),
     );
 
     await context.read<MoodProvider>().saveMoodEntry(entry);
     if (!mounted) return;
 
-    Navigator.pop(context, entry);
+    // Navigate to recommendations screen
+    Navigator.pushReplacementNamed(
+      context,
+      '/recommendations',
+      arguments: entry,
+    );
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      backgroundColor: AppTheme.background,
       appBar: AppBar(
-        title: const Text('How are you feeling?'),
-        leading: IconButton(
-          icon: const Icon(Icons.close, size: 22),
-          onPressed: () => Navigator.pop(context),
+        backgroundColor: AppTheme.background,
+        elevation: 0,
+        scrolledUnderElevation: 0,
+        leading: GestureDetector(
+          onTap: () => Navigator.pop(context),
+          child: Container(
+            margin: const EdgeInsets.all(8),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              shape: BoxShape.circle,
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withValues(alpha: 0.06),
+                  blurRadius: 6,
+                ),
+              ],
+            ),
+            child: const Icon(
+              Icons.arrow_back,
+              size: 20,
+              color: AppTheme.textDark,
+            ),
+          ),
+        ),
+        title: const Text(
+          'Daily Mood Check',
+          style: TextStyle(
+            fontSize: 15,
+            fontWeight: FontWeight.w600,
+            color: AppTheme.textSecondary,
+          ),
         ),
       ),
       body: SafeArea(
         child: SingleChildScrollView(
-          padding: const EdgeInsets.fromLTRB(20, 16, 20, 24),
+          padding: const EdgeInsets.fromLTRB(20, 8, 20, 32),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              const _SectionHeader(
-                title: 'Your mood right now',
-                subtitle: 'Pick the one that fits best',
+              const Text(
+                'How are you feeling?',
+                style: TextStyle(
+                  fontSize: 26,
+                  fontWeight: FontWeight.w800,
+                  color: AppTheme.textDark,
+                  height: 1.2,
+                ),
               ),
-              const SizedBox(height: 14),
+              const SizedBox(height: 6),
+              const Text(
+                "Let's check in on your mood and energy",
+                style: TextStyle(
+                  fontSize: 14,
+                  color: AppTheme.textSecondary,
+                ),
+              ),
+              const SizedBox(height: 28),
+
+              // Mood grid
+              const Text(
+                'Select your mood',
+                style: TextStyle(
+                  fontSize: 15,
+                  fontWeight: FontWeight.w600,
+                  color: AppTheme.textDark,
+                ),
+              ),
+              const SizedBox(height: 12),
               _MoodGrid(
                 moods: _moods,
                 selected: _selectedMood,
                 onSelect: (m) => setState(() => _selectedMood = m),
               ),
               const SizedBox(height: 28),
-              _SectionHeader(
-                title: 'Energy level',
-                subtitle: 'How much energy do you have? ($_energyLevel/5)',
-              ),
-              const SizedBox(height: 14),
-              _EnergySelector(
+
+              // Energy level slider
+              _SliderSection(
+                title: 'Energy Level',
                 value: _energyLevel,
+                minLabel: 'Low',
+                maxLabel: 'High',
                 onChanged: (v) => setState(() => _energyLevel = v),
               ),
-              const SizedBox(height: 28),
-              const _SectionHeader(
-                title: 'Stress level',
-                subtitle: 'How stressed are you?',
+              const SizedBox(height: 20),
+
+              // Sleep quality slider
+              _SliderSection(
+                title: 'Sleep Quality',
+                value: _sleepQuality,
+                minLabel: 'Poor',
+                maxLabel: 'Excellent',
+                onChanged: (v) => setState(() => _sleepQuality = v),
               ),
-              const SizedBox(height: 14),
-              _OptionRow(
-                options: _stressOptions,
-                selected: _stressLevel,
-                onSelect: (v) => setState(() => _stressLevel = v),
+              const SizedBox(height: 20),
+
+              // Stress level slider
+              _SliderSection(
+                title: 'Stress Level',
+                value: _stressLevel,
+                minLabel: 'Relaxed',
+                maxLabel: 'Very Stressed',
+                onChanged: (v) => setState(() => _stressLevel = v),
               ),
-              const SizedBox(height: 28),
-              const _SectionHeader(
-                title: 'Sleep quality',
-                subtitle: 'How did you sleep last night?',
-              ),
-              const SizedBox(height: 14),
-              _OptionRow(
-                options: _sleepOptions,
-                selected: _sleepQuality,
-                onSelect: (v) => setState(() => _sleepQuality = v),
-              ),
-              const SizedBox(height: 32),
-              ElevatedButton.icon(
-                onPressed: _canSave ? _save : null,
-                icon: const Icon(Icons.restaurant_menu, size: 20),
-                label: const Text('Save & Get Recommendations'),
-                style: ElevatedButton.styleFrom(
-                  minimumSize: const Size(double.infinity, 54),
+              const SizedBox(height: 36),
+
+              // Submit button
+              SizedBox(
+                width: double.infinity,
+                height: 56,
+                child: ElevatedButton(
+                  onPressed: _selectedMood != null ? _submit : null,
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: AppTheme.primary,
+                    disabledBackgroundColor:
+                        AppTheme.primary.withValues(alpha: 0.4),
+                    foregroundColor: Colors.white,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(20),
+                    ),
+                    elevation: 0,
+                  ),
+                  child: const Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Text(
+                        'Get AI Recommendations',
+                        style: TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                      SizedBox(width: 8),
+                      Icon(Icons.chevron_right, size: 20),
+                    ],
+                  ),
                 ),
               ),
-              if (!_canSave)
+              if (_selectedMood == null)
                 const Padding(
                   padding: EdgeInsets.only(top: 10),
                   child: Center(
                     child: Text(
-                      'Select mood, stress, and sleep to continue',
+                      'Select a mood to continue',
                       style: TextStyle(
                         fontSize: 12,
-                        color: AppTheme.textLight,
+                        color: AppTheme.textSecondary,
                       ),
                     ),
                   ),
@@ -146,35 +223,6 @@ class _MoodCheckScreenState extends State<MoodCheckScreen> {
           ),
         ),
       ),
-    );
-  }
-}
-
-class _SectionHeader extends StatelessWidget {
-  final String title;
-  final String subtitle;
-
-  const _SectionHeader({required this.title, required this.subtitle});
-
-  @override
-  Widget build(BuildContext context) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          title,
-          style: const TextStyle(
-            fontSize: 17,
-            fontWeight: FontWeight.w700,
-            color: AppTheme.textDark,
-          ),
-        ),
-        const SizedBox(height: 2),
-        Text(
-          subtitle,
-          style: const TextStyle(fontSize: 13, color: AppTheme.textMedium),
-        ),
-      ],
     );
   }
 }
@@ -196,10 +244,10 @@ class _MoodGrid extends StatelessWidget {
       shrinkWrap: true,
       physics: const NeverScrollableScrollPhysics(),
       gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-        crossAxisCount: 4,
+        crossAxisCount: 3,
         mainAxisSpacing: 10,
         crossAxisSpacing: 10,
-        childAspectRatio: 0.9,
+        childAspectRatio: 1.1,
       ),
       itemCount: moods.length,
       itemBuilder: (_, i) {
@@ -208,39 +256,38 @@ class _MoodGrid extends StatelessWidget {
         return GestureDetector(
           onTap: () => onSelect(key),
           child: AnimatedContainer(
-            duration: const Duration(milliseconds: 200),
+            duration: const Duration(milliseconds: 180),
             decoration: BoxDecoration(
               color: isSelected
-                  ? AppTheme.primaryGreen.withValues(alpha: 0.12)
+                  ? AppTheme.primary.withValues(alpha: 0.08)
                   : Colors.white,
               borderRadius: BorderRadius.circular(16),
               border: Border.all(
-                color: isSelected ? AppTheme.primaryGreen : AppTheme.divider,
+                color:
+                    isSelected ? AppTheme.primary : const Color(0xFFEEEEEE),
                 width: isSelected ? 2 : 1,
               ),
-              boxShadow: isSelected
-                  ? [
-                      BoxShadow(
-                        color: AppTheme.primaryGreen.withValues(alpha: 0.15),
-                        blurRadius: 8,
-                        offset: const Offset(0, 2),
-                      )
-                    ]
-                  : null,
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withValues(alpha: 0.04),
+                  blurRadius: 6,
+                  offset: const Offset(0, 2),
+                ),
+              ],
             ),
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                Text(emoji, style: const TextStyle(fontSize: 28)),
-                const SizedBox(height: 4),
+                Text(emoji, style: const TextStyle(fontSize: 30)),
+                const SizedBox(height: 6),
                 Text(
                   label,
                   style: TextStyle(
-                    fontSize: 11,
+                    fontSize: 12,
                     fontWeight: FontWeight.w600,
                     color: isSelected
-                        ? AppTheme.primaryGreen
-                        : AppTheme.textMedium,
+                        ? AppTheme.primary
+                        : AppTheme.textSecondary,
                   ),
                 ),
               ],
@@ -252,141 +299,85 @@ class _MoodGrid extends StatelessWidget {
   }
 }
 
-class _EnergySelector extends StatelessWidget {
-  final int value;
-  final ValueChanged<int> onChanged;
+class _SliderSection extends StatelessWidget {
+  final String title;
+  final double value;
+  final String minLabel;
+  final String maxLabel;
+  final ValueChanged<double> onChanged;
 
-  const _EnergySelector({required this.value, required this.onChanged});
-
-  @override
-  Widget build(BuildContext context) {
-    const emojis = ['😫', '😕', '😐', '🙂', '🤩'];
-    const labels = ['Very Low', 'Low', 'Medium', 'High', 'Very High'];
-
-    return Column(
-      children: [
-        Row(
-          children: List.generate(5, (i) {
-            final level = i + 1;
-            final isSelected = level == value;
-            return Expanded(
-              child: GestureDetector(
-                onTap: () => onChanged(level),
-                child: AnimatedContainer(
-                  duration: const Duration(milliseconds: 200),
-                  margin: EdgeInsets.only(right: i < 4 ? 6 : 0),
-                  padding: const EdgeInsets.symmetric(vertical: 12),
-                  decoration: BoxDecoration(
-                    color: isSelected
-                        ? AppTheme.accentAmber.withValues(alpha: 0.2)
-                        : Colors.white,
-                    borderRadius: BorderRadius.circular(14),
-                    border: Border.all(
-                      color: isSelected
-                          ? AppTheme.accentAmber
-                          : AppTheme.divider,
-                      width: isSelected ? 2 : 1,
-                    ),
-                  ),
-                  child: Column(
-                    children: [
-                      Text(
-                        emojis[i],
-                        style: const TextStyle(fontSize: 22),
-                      ),
-                      const SizedBox(height: 4),
-                      Text(
-                        '$level',
-                        style: TextStyle(
-                          fontSize: 13,
-                          fontWeight: FontWeight.w700,
-                          color: isSelected
-                              ? AppTheme.accentAmber
-                              : AppTheme.textMedium,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-            );
-          }),
-        ),
-        const SizedBox(height: 6),
-        Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          children: [
-            Text(
-              labels[0],
-              style: const TextStyle(fontSize: 11, color: AppTheme.textLight),
-            ),
-            Text(
-              labels[4],
-              style: const TextStyle(fontSize: 11, color: AppTheme.textLight),
-            ),
-          ],
-        ),
-      ],
-    );
-  }
-}
-
-class _OptionRow extends StatelessWidget {
-  final List<(String, String, String)> options;
-  final String? selected;
-  final ValueChanged<String> onSelect;
-
-  const _OptionRow({
-    required this.options,
-    required this.selected,
-    required this.onSelect,
+  const _SliderSection({
+    required this.title,
+    required this.value,
+    required this.minLabel,
+    required this.maxLabel,
+    required this.onChanged,
   });
 
   @override
   Widget build(BuildContext context) {
-    return Row(
-      children: options.asMap().entries.map((entry) {
-        final i = entry.key;
-        final (key, emoji, label) = entry.value;
-        final isSelected = selected == key;
-        return Expanded(
-          child: GestureDetector(
-            onTap: () => onSelect(key),
-            child: AnimatedContainer(
-              duration: const Duration(milliseconds: 200),
-              margin: EdgeInsets.only(right: i < options.length - 1 ? 8 : 0),
-              padding: const EdgeInsets.symmetric(vertical: 14),
-              decoration: BoxDecoration(
-                color: isSelected
-                    ? AppTheme.primaryGreen.withValues(alpha: 0.1)
-                    : Colors.white,
-                borderRadius: BorderRadius.circular(14),
-                border: Border.all(
-                  color:
-                      isSelected ? AppTheme.primaryGreen : AppTheme.divider,
-                  width: isSelected ? 2 : 1,
-                ),
-              ),
-              child: Column(
-                children: [
-                  Text(emoji, style: const TextStyle(fontSize: 22)),
-                  const SizedBox(height: 4),
-                  Text(
-                    label,
-                    style: TextStyle(
-                      fontSize: 13,
-                      fontWeight: FontWeight.w600,
-                      color: isSelected
-                          ? AppTheme.primaryGreen
-                          : AppTheme.textMedium,
-                    ),
-                  ),
-                ],
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            Text(
+              title,
+              style: const TextStyle(
+                fontSize: 15,
+                fontWeight: FontWeight.w600,
+                color: AppTheme.textDark,
               ),
             ),
+            Text(
+              '${value.round()}/10',
+              style: const TextStyle(
+                fontSize: 15,
+                fontWeight: FontWeight.w700,
+                color: AppTheme.primary,
+              ),
+            ),
+          ],
+        ),
+        SliderTheme(
+          data: SliderTheme.of(context).copyWith(
+            trackHeight: 4,
+            thumbShape: const RoundSliderThumbShape(enabledThumbRadius: 10),
+            overlayShape: const RoundSliderOverlayShape(overlayRadius: 20),
+            activeTrackColor: AppTheme.primary,
+            inactiveTrackColor: const Color(0xFFE0E0E0),
+            thumbColor: AppTheme.primary,
+            overlayColor: AppTheme.primary.withValues(alpha: 0.12),
           ),
-        );
-      }).toList(),
+          child: Slider(
+            value: value,
+            min: 1,
+            max: 10,
+            divisions: 9,
+            onChanged: onChanged,
+          ),
+        ),
+        Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            Text(
+              minLabel,
+              style: const TextStyle(
+                fontSize: 11,
+                color: AppTheme.textSecondary,
+              ),
+            ),
+            Text(
+              maxLabel,
+              style: const TextStyle(
+                fontSize: 11,
+                color: AppTheme.textSecondary,
+              ),
+            ),
+          ],
+        ),
+      ],
     );
   }
 }

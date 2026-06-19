@@ -10,7 +10,7 @@ class RecipeService {
     final response = await _api.dio.get(
       '/recipes',
       queryParameters: {
-        if (mood != null) 'mood': mood,
+        'mood': ?mood,
         'limit': limit,
       },
     );
@@ -28,12 +28,17 @@ class RecipeService {
     return [];
   }
 
-  Future<List<Recipe>> getRecommendations({String? mood, int limit = 20}) async {
+  Future<List<Recipe>> getRecommendations({
+    String? mood,
+    int limit = 20,
+    bool useMyIngredients = false,
+  }) async {
     final response = await _api.dio.get(
       '/recipes/recommendations',
       queryParameters: {
-        if (mood != null) 'mood': mood,
+        'mood': ?mood,
         'limit': limit,
+        if (useMyIngredients) 'useMyIngredients': 'true',
       },
     );
     final data = response.data;

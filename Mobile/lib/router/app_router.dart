@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../core/models/mood_entry_model.dart';
 import '../features/auth/screens/splash_screen.dart';
 import '../features/auth/screens/welcome_screen.dart';
 import '../features/auth/screens/login_screen.dart';
@@ -13,6 +14,8 @@ import '../features/mood/screens/mood_check_screen.dart';
 import '../features/mood/screens/mood_history_screen.dart';
 import '../features/ingredients/screens/ingredients_screen.dart';
 import '../features/recipes/screens/recipes_screen.dart';
+import '../features/recommendations/screens/recommendations_screen.dart';
+import '../features/notifications/screens/notifications_screen.dart';
 
 class AppRouter {
   static Route<dynamic> onGenerateRoute(RouteSettings settings) {
@@ -46,10 +49,18 @@ class AppRouter {
         return MaterialPageRoute(builder: (_) => const IngredientsScreen());
       case '/recipes':
         return MaterialPageRoute(builder: (_) => const RecipesScreen());
+      case '/recommendations':
+        final entry = settings.arguments as MoodEntry?;
+        return MaterialPageRoute(
+          builder: (_) => RecommendationsScreen(moodEntry: entry),
+          fullscreenDialog: true,
+        );
       case '/settings':
         return MaterialPageRoute(builder: (_) => const SettingsScreen());
       case '/premium':
         return MaterialPageRoute(builder: (_) => const PremiumScreen());
+      case '/notifications':
+        return MaterialPageRoute(builder: (_) => const NotificationsScreen());
       default:
         return MaterialPageRoute(
           builder: (_) => const Scaffold(
