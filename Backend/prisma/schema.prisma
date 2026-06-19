@@ -106,6 +106,7 @@ model User {
   orders            Order[]
   wallet            Wallet?
   subscriptions     UserSubscription[]
+  moodChecks        MoodCheck[]
 
   @@map("users")
 }
@@ -282,6 +283,24 @@ model WalletTransaction {
   order  Order? @relation(fields: [orderId], references: [id], onDelete: SetNull)
 
   @@map("wallet_transactions")
+}
+
+// ─── Mood Checks (Epic 2 — daily state check-in + history) ────────────────────
+
+model MoodCheck {
+  id           String   @id @default(uuid())
+  userId       String   @map("user_id")
+  mood         String?
+  energyLevel  Int?     @map("energy_level") // 1–5
+  stressLevel  String?  @map("stress_level") // low | medium | high
+  sleepQuality String?  @map("sleep_quality") // poor | normal | good
+  hungerLevel  String?  @map("hunger_level") // low | medium | high
+  createdAt    DateTime @default(now()) @map("created_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, createdAt])
+  @@map("mood_checks")
 }
 
 // ─── User Pantry (ingredients available at home) ──────────────────────────────
