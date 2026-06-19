@@ -4,7 +4,8 @@
     "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
   },
   "variable": [
-    { "key": "base_url", "value": "http://localhost:3000/api/v1" },
+    { "key": "host", "value": "https://moodfood-backend.onrender.com" },
+    { "key": "base_url", "value": "{{host}}/api/v1" },
     { "key": "token", "value": "" }
   ],
   "item": [
@@ -12,7 +13,7 @@
       "name": "Health Check",
       "request": {
         "method": "GET",
-        "url": "http://localhost:3000/health"
+        "url": "{{host}}/health"
       }
     },
     {
@@ -327,6 +328,352 @@
                 { "key": "minMatchScore", "value": "0.8" }
               ]
             }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Mood-Check (Epic 2)",
+      "item": [
+        {
+          "name": "Create Mood-Check",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{token}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "url": "{{base_url}}/mood-checks",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"mood\": \"tired\",\n  \"energyLevel\": 2,\n  \"stressLevel\": \"high\",\n  \"sleepQuality\": \"poor\",\n  \"hungerLevel\": \"high\"\n}"
+            }
+          }
+        },
+        {
+          "name": "Get Mood-Check History",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+            "url": {
+              "raw": "{{base_url}}/mood-checks?limit=20&offset=0",
+              "query": [
+                { "key": "limit", "value": "20" },
+                { "key": "offset", "value": "0" }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Get Latest Mood-Check",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+            "url": "{{base_url}}/mood-checks/latest"
+          }
+        },
+        {
+          "name": "Create — Empty Body (expect 400)",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{token}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "url": "{{base_url}}/mood-checks",
+            "body": { "mode": "raw", "raw": "{}" }
+          }
+        }
+      ]
+    },
+    {
+      "name": "AI Recommendations (Epic 4)",
+      "item": [
+        {
+          "name": "Recommend — Tired / Low Energy",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{token}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "url": "{{base_url}}/recommendations",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"mood\": \"tired\",\n  \"energyLevel\": 2,\n  \"maxCookingTime\": 30\n}"
+            }
+          }
+        },
+        {
+          "name": "Recommend — High Stress",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{token}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "url": "{{base_url}}/recommendations",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"mood\": \"stressed\",\n  \"stressLevel\": \"high\"\n}"
+            }
+          }
+        },
+        {
+          "name": "Recommend — Poor Sleep",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{token}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "url": "{{base_url}}/recommendations",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"sleepQuality\": \"poor\",\n  \"energyLevel\": 3\n}"
+            }
+          }
+        },
+        {
+          "name": "Recommend — Very Hungry + Low Budget",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{token}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "url": "{{base_url}}/recommendations",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"hungerLevel\": \"high\",\n  \"budgetLevel\": \"low\"\n}"
+            }
+          }
+        },
+        {
+          "name": "Recommend — Use My Pantry + Substitutions",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{token}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "url": "{{base_url}}/recommendations",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"mood\": \"tired\",\n  \"energyLevel\": 2,\n  \"useMyIngredients\": true\n}"
+            }
+          }
+        },
+        {
+          "name": "Recommend — No Token (expect 401)",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": "{{base_url}}/recommendations",
+            "body": { "mode": "raw", "raw": "{\n  \"mood\": \"tired\"\n}" }
+          }
+        }
+      ]
+    },
+    {
+      "name": "🧪 Step-by-Step Test (Epic 2 + 4)",
+      "description": "Run these requests top-to-bottom (or via Collection Runner on this folder). Prereqs: server running + recipes seeded (npm run db:seed). Step 1 saves the JWT into {{token}} automatically.",
+      "item": [
+        {
+          "name": "1. Register (saves token)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "var json = pm.response.json();",
+                  "if (json.token) { pm.collectionVariables.set('token', json.token); }",
+                  "pm.test('got a token', function () { pm.expect(pm.collectionVariables.get('token')).to.be.a('string').and.not.empty; });"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": "{{base_url}}/auth/register",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"epic4-tester@moodfood.app\",\n  \"password\": \"SecurePass123!\",\n  \"name\": \"Epic4 Tester\"\n}"
+            }
+          }
+        },
+        {
+          "name": "1b. Login (use if already registered — saves token)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "var json = pm.response.json();",
+                  "if (json.token) { pm.collectionVariables.set('token', json.token); }"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": "{{base_url}}/auth/login",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"epic4-tester@moodfood.app\",\n  \"password\": \"SecurePass123!\"\n}"
+            }
+          }
+        },
+        {
+          "name": "2. Fill profile (budget=low, no hard restrictions)",
+          "request": {
+            "method": "PUT",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{token}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "url": "{{base_url}}/profile",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"age\": 21,\n  \"goal\": \"More energy\",\n  \"lifestyle\": \"student\",\n  \"budgetLevel\": \"low\",\n  \"dietaryRestrictions\": [],\n  \"allergies\": [],\n  \"customRestrictions\": []\n}"
+            }
+          }
+        },
+        {
+          "name": "3. Add pantry ingredients",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{token}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "url": "{{base_url}}/pantry",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"ingredients\": [\"rolled oats\", \"banana\", \"eggs\", \"rice\"]\n}"
+            }
+          }
+        },
+        {
+          "name": "4. Save mood-check (Epic 2)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('201 created', function () { pm.response.to.have.status(201); });",
+                  "var json = pm.response.json();",
+                  "pm.test('check-in has id + createdAt', function () { pm.expect(json).to.have.property('id'); pm.expect(json).to.have.property('createdAt'); });"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{token}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "url": "{{base_url}}/mood-checks",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"mood\": \"tired\",\n  \"energyLevel\": 2,\n  \"stressLevel\": \"high\",\n  \"sleepQuality\": \"poor\",\n  \"hungerLevel\": \"high\"\n}"
+            }
+          }
+        },
+        {
+          "name": "5. Get recommendations (Epic 4 — basic)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('200 OK', function () { pm.response.to.have.status(200); });",
+                  "var json = pm.response.json();",
+                  "pm.test('returns options', function () { pm.expect(json.options).to.be.an('array').that.is.not.empty; });",
+                  "pm.test('each option has category, recipe, explanation, fitScore', function () {",
+                  "  json.options.forEach(function (o) {",
+                  "    pm.expect(o).to.have.property('category');",
+                  "    pm.expect(o).to.have.property('recipe');",
+                  "    pm.expect(o.explanation).to.be.a('string').and.not.empty;",
+                  "    pm.expect(o).to.have.property('fitScore');",
+                  "  });",
+                  "});",
+                  "pm.test('categories are fastest/healthiest/cheapest', function () {",
+                  "  var cats = json.options.map(function (o) { return o.category; });",
+                  "  cats.forEach(function (c) { pm.expect(['fastest','healthiest','cheapest']).to.include(c); });",
+                  "});",
+                  "console.log('aiPowered =', json.aiPowered);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{token}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "url": "{{base_url}}/recommendations",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"mood\": \"tired\",\n  \"energyLevel\": 2,\n  \"stressLevel\": \"high\",\n  \"maxCookingTime\": 30\n}"
+            }
+          }
+        },
+        {
+          "name": "6. Get recommendations (use my pantry + substitutions)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('200 OK', function () { pm.response.to.have.status(200); });",
+                  "var json = pm.response.json();",
+                  "pm.test('options carry matchScore + missingIngredients + substitutions', function () {",
+                  "  json.options.forEach(function (o) {",
+                  "    pm.expect(o).to.have.property('matchScore');",
+                  "    pm.expect(o).to.have.property('missingIngredients');",
+                  "    pm.expect(o).to.have.property('substitutions');",
+                  "  });",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{token}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "url": "{{base_url}}/recommendations",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"mood\": \"tired\",\n  \"energyLevel\": 2,\n  \"useMyIngredients\": true\n}"
+            }
+          }
+        },
+        {
+          "name": "7. Get mood-check history",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('200 OK', function () { pm.response.to.have.status(200); });",
+                  "var json = pm.response.json();",
+                  "pm.test('history has at least 1 entry', function () { pm.expect(json.total).to.be.above(0); pm.expect(json.moodChecks).to.be.an('array').that.is.not.empty; });"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+            "url": "{{base_url}}/mood-checks"
           }
         }
       ]

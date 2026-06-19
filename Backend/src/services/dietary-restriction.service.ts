@@ -196,6 +196,20 @@ export function canUserSeeRecipe(
 }
 
 /**
+ * Returns the lowercased exclusion terms implied by a user's restrictions and
+ * allergies (plus their custom free-text restrictions). Used by the
+ * recommendation engine to avoid suggesting unsafe ingredient substitutions.
+ */
+export function getExcludedTermsForUser(userProfile: UserRestrictionContext | null): string[] {
+  if (!userProfile) return []
+  const terms = buildExcludedTerms(userProfile.dietaryRestrictions, userProfile.allergies)
+  const custom = userProfile.customRestrictions
+    .map(r => r.toLowerCase().trim())
+    .filter(Boolean)
+  return Array.from(new Set([...terms, ...custom]))
+}
+
+/**
  * Filters an array of recipes, removing any the user cannot see.
  * Drop-in helper for recommendation / search endpoints.
  */

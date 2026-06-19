@@ -11,6 +11,8 @@ import pantryRoutes from './modules/pantry/pantry.routes'
 import paymentRoutes from './modules/payment/payment.routes'
 import walletRoutes from './modules/wallet/wallet.routes'
 import subscriptionRoutes from './modules/subscription/subscription.routes'
+import recommendationRoutes from './modules/recommendations/recommendation.routes'
+import moodCheckRoutes from './modules/moodcheck/moodcheck.routes'
 
 const app = express()
 
@@ -46,6 +48,8 @@ app.use('/api/v1/pantry', pantryRoutes)
 app.use('/api/v1/payment', paymentRoutes)
 app.use('/api/v1/wallet', walletRoutes)
 app.use('/api/v1/subscriptions', subscriptionRoutes)
+app.use('/api/v1/recommendations', recommendationRoutes)
+app.use('/api/v1/mood-checks', moodCheckRoutes)
 
 // ─── 404 handler ─────────────────────────────────────────────────────────────
 app.use((_req, res) => {
