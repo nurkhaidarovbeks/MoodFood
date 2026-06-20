@@ -92,7 +92,7 @@ class _LoginScreenState extends State<LoginScreen> {
                     ),
                   ),
                   validator: (v) =>
-                      (v == null || v.length < 6) ? 'Min 6 characters' : null,
+                      (v == null || v.isEmpty) ? 'Enter password' : null,
                 ),
                 const SizedBox(height: 12),
                 Align(
