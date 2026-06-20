@@ -1345,9 +1345,33 @@ class _TrackerTab extends StatelessWidget {
   }
 }
 
-class _TrackerStatsGrid extends StatelessWidget {
+class _TrackerStatsGrid extends StatefulWidget {
   final double avgEnergy;
   const _TrackerStatsGrid({required this.avgEnergy});
+
+  @override
+  State<_TrackerStatsGrid> createState() => _TrackerStatsGridState();
+}
+
+class _TrackerStatsGridState extends State<_TrackerStatsGrid> {
+  static const _waterKey = 'water_glasses';
+  int _glasses = 0;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadWater();
+  }
+
+  Future<void> _loadWater() async {
+    final prefs = await SharedPreferences.getInstance();
+    final today = DateTime.now().toIso8601String().substring(0, 10);
+    final saved = prefs.getString(_waterKey);
+    if (saved != null && saved.startsWith(today)) {
+      final count = int.tryParse(saved.split(':').last) ?? 0;
+      if (mounted) setState(() => _glasses = count);
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -1364,7 +1388,7 @@ class _TrackerStatsGrid extends StatelessWidget {
           iconColor: const Color(0xFF2196F3),
           bgColor: Colors.white,
           title: 'Water',
-          value: '6/8',
+          value: '$_glasses/8',
           subtitle: 'glasses',
         ),
         _TrackerStatCard(
@@ -1391,10 +1415,10 @@ class _TrackerStatsGrid extends StatelessWidget {
           iconColor: const Color(0xFFFF7043),
           bgColor: Colors.white,
           title: 'Energy',
-          value: '${avgEnergy.toStringAsFixed(0)}/10',
+          value: '${widget.avgEnergy.toStringAsFixed(0)}/10',
           subtitle: 'avg',
           showBar: true,
-          barValue: avgEnergy / 10,
+          barValue: widget.avgEnergy / 10,
           barColor: const Color(0xFFFF7043),
         ),
       ],
@@ -1910,20 +1934,28 @@ class _ProfileTab extends StatefulWidget {
 
 class _ProfileTabState extends State<_ProfileTab> {
   static const _avatarKey = 'avatar_path';
+  static const _savedKey = 'saved_recipes';
   String? _avatarPath;
+  int _savedCount = 0;
 
   @override
   void initState() {
     super.initState();
-    _loadAvatar();
+    _loadData();
   }
 
-  Future<void> _loadAvatar() async {
+  Future<void> _loadData() async {
     final prefs = await SharedPreferences.getInstance();
     final path = prefs.getString(_avatarKey);
     if (path != null && File(path).existsSync()) {
       if (mounted) setState(() => _avatarPath = path);
     }
+    final saved = prefs.getStringList(_savedKey) ?? [];
+    if (mounted) setState(() => _savedCount = saved.length);
+  }
+
+  Future<void> _loadAvatar() async {
+    await _loadData();
   }
 
   @override
@@ -2100,7 +2132,7 @@ class _ProfileTabState extends State<_ProfileTab> {
                               Expanded(
                                 child: _ProfileStat(
                                   emoji: '♥',
-                                  value: '24',
+                                  value: '$_savedCount',
                                   label: 'Recipes Saved',
                                 ),
                               ),
