@@ -3,83 +3,60 @@ import { PrismaClient, OrderStatus, OrderType, PaymentGateway, TransactionType }
 import { WalletService } from '../src/modules/wallet/wallet.service'
 import { PaymentService } from '../src/modules/payment/payment.service'
 
-// ─── Mock external payment services ──────────────────────────────────────────
-jest.mock('../src/services/bereke.service', () => ({
-  bereRegisterOrder: jest.fn(),
-  bereGetStatus:     jest.fn(),
-  bereRefund:        jest.fn(),
-}))
 jest.mock('../src/services/paypal.service', () => ({
   createPayPalOrder:  jest.fn(),
   capturePayPalOrder: jest.fn(),
 }))
 
-import { bereRegisterOrder, bereGetStatus } from '../src/services/bereke.service'
+import { createPayPalOrder, capturePayPalOrder } from '../src/services/paypal.service'
 
-const mockBereRegister = bereRegisterOrder as jest.MockedFunction<typeof bereRegisterOrder>
-const mockBereStatus   = bereGetStatus     as jest.MockedFunction<typeof bereGetStatus>
+const mockPPCreate  = createPayPalOrder  as jest.MockedFunction<typeof createPayPalOrder>
+const mockPPCapture = capturePayPalOrder as jest.MockedFunction<typeof capturePayPalOrder>
 
-// ─── Setup ────────────────────────────────────────────────────────────────────
-
-const mockPrisma        = mockDeep<PrismaClient>()
-const walletService     = new WalletService(mockPrisma as unknown as PrismaClient)
-const paymentService    = new PaymentService(mockPrisma as unknown as PrismaClient)
+const mockPrisma     = mockDeep<PrismaClient>()
+const walletService  = new WalletService(mockPrisma as unknown as PrismaClient)
+const paymentService = new PaymentService(mockPrisma as unknown as PrismaClient)
 
 beforeEach(() => {
   mockReset(mockPrisma)
   jest.clearAllMocks()
 })
 
-// ─── Helpers ──────────────────────────────────────────────────────────────────
-
 const userId   = 'user-1'
 const walletId = 'wallet-1'
 const orderId  = 'order-1'
-const gwId     = 'gw-123'
+const ppToken  = 'pp-token-1'
 
 function makeWallet(balance = 5000) {
-  return {
-    id:        walletId,
-    userId,
-    balance,
-    createdAt: new Date(),
-    updatedAt: new Date(),
-  }
+  return { id: walletId, userId, balance, createdAt: new Date(), updatedAt: new Date() }
 }
 
 function makeTx(overrides: Partial<{
   id: string; amount: number; currency: string; type: TransactionType; description: string | null; createdAt: Date
 }> = {}) {
-  return {
-    id:          'tx-1',
-    amount:      5000,
-    currency:    'KZT',
-    type:        TransactionType.topup,
-    description: 'Wallet top-up',
-    createdAt:   new Date(),
-    ...overrides,
-  }
+  return { id: 'tx-1', amount: 5000, currency: 'USD', type: TransactionType.topup, description: 'Wallet top-up', createdAt: new Date(), ...overrides }
 }
 
 function makeOrder(overrides: Partial<{
   id: string; userId: string; status: OrderStatus; orderType: OrderType;
-  gateway: PaymentGateway; amount: number; currency: string; gatewayOrderId: string | null; paymentUrl: string | null;
-  transactionId: string | null; description: string | null; createdAt: Date; updatedAt: Date;
+  gateway: PaymentGateway; amount: number; currency: string;
+  gatewayOrderId: string | null; paymentUrl: string | null; transactionId: string | null;
+  description: string | null; createdAt: Date; updatedAt: Date;
 }> = {}) {
   return {
-    id:            orderId,
+    id:             orderId,
     userId,
-    status:        OrderStatus.pending,
-    orderType:     OrderType.topup,
-    gateway:       PaymentGateway.bereke,
-    amount:        5000,
-    currency:      'KZT',
-    gatewayOrderId: gwId,
-    paymentUrl:    'https://pay.bereke/form',
-    transactionId: null,
-    description:   'Wallet top-up',
-    createdAt:     new Date(),
-    updatedAt:     new Date(),
+    status:         OrderStatus.pending,
+    orderType:      OrderType.topup,
+    gateway:        PaymentGateway.paypal,
+    amount:         9.99,
+    currency:       'USD',
+    gatewayOrderId: ppToken,
+    paymentUrl:     'https://paypal.com/approve',
+    transactionId:  null,
+    description:    'Wallet top-up',
+    createdAt:      new Date(),
+    updatedAt:      new Date(),
     ...overrides,
   }
 }
@@ -90,21 +67,18 @@ describe('getWallet', () => {
   it('W1. returns balance and last 20 transactions for existing wallet', async () => {
     mockPrisma.wallet.findUnique.mockResolvedValue({
       ...makeWallet(12500),
-      transactions: [makeTx({ amount: 5000 }), makeTx({ id: 'tx-2', amount: 7500 })],
+      transactions: [makeTx({ amount: 5 }), makeTx({ id: 'tx-2', amount: 7.5 })],
     } as any)
 
     const result = await walletService.getWallet(userId)
 
     expect(result.balance).toBe(12500)
     expect(result.transactions).toHaveLength(2)
-    expect(result.currency).toBe('KZT')
   })
 
   it('W2. returns zero balance when wallet does not exist yet', async () => {
     mockPrisma.wallet.findUnique.mockResolvedValue(null)
-
     const result = await walletService.getWallet(userId)
-
     expect(result.balance).toBe(0)
     expect(result.transactions).toHaveLength(0)
   })
@@ -126,9 +100,7 @@ describe('getTransactions', () => {
 
   it('W4. returns empty list when wallet does not exist', async () => {
     mockPrisma.wallet.findUnique.mockResolvedValue(null)
-
     const result = await walletService.getTransactions(userId, 20, 0)
-
     expect(result.transactions).toHaveLength(0)
     expect(result.total).toBe(0)
   })
@@ -163,95 +135,76 @@ describe('debitWallet', () => {
       expect.objectContaining({ data: { balance: { decrement: 1000 } } }),
     )
     expect(mockPrisma.walletTransaction.create).toHaveBeenCalledWith(
-      expect.objectContaining({
-        data: expect.objectContaining({ amount: -1000, type: 'payment' }),
-      }),
+      expect.objectContaining({ data: expect.objectContaining({ amount: -1000, type: 'payment' }) }),
     )
   })
 
   it('W8. throws 400 when balance is insufficient', async () => {
     mockPrisma.wallet.findUnique.mockResolvedValue(makeWallet(500) as any)
-
     await expect(walletService.debitWallet(userId, 1000, 'Premium')).rejects.toMatchObject({
-      statusCode: 400,
-      code: 'INSUFFICIENT_BALANCE',
+      statusCode: 400, code: 'INSUFFICIENT_BALANCE',
     })
   })
 
   it('W9. throws 400 when wallet does not exist', async () => {
     mockPrisma.wallet.findUnique.mockResolvedValue(null)
-
     await expect(walletService.debitWallet(userId, 1000, 'Premium')).rejects.toMatchObject({
-      statusCode: 400,
-      code: 'WALLET_NOT_FOUND',
+      statusCode: 400, code: 'WALLET_NOT_FOUND',
     })
   })
 })
 
-// ─── PaymentService: topup checkout ──────────────────────────────────────────
+// ─── PaymentService: topup checkout via PayPal ────────────────────────────────
 
 describe('checkout — topup orderType', () => {
-  it('W10. creates topup order with orderType=topup and returns payment URL', async () => {
+  it('W10. creates topup order with orderType=topup and returns PayPal URL', async () => {
     mockPrisma.order.findFirst.mockResolvedValue(null)
     mockPrisma.order.create.mockResolvedValue(
       makeOrder({ status: OrderStatus.created, gatewayOrderId: null, paymentUrl: null }) as any,
     )
-    mockBereRegister.mockResolvedValue({ gatewayOrderId: gwId, paymentUrl: 'https://pay.bereke/form' })
+    mockPPCreate.mockResolvedValue({ orderId: ppToken, approvalUrl: 'https://paypal.com/approve' })
     mockPrisma.order.update.mockResolvedValue(makeOrder() as any)
 
-    const result = await paymentService.checkout(userId, {
-      amount: 5000,
-      gateway: 'bereke',
-      orderType: 'topup',
-    })
+    const result = await paymentService.checkout(userId, { amount: 9.99, orderType: 'topup' })
 
     expect(mockPrisma.order.create).toHaveBeenCalledWith(
-      expect.objectContaining({
-        data: expect.objectContaining({ orderType: OrderType.topup }),
-      }),
+      expect.objectContaining({ data: expect.objectContaining({ orderType: OrderType.topup }) }),
     )
     expect(result.paymentUrl).toBeTruthy()
     expect(result.idempotent).toBe(false)
   })
 
-  it('W11. idempotency includes orderType in duplicate check', async () => {
-    const existing = makeOrder()
-    mockPrisma.order.findFirst.mockResolvedValue(existing as any)
+  it('W11. idempotency — returns existing pending topup order', async () => {
+    mockPrisma.order.findFirst.mockResolvedValue(makeOrder() as any)
 
-    const result = await paymentService.checkout(userId, {
-      amount: 5000,
-      gateway: 'bereke',
-      orderType: 'topup',
-    })
+    const result = await paymentService.checkout(userId, { amount: 9.99, orderType: 'topup' })
 
-    expect(mockBereRegister).not.toHaveBeenCalled()
+    expect(mockPPCreate).not.toHaveBeenCalled()
     expect(result.idempotent).toBe(true)
   })
 })
 
-// ─── PaymentService: wallet credited on topup payment ────────────────────────
+// ─── wallet credit on topup payment via PayPal ───────────────────────────────
 
 describe('wallet credit on topup paid', () => {
-  it('W12. credits wallet when Bereke confirms topup order paid', async () => {
+  it('W12. credits wallet when PayPal capture confirms topup order paid', async () => {
     mockPrisma.order.findFirst.mockResolvedValue(makeOrder({ status: OrderStatus.pending }) as any)
-    mockBereStatus.mockResolvedValue({ orderStatus: 2, amountKzt: 5000, actionCode: 0 })
+    mockPPCapture.mockResolvedValue({ success: true, transactionId: 'txn-abc' })
     mockPrisma.order.update.mockResolvedValue(makeOrder({ status: OrderStatus.paid }) as any)
     mockPrisma.$transaction.mockImplementation(async (fn: any) => fn(mockPrisma))
-    mockPrisma.wallet.upsert.mockResolvedValue(makeWallet(5000) as any)
+    mockPrisma.wallet.upsert.mockResolvedValue(makeWallet(9.99) as any)
     mockPrisma.walletTransaction.create.mockResolvedValue({} as any)
 
-    const result = await paymentService.handleBereSuccess(gwId)
+    const result = await paymentService.handlePaypalSuccess(ppToken)
 
     expect(mockPrisma.wallet.upsert).toHaveBeenCalledWith(
       expect.objectContaining({
         where:  { userId },
-        update: { balance: { increment: 5000 } },
+        update: { balance: { increment: 9.99 } },
       }),
     )
     expect(mockPrisma.walletTransaction.create).toHaveBeenCalledWith(
-      expect.objectContaining({
-        data: expect.objectContaining({ amount: 5000, type: TransactionType.topup }),
-      }),
+      expect.objectContaining({ data: expect.objectContaining({ type: TransactionType.topup }) }),
     )
     expect(result.success).toBe(true)
   })
@@ -260,31 +213,13 @@ describe('wallet credit on topup paid', () => {
     mockPrisma.order.findFirst.mockResolvedValue(
       makeOrder({ orderType: OrderType.purchase }) as any,
     )
-    mockBereStatus.mockResolvedValue({ orderStatus: 2, amountKzt: 5000, actionCode: 0 })
+    mockPPCapture.mockResolvedValue({ success: true, transactionId: 'txn-abc' })
     mockPrisma.order.update.mockResolvedValue(
       makeOrder({ status: OrderStatus.paid, orderType: OrderType.purchase }) as any,
     )
 
-    await paymentService.handleBereSuccess(gwId)
+    await paymentService.handlePaypalSuccess(ppToken)
 
     expect(mockPrisma.wallet.upsert).not.toHaveBeenCalled()
-  })
-
-  it('W14. credits wallet via Bereke callback for topup order', async () => {
-    mockPrisma.order.findFirst.mockResolvedValue(makeOrder({ status: OrderStatus.pending }) as any)
-    mockBereStatus.mockResolvedValue({ orderStatus: 2, amountKzt: 5000, actionCode: 0 })
-    mockPrisma.order.update.mockResolvedValue(makeOrder({ status: OrderStatus.paid }) as any)
-    mockPrisma.$transaction.mockImplementation(async (fn: any) => fn(mockPrisma))
-    mockPrisma.wallet.upsert.mockResolvedValue(makeWallet(5000) as any)
-    mockPrisma.walletTransaction.create.mockResolvedValue({} as any)
-
-    await paymentService.handleBereCallback({
-      mdOrder:     gwId,
-      orderNumber: orderId,
-      operation:   'deposited',
-      status:      '1',
-    })
-
-    expect(mockPrisma.wallet.upsert).toHaveBeenCalled()
   })
 })

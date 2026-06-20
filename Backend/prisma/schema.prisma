@@ -51,7 +51,6 @@ enum SubscriptionStatus {
 }
 
 enum PaymentGateway {
-  bereke
   paypal
 }
 

@@ -3,7 +3,7 @@ import { z } from 'zod'
 export const CheckoutSchema = z.object({
   amount: z.number().positive('Amount must be positive'),
   description: z.string().min(1).max(200).optional(),
-  gateway: z.enum(['bereke', 'paypal']).default('bereke'),
+  gateway: z.enum(['paypal']).default('paypal'),
   orderType: z.enum(['purchase', 'topup', 'subscription']).default('purchase'),
 })
 

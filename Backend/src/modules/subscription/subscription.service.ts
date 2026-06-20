@@ -55,8 +55,7 @@ export class SubscriptionService {
       }
     }
 
-    // Use KZT price for Bereke, USD for PayPal
-    const amount = input.gateway === 'paypal' ? plan.priceUsd : plan.priceKzt
+    const amount = plan.priceUsd
 
     const checkout = await this.paymentService.checkout(userId, {
       amount,
