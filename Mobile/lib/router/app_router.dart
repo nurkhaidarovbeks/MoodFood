@@ -18,6 +18,7 @@ import '../features/recommendations/screens/recommendations_screen.dart';
 import '../features/notifications/screens/notifications_screen.dart';
 import '../features/premium/screens/payment_success_screen.dart';
 import '../features/profile/screens/edit_profile_screen.dart';
+import '../features/payment/screens/paypal_webview_screen.dart';
 
 class AppRouter {
   static Route<dynamic> onGenerateRoute(RouteSettings settings) {
@@ -70,6 +71,15 @@ class AppRouter {
         return _slide(const PaymentSuccessScreen());
       case '/edit-profile':
         return MaterialPageRoute(builder: (_) => const EditProfileScreen());
+      case '/paypal-webview':
+        final args = settings.arguments as Map<String, String>?;
+        return MaterialPageRoute(
+          builder: (_) => PayPalWebViewScreen(
+            paymentUrl: args?['paymentUrl'] ?? '',
+            orderId: args?['orderId'] ?? '',
+          ),
+          fullscreenDialog: true,
+        );
       default:
         return MaterialPageRoute(
           builder: (_) => const Scaffold(

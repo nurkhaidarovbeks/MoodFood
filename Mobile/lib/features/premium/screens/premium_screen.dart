@@ -1,5 +1,8 @@
 import 'package:flutter/material.dart';
+import '../../../core/api/api_client.dart';
+import '../../../core/services/subscription_service.dart';
 import '../../../core/theme/app_theme.dart';
+import '../../payment/screens/paypal_webview_screen.dart';
 
 class PremiumScreen extends StatefulWidget {
   const PremiumScreen({super.key});
@@ -452,10 +455,13 @@ class _PaymentSheet extends StatefulWidget {
 class _PaymentSheetState extends State<_PaymentSheet> {
   int _selectedMethod = 0;
   bool _processing = false;
+  String? _error;
+
+  final _subService = SubscriptionService();
 
   static const _methods = [
-    ('forte', '🏦', 'Forte Bank'),
     ('paypal', '🅿️', 'PayPal'),
+    ('forte', '🏦', 'Forte Bank'),
   ];
 
   @override
@@ -542,6 +548,24 @@ class _PaymentSheetState extends State<_PaymentSheet> {
 
           const SizedBox(height: 16),
 
+          if (_error != null) ...[
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+              decoration: BoxDecoration(
+                color: const Color(0xFFFFEBEE),
+                borderRadius: BorderRadius.circular(10),
+              ),
+              child: Text(
+                _error!,
+                style: const TextStyle(
+                  fontSize: 13,
+                  color: Color(0xFFD32F2F),
+                ),
+              ),
+            ),
+            const SizedBox(height: 12),
+          ],
+
           SizedBox(
             width: double.infinity,
             height: 52,
@@ -592,13 +616,55 @@ class _PaymentSheetState extends State<_PaymentSheet> {
   }
 
   Future<void> _pay(BuildContext context) async {
-    setState(() => _processing = true);
-    // Simulate payment processing
-    await Future<void>.delayed(const Duration(seconds: 2));
-    if (!mounted) return;
-    setState(() => _processing = false);
-    widget.onClose();
-    if (!mounted) return;
-    Navigator.pushNamed(context, '/payment-success');
+    final method = _methods[_selectedMethod].$1;
+
+    // Forte Bank is not yet available
+    if (method == 'forte') {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Forte Bank coming soon. Please use PayPal.'),
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+      return;
+    }
+
+    setState(() { _processing = true; _error = null; });
+
+    try {
+      final result = await _subService.subscribe(
+        planType: 'monthly',
+        gateway: 'paypal',
+      );
+
+      final paymentUrl = result['paymentUrl'] as String?;
+      final orderId = result['orderId'] as String?;
+
+      if (paymentUrl == null || paymentUrl.isEmpty) {
+        throw ApiException('No payment URL received from server');
+      }
+
+      if (!mounted) return;
+      setState(() => _processing = false);
+      widget.onClose();
+
+      if (!mounted) return;
+      await Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (_) => PayPalWebViewScreen(
+            paymentUrl: paymentUrl,
+            orderId: orderId ?? '',
+          ),
+          fullscreenDialog: true,
+        ),
+      );
+    } on ApiException catch (e) {
+      if (!mounted) return;
+      setState(() { _processing = false; _error = e.message; });
+    } catch (e) {
+      if (!mounted) return;
+      setState(() { _processing = false; _error = 'Something went wrong. Please try again.'; });
+    }
   }
 }

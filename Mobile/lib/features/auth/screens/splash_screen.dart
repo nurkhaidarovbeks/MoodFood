@@ -43,7 +43,10 @@ class _SplashScreenState extends State<SplashScreen>
       sub.load(),
     ]);
     if (auth.isAuthenticated) {
-      await mood.loadEntries();
+      await Future.wait([
+        mood.loadEntries(),
+        sub.syncFromBackend(),
+      ]);
     }
 
     if (!mounted) return;

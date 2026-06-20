@@ -12,6 +12,12 @@ class ApiConstants {
   static const String pantry = '/pantry';
   static const String pantryClear = '/pantry/clear';
 
+  // Subscriptions & Payments
+  static const String subscriptionPlans = '/subscriptions/plans';
+  static const String subscriptionSubscribe = '/subscriptions/subscribe';
+  static const String subscriptionMe = '/subscriptions/me';
+  static const String subscriptionCancel = '/subscriptions/me';
+
   static const List<String> moodTags = [
     'happy',
     'energetic',
