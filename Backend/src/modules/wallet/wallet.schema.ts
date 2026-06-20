@@ -2,7 +2,7 @@ import { z } from 'zod'
 
 export const TopupSchema = z.object({
   amount: z.number().positive('Amount must be positive'),
-  gateway: z.enum(['bereke', 'paypal']).default('bereke'),
+  gateway: z.enum(['paypal']).default('paypal'),
 })
 
 export const WalletTransactionsQuerySchema = z.object({

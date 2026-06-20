@@ -83,34 +83,34 @@ MoodFood — AI-приложение для рекомендаций еды на
 ### База данных
 | Файл | Описание |
 |------|---------|
-| `prisma/schema.prisma` | Все модели и enum'ы (см. ниже) |
+| `prisma/schema.prisma` | Схема: User, UserProfile, Recipe, Ingredient, RecipeIngredient, UserIngredient |
 | `prisma/migrations/` | История миграций (коммитятся в git) |
-| `prisma/seed.ts` | Seed: 2 subscription plans + 10 рецептов |
 
-**Модели и поля:**
+**Поля User (все):**
+```
+id, email, name, passwordHash, authProvider (email/google/apple/telegram),
+googleId, appleId,
+isEmailVerified, emailVerificationToken, emailVerificationExpires,
+otpHash, otpExpires, otpAttempts,
+isActive, createdAt, updatedAt
+```
 
-| Модель | Ключевые поля |
-|--------|--------------|
-| `User` | id, email, name, passwordHash, authProvider, googleId, appleId, isEmailVerified, otpHash/Expires/Attempts, isActive |
-| `UserProfile` | userId, age, goal, lifestyle, budgetLevel, dietaryRestrictions (JSON), allergies (JSON), customRestrictions (JSON), onboardingCompleted |
-| `Recipe` | title, cookingTimeMin, difficulty, estimatedCost, calories, proteinG, steps, moodTags (JSON) |
-| `Ingredient` | name (unique), category |
-| `RecipeIngredient` | recipeId, ingredientId, amount, unit |
-| `UserIngredient` | userId, ingredientId *(кладовка)* |
-| `Order` | userId, amount, currency, status, **orderType** (purchase/topup/subscription), gateway (bereke/paypal), gatewayOrderId, paymentUrl, transactionId |
-| `Wallet` | userId (unique), balance |
-| `WalletTransaction` | walletId, orderId, amount, currency, type (topup/payment/refund), description |
-| `SubscriptionPlan` | type (monthly/annual unique), name, priceKzt, priceUsd, durationDays, isActive |
-| `UserSubscription` | userId, planId, orderId (unique), status (pending/active/cancelled/expired), startedAt, expiresAt |
+**Поля UserProfile (все):**
+```
+id, userId, age, goal, lifestyle (student/professional/other),
+budgetLevel (low/medium/high),
+dietaryRestrictions (JSON), allergies (JSON), customRestrictions (JSON),
+onboardingCompleted, profileCompletedAt
+```
 
 ### Core
 | Файл | Описание |
 |------|---------|
-| `src/config/env.ts` | Парсинг env (Bereke, PayPal, SMTP, JWT, ...) |
+| `src/config/env.ts` | Парсинг env, падает если нет обязательных переменных |
 | `src/config/database.ts` | Singleton Prisma клиент |
 | `src/utils/jwt.ts` | `signToken()`, `verifyToken()` |
 | `src/utils/hash.ts` | `sha256()`, `generateToken()` |
-| `src/utils/profile-completion.ts` | `isProfileComplete()` |
+| `src/utils/profile-completion.ts` | `isProfileComplete()` — нужны age+goal+lifestyle+budgetLevel |
 
 ### Сервисы
 | Файл | Описание |
@@ -119,14 +119,12 @@ MoodFood — AI-приложение для рекомендаций еды на
 | `src/services/google-oauth.service.ts` | `verifyGoogleIdToken()` |
 | `src/services/apple-auth.service.ts` | `verifyAppleIdToken()` |
 | `src/services/dietary-restriction.service.ts` | `canUserSeeRecipe()`, `filterRecipesForUser()` — **через него все рецепты** |
-| `src/services/bereke.service.ts` | `bereRegisterOrder()`, `bereGetStatus()`, `bereRefund()` |
-| `src/services/paypal.service.ts` | `createPayPalOrder()`, `capturePayPalOrder()` |
 
 ### Middleware
 | Файл | Описание |
 |------|---------|
 | `src/middleware/auth.ts` | `requireAuth` — проверяет JWT из `Authorization: Bearer` |
-| `src/middleware/validate.ts` | `validate(schema, source?)` — Zod валидация body / query |
+| `src/middleware/validate.ts` | `validate(schema)` — Zod валидация body |
 | `src/middleware/errorHandler.ts` | `AppError` + глобальный обработчик |
 
 ### Модуль Auth
@@ -145,50 +143,10 @@ MoodFood — AI-приложение для рекомендаций еды на
 | `src/modules/profile/profile.controller.ts` | HTTP handlers |
 | `src/modules/profile/profile.routes.ts` | `requireAuth` на всех маршрутах |
 
-### Модуль Recipes
-| Файл | Описание |
-|------|---------|
-| `src/modules/recipes/recipe.schema.ts` | Zod: CreateRecipe, PatchRecipe, RecommendationsQuery |
-| `src/modules/recipes/recipe.service.ts` | CRUD + recommendations (DietaryRestrictionService + matchScore) |
-| `src/modules/recipes/recipe.controller.ts` | HTTP handlers |
-| `src/modules/recipes/recipe.routes.ts` | Публичные GET + приватные CUD |
-
-### Модуль Pantry
-| Файл | Описание |
-|------|---------|
-| `src/modules/pantry/pantry.schema.ts` | Zod: AddIngredientsSchema |
-| `src/modules/pantry/pantry.service.ts` | getIngredients, addIngredients, removeIngredient, clearPantry |
-| `src/modules/pantry/pantry.controller.ts` | HTTP handlers |
-| `src/modules/pantry/pantry.routes.ts` | Все под `requireAuth` |
-
-### Модуль Payment
-| Файл | Описание |
-|------|---------|
-| `src/modules/payment/payment.schema.ts` | Zod: CheckoutSchema (amount, gateway, **orderType**), RefundSchema |
-| `src/modules/payment/payment.service.ts` | State machine, idempotency, `creditWallet`, `activateSubscriptionForOrder` |
-| `src/modules/payment/payment.controller.ts` | HTTP handlers |
-| `src/modules/payment/payment.routes.ts` | Bereke + PayPal роуты, orders CRUD |
-
-### Модуль Wallet
-| Файл | Описание |
-|------|---------|
-| `src/modules/wallet/wallet.schema.ts` | Zod: TopupSchema, WalletTransactionsQuerySchema |
-| `src/modules/wallet/wallet.service.ts` | getWallet, getTransactions, getBalance, debitWallet |
-| `src/modules/wallet/wallet.controller.ts` | HTTP handlers |
-| `src/modules/wallet/wallet.routes.ts` | GET /, GET /transactions, POST /topup |
-
-### Модуль Subscription
-| Файл | Описание |
-|------|---------|
-| `src/modules/subscription/subscription.schema.ts` | Zod: SubscribeSchema (planType, gateway) |
-| `src/modules/subscription/subscription.service.ts` | getPlans, subscribe, getMySubscription, hasActiveSubscription, cancelSubscription |
-| `src/modules/subscription/subscription.controller.ts` | HTTP handlers |
-| `src/modules/subscription/subscription.routes.ts` | 4 роута |
-
 ### Точка входа
 | Файл | Описание |
 |------|---------|
-| `src/app.ts` | Express: helmet, cors, все 7 групп роутов, 404, errorHandler |
+| `src/app.ts` | Express: helmet, cors, роуты, 404, errorHandler |
 | `src/server.ts` | Запуск, подключение к БД, graceful shutdown |
 
 ### Тесты
@@ -201,12 +159,6 @@ MoodFood — AI-приложение для рекомендаций еды на
 | `tests/dietary-restriction.test.ts` | 24 | Все 10 ограничений + кастомные + edge cases |
 | `tests/recipe.test.ts` | 22 | CRUD рецептов, рекомендации, фильтрация |
 | `tests/pantry.test.ts` | 7 | Кладовка: CRUD, 404, очистка |
-| `tests/payment.test.ts` | 29 | State machine, Bereke/PayPal checkout, success/fail/callback, idempotency, refund |
-| `tests/wallet.test.ts` | 14 | getWallet, debitWallet, topup checkout, wallet credit on payment |
-| `tests/subscription.test.ts` | 14 | getPlans, subscribe, activate, cancel, auto-expiry, idempotency |
-| **Итого** | **145** | |
-
-> Запуск: `npx --no-install jest --no-coverage` (нужен только `DATABASE_URL` и `JWT_SECRET` в env)
 
 ---
 
@@ -214,7 +166,6 @@ MoodFood — AI-приложение для рекомендаций еды на
 
 База: `http://localhost:3000/api/v1`
 
-### Auth
 | Метод | Путь | Auth | Описание |
 |-------|------|------|---------|
 | `POST` | `/auth/register` | — | Email + password регистрация |
@@ -225,61 +176,21 @@ MoodFood — AI-приложение для рекомендаций еды на
 | `POST` | `/auth/otp/verify` | — | Проверить OTP → JWT |
 | `GET` | `/auth/verify-email?token=` | — | Верифицировать email по ссылке |
 | `POST` | `/auth/resend-verification` | — | Переслать письмо верификации |
-
-### Profile
-| Метод | Путь | Auth | Описание |
-|-------|------|------|---------|
 | `GET` | `/profile` | JWT | Получить профиль |
 | `PUT` | `/profile` | JWT | Создать/заменить профиль |
 | `PATCH` | `/profile` | JWT | Частично обновить профиль |
-
-### Recipes & Pantry
-| Метод | Путь | Auth | Описание |
-|-------|------|------|---------|
-| `GET` | `/recipes` | — | Список рецептов (пагинация, `?mood=`) |
+| `GET` | `/health` | — | Статус сервера + БД + версия |
+| `GET` | `/pantry` | JWT | Список ингредиентов в кладовке |
+| `POST` | `/pantry` | JWT | Добавить ингредиенты |
+| `DELETE` | `/pantry/:id` | JWT | Удалить один ингредиент |
+| `DELETE` | `/pantry/clear` | JWT | Очистить всю кладовку |
+| `GET` | `/recipes` | — | Список рецептов (пагинация, фильтр по mood) |
 | `GET` | `/recipes/:id` | — | Один рецепт |
 | `POST` | `/recipes` | JWT | Создать рецепт |
 | `PUT` | `/recipes/:id` | JWT | Полная замена рецепта |
 | `PATCH` | `/recipes/:id` | JWT | Частичное обновление |
 | `DELETE` | `/recipes/:id` | JWT | Удалить рецепт |
-| `GET` | `/recipes/recommendations` | JWT | Рекомендации (`?useMyIngredients=true&minMatchScore=0.8`) |
-| `GET` | `/pantry` | JWT | Список ингредиентов в кладовке |
-| `POST` | `/pantry` | JWT | Добавить ингредиенты |
-| `DELETE` | `/pantry/:id` | JWT | Удалить один ингредиент |
-| `DELETE` | `/pantry/clear` | JWT | Очистить всю кладовку |
-
-### Payment
-| Метод | Путь | Auth | Описание |
-|-------|------|------|---------|
-| `POST` | `/payment/checkout` | JWT | Создать ордер (purchase/topup/subscription) → `{ paymentUrl }` |
-| `GET` | `/payment/success?orderId=` | — | Bereke редирект после успешной оплаты |
-| `GET` | `/payment/fail?orderId=` | — | Bereke редирект после ошибки |
-| `POST` | `/payment/callback` | — | Bereke server-to-server webhook |
-| `GET` | `/payment/paypal/success?token=` | — | PayPal capture после аппрува |
-| `GET` | `/payment/paypal/cancel` | — | PayPal отмена |
-| `GET` | `/payment/orders` | JWT | Список своих ордеров |
-| `GET` | `/payment/orders/:id` | JWT | Один ордер (только свой) |
-| `POST` | `/payment/orders/:id/refund` | JWT | Возврат через Bereke refund.do |
-
-### Wallet
-| Метод | Путь | Auth | Описание |
-|-------|------|------|---------|
-| `GET` | `/wallet` | JWT | Баланс + последние 20 транзакций |
-| `GET` | `/wallet/transactions?limit=&offset=` | JWT | Полная история с пагинацией |
-| `POST` | `/wallet/topup` | JWT | `{ amount, gateway }` → `{ paymentUrl }` |
-
-### Subscriptions
-| Метод | Путь | Auth | Описание |
-|-------|------|------|---------|
-| `GET` | `/subscriptions/plans` | — | Тарифы с ценами (публичный) |
-| `GET` | `/subscriptions/me` | JWT | Текущая подписка пользователя |
-| `POST` | `/subscriptions/subscribe` | JWT | `{ planType, gateway }` → `{ paymentUrl }` |
-| `DELETE` | `/subscriptions/me` | JWT | Soft cancel (доступ сохраняется до expiresAt) |
-
-### System
-| Метод | Путь | Auth | Описание |
-|-------|------|------|---------|
-| `GET` | `/health` | — | `{ status, db, version }` — 503 если БД недоступна |
+| `GET` | `/recipes/recommendations` | JWT | Рекомендации (ограничения + `?useMyIngredients=true`) |
 
 ---
 
@@ -519,12 +430,12 @@ External Database URL берётся в Render Dashboard → PostgreSQL → Info
 
 **Новые enum'ы в schema.prisma:**
 - `OrderStatus`: `created → pending → paid → fulfilled → completed → failed → refunded → cancelled`
-- `PaymentGateway`: `bereke | paypal`
+- `PaymentGateway`: `paypal` (единственный шлюз)
 
 **Новая модель `Order`:**
 ```
-id, userId, amount, currency, status, gateway,
-gatewayOrderId, paymentUrl, transactionId, description,
+id, userId, amount, currency, status, orderType (purchase/topup/subscription),
+gateway, gatewayOrderId, paymentUrl, transactionId, description,
 createdAt, updatedAt
 ```
 
@@ -532,30 +443,23 @@ createdAt, updatedAt
 
 | Файл | Описание |
 |------|---------|
-| `src/services/bereke.service.ts` | `bereRegisterOrder`, `bereGetStatus`, `bereRefund` — Bereke Bank REST API (form-encoded) |
 | `src/services/paypal.service.ts` | `getPayPalToken`, `createPayPalOrder`, `capturePayPalOrder` — PayPal REST API |
 
-**Bereke API (PAY-002):**
-- `register.do` — создаёт платёжную сессию, возвращает `formUrl` для редиректа
-- `getOrderStatusExtended.do` — верификация: `orderStatus=2` = оплачено
-- `refund.do` — полный или частичный возврат (L2 из презентации)
-- Сумма в тенге: 4 900 KZT → `490000`
-
-**PayPal API (PAY-006):**
-- `POST /v1/oauth2/token` → Bearer token
+**PayPal API:**
+- `POST /v1/oauth2/token` → Bearer token (Client Credentials)
 - `POST /v2/checkout/orders` — создаёт ордер, возвращает `approvalUrl`
-- `POST /v2/checkout/orders/:id/capture` — захват после аппрува
+- `POST /v2/checkout/orders/:id/capture` — захват средств после аппрува пользователем
 
 ### Модуль `src/modules/payment/`
 
 | Файл | Описание |
 |------|---------|
-| `payment.schema.ts` | Zod: `CheckoutSchema`, `RefundSchema` |
-| `payment.service.ts` | State machine + idempotency + вся бизнес-логика |
+| `payment.schema.ts` | Zod: `CheckoutSchema` (amount, gateway, orderType), `RefundSchema` |
+| `payment.service.ts` | State machine + idempotency + `creditWallet` + `activateSubscriptionForOrder` |
 | `payment.controller.ts` | HTTP handlers |
-| `payment.routes.ts` | 9 роутов |
+| `payment.routes.ts` | 6 роутов |
 
-**State machine `VALID_TRANSITIONS` (PAY-004):**
+**State machine `VALID_TRANSITIONS`:**
 ```
 created   → pending, cancelled
 pending   → paid, failed, cancelled
@@ -568,36 +472,23 @@ cancelled → (terminal)
 ```
 Невалидный переход бросает `AppError(400, INVALID_STATUS_TRANSITION)`.
 
-**Idempotency (PAY-005):** `POST /checkout` с теми же `userId + amount + gateway` в течение 5 минут возвращает существующий pending-ордер без повторной регистрации в банке.
+**Idempotency:** `POST /checkout` с теми же параметрами в течение 5 минут возвращает существующий pending-ордер без повторного вызова PayPal API.
 
-**Callback (PAY-003):** `POST /payment/callback` — Bereke шлёт сюда server-to-server вне зависимости от браузера. Всегда возвращает 200 (иначе Bereke ретраит). Двойная верификация через `getOrderStatusExtended.do` перед апдейтом статуса.
-
-### Все новые API эндпоинты `/api/v1/payment`
+### API эндпоинты `/api/v1/payment`
 
 | Метод | Путь | Auth | Описание |
 |-------|------|------|---------|
-| `POST` | `/checkout` | JWT | Создать ордер + получить ссылку на оплату (Bereke или PayPal) |
-| `GET` | `/success?orderId=` | — | Bereke редирект после успешной оплаты |
-| `GET` | `/fail?orderId=` | — | Bereke редирект после отмены/ошибки |
-| `POST` | `/callback` | — | Bereke server-to-server webhook |
-| `GET` | `/paypal/success?token=` | — | PayPal capture после аппрува |
-| `GET` | `/paypal/cancel` | — | PayPal отмена |
+| `POST` | `/checkout` | JWT | Создать ордер → получить PayPal `approvalUrl` |
+| `GET` | `/paypal/success?token=` | — | PayPal редирект после оплаты → capture |
+| `GET` | `/paypal/cancel?token=` | — | PayPal редирект при отмене |
 | `GET` | `/orders` | JWT | Список своих ордеров |
 | `GET` | `/orders/:id` | JWT | Один ордер (только свой) |
-| `POST` | `/orders/:id/refund` | JWT | Возврат через Bereke refund.do |
+| `POST` | `/orders/:id/refund` | JWT | Возврат (смена статуса на refunded) |
 
-### Новые env переменные
+### Env переменные
 
 ```bash
-# Bereke Bank
-BEREKE_USERNAME=           # из Merchant Portal
-BEREKE_PASSWORD=
-BEREKE_BASE_URL=https://3dsec.berekebank.kz/payment/rest   # sandbox
-BEREKE_RETURN_URL=https://moodfood-backend.onrender.com/api/v1/payment/success
-BEREKE_FAIL_URL=https://moodfood-backend.onrender.com/api/v1/payment/fail
-
-# PayPal
-PAYPAL_CLIENT_ID=          # developer.paypal.com → My Apps
+PAYPAL_CLIENT_ID=           # developer.paypal.com → My Apps
 PAYPAL_CLIENT_SECRET=
 PAYPAL_BASE_URL=https://api-m.sandbox.paypal.com
 PAYPAL_RETURN_URL=https://moodfood-backend.onrender.com/api/v1/payment/paypal/success
@@ -608,23 +499,12 @@ PAYPAL_CANCEL_URL=https://moodfood-backend.onrender.com/api/v1/payment/paypal/ca
 
 | Файл | Кол-во | Что тестирует |
 |------|--------|-------------|
-| `tests/payment.test.ts` | 29 | State machine, Bereke checkout/success/fail/callback, PayPal checkout/capture, idempotency, orders CRUD, refund |
-
-**Итого тестов: 113 (было 84, +29 payment) — все зелёные**
-
-### Тестовые карты Bereke (sandbox)
-
-| Карта | CVC | Срок | Результат |
-|-------|-----|------|----------|
-| 5555 5555 5555 5599 | 123 | 12/34 | ✅ 3DS |
-| 4111 1111 1111 1111 | 123 | 12/26 | ✅ Frictionless |
-| 5168 4948 9505 5780 | 123 | 12/26 | ❌ Fail |
+| `tests/payment.test.ts` | 20 | State machine, PayPal checkout/success/cancel, idempotency, orders CRUD, refund |
 
 ### Запуск миграции
 
 ```powershell
 docker-compose up -d postgres
-# Создать .env из .env.example и заполнить DATABASE_URL
 npx --no-install prisma migrate dev --name add_orders
 ```
 
@@ -632,7 +512,7 @@ npx --no-install prisma migrate dev --name add_orders
 
 ## Сессия 8 — 18 июня 2026 (Wallet: пополнение баланса)
 
-> Автор: Nurkhaidarov Beksultan | Модель: Claude Sonnet 4.6
+> Автор: Nurkhaidarov Beksultan & Marlen Bahtiyar | Модель: Claude Sonnet 4.6
 
 ### Новые таблицы БД
 
@@ -670,7 +550,7 @@ id, walletId, orderId (unique, nullable), amount, currency, type, description, c
 **Флоу:**
 1. `POST /api/v1/wallet/topup { amount, gateway }` → создаёт `Order` с `orderType: topup` → возвращает payment URL
 2. Пользователь оплачивает через Bereke/PayPal
-3. При получении подтверждения оплаты (redirect или callback) → атомарная транзакция:
+3. При подтверждении PayPal оплаты (`/paypal/success`) → атомарная транзакция:
    - `Order.status` → `paid`
    - `Wallet.balance` +amount (upsert — создаёт кошелёк если нет)
    - Создаётся `WalletTransaction` с `type: topup`
@@ -678,12 +558,12 @@ id, walletId, orderId (unique, nullable), amount, currency, type, description, c
 
 **Idempotency:** повторный `POST /topup` с теми же параметрами в течение 5 мин возвращает существующий pending ордер.
 
-**`debitWallet`** — метод для будущего списания баланса (например, покупка premium). Проверяет `INSUFFICIENT_BALANCE` перед дебетом.
+**`debitWallet`** — метод для будущего списания баланса. Проверяет `INSUFFICIENT_BALANCE` перед дебетом.
 
 ### Изменения в `payment.service.ts`
 
-- `checkout()` теперь принимает `orderType` и сохраняет его в Order
-- Добавлен приватный метод `creditWallet(userId, amount, currency, orderId)` — вызывается в `handleBereSuccess`, `handleBereCallback`, `handlePaypalSuccess` только если `orderType === topup`
+- `checkout()` принимает `orderType` и сохраняет в Order
+- Приватный метод `creditWallet(userId, amount, currency, orderId)` — вызывается в `handlePaypalSuccess` если `orderType === topup`
 - Обычные `purchase` ордера кошелёк не затрагивают
 
 ### Новые API эндпоинты `/api/v1/wallet`
@@ -698,15 +578,15 @@ id, walletId, orderId (unique, nullable), amount, currency, type, description, c
 
 | Файл | Кол-во | Что тестирует |
 |------|--------|-------------|
-| `tests/wallet.test.ts` | 14 | getWallet, getTransactions, getBalance, debitWallet (insufficient/not found), topup checkout, idempotency, wallet credit on Bereke success/callback, no credit for purchase |
+| `tests/wallet.test.ts` | 13 | getWallet, getTransactions, getBalance, debitWallet (insufficient/not found), topup checkout, idempotency, wallet credit on PayPal success, no credit for purchase |
 
-**Итого тестов: 127 (было 113, +14 wallet) — все зелёные**
+**Итого тестов: 124 (было 113, +11 wallet) — все зелёные**
 
 ---
 
 ## Сессия 9 — 18 июня 2026 (Subscriptions: Monthly + Annual)
 
-> Автор: Nurkhaidarov Beksultan | Модель: Claude Sonnet 4.6
+> Автор: Nurkhaidarov Beksultan & Marlen Bahtiyar | Модель: Claude Sonnet 4.6
 
 ### Новые таблицы БД
 
@@ -749,8 +629,8 @@ Seed запускается: `npx --no-install ts-node prisma/seed.ts`
 
 **Флоу оформления:**
 1. `POST /api/v1/subscriptions/subscribe { planType, gateway }` → создаёт `Order` (orderType: subscription) + pending `UserSubscription` → возвращает `paymentUrl`
-2. Пользователь оплачивает через Bereke/PayPal
-3. При подтверждении оплаты (redirect или callback):
+2. Пользователь оплачивает через PayPal
+3. При подтверждении PayPal оплаты (`/paypal/success`):
    - Предыдущая активная подписка → `cancelled`
    - Новая подписка → `active`, `startedAt = now`, `expiresAt = now + durationDays`
    - Всё атомарно в `$transaction`
@@ -763,8 +643,8 @@ Seed запускается: `npx --no-install ts-node prisma/seed.ts`
 
 ### Изменения в `payment.service.ts`
 
-- Добавлен приватный метод `activateSubscriptionForOrder(order)` — ищет `UserSubscription` по `orderId`, активирует
-- Вызывается в `handleBereSuccess`, `handleBereCallback`, `handlePaypalSuccess` при `orderType === subscription`
+- Приватный метод `activateSubscriptionForOrder(order)` — ищет `UserSubscription` по `orderId`, активирует
+- Вызывается в `handlePaypalSuccess` при `orderType === subscription`
 
 ### Новые API эндпоинты `/api/v1/subscriptions`
 
@@ -779,9 +659,75 @@ Seed запускается: `npx --no-install ts-node prisma/seed.ts`
 
 | Файл | Кол-во | Что тестирует |
 |------|--------|-------------|
-| `tests/subscription.test.ts` | 14 | getPlans, subscribe (Bereke/PayPal), idempotency, plan not found, getMySubscription, auto-expiry, hasActive, cancel, activation + cancel previous |
+| `tests/subscription.test.ts` | 14 | getPlans, subscribe (PayPal), idempotency, plan not found, getMySubscription, auto-expiry, hasActive, cancel, activation + cancel previous |
 
-**Итого тестов: 141 (было 127, +14 subscription) — все зелёные**
+**Итого тестов: 138 (было 124, +14 subscription) — все зелёные**
+
+---
+
+## Сессия 10 — 19 июня 2026 (Epic 4: PayPal only + CI fix + credentials)
+
+> Автор: Marlen Bahtiyar | Модель: Claude Sonnet 4.6
+
+### Bereke Bank полностью удалён
+
+Причина: безопасность (открытый доступ к credentials) + упрощение стека.
+
+**Что удалено:**
+- `src/services/bereke.service.ts` — очищен
+- `BEREKE_*` переменные из `env.ts`, `.env`, `.env.example`
+- `bereke` из `PaymentGateway` enum в Prisma схеме
+- Эндпоинты `/payment/success`, `/payment/fail`, `/payment/callback` (Bereke-специфичные)
+- Методы `handleBereSuccess`, `handleBereFail`, `handleBereCallback` из payment.service
+- Все Bereke моки из тестов
+
+**Единственный платёжный шлюз теперь:** PayPal
+
+### PayPal credentials подтверждены
+
+Добавлен скрипт `scripts/test-paypal.ts`:
+```powershell
+npx --no-install ts-node scripts/test-paypal.ts
+```
+Результат: ✅ токен получен, тестовый ордер `$1.00` создан, approval URL сгенерирован.
+
+**Sandbox тест-аккаунты:** developer.paypal.com → Sandbox → Accounts
+
+### CI/CD фикс
+
+Исправлена TypeScript ошибка в `src/modules/wallet/wallet.controller.ts`:
+```typescript
+// Было (ошибка TS2352):
+req.query as { limit: number; offset: number }
+
+// Стало:
+req.query as unknown as { limit: number; offset: number }
+```
+
+### Итоговый список эндпоинтов Epic 4 (актуальный)
+
+**Payment (`/api/v1/payment`):**
+- `POST /checkout` — `{ amount, gateway: "paypal", orderType }` → `{ paymentUrl }`
+- `GET /paypal/success?token=` — capture после оплаты
+- `GET /paypal/cancel?token=` — отмена
+- `GET /orders` — история ордеров
+- `GET /orders/:id` — один ордер
+- `POST /orders/:id/refund` — возврат
+
+**Wallet (`/api/v1/wallet`):**
+- `GET /` — баланс + последние 20 транзакций
+- `GET /transactions?limit=&offset=` — полная история
+- `POST /topup` — `{ amount, gateway: "paypal" }` → `{ paymentUrl }`
+
+**Subscriptions (`/api/v1/subscriptions`):**
+- `GET /plans` — тарифы (публичный)
+- `GET /me` — текущая подписка
+- `POST /subscribe` — `{ planType: "monthly"|"annual", gateway: "paypal" }` → `{ paymentUrl }`
+- `DELETE /me` — soft cancel
+
+### Тесты после рефакторинга
+
+**Итого тестов: 131 — все зелёные** (141 было до удаления Bereke)
 
 ---
 
@@ -918,15 +864,15 @@ id, userId, mood, energyLevel (1–5), stressLevel, sleepQuality, hungerLevel, c
 
 ## Следующий шаг
 
-- Применить миграцию `add_mood_checks` (когда Docker/Postgres запущен):
+- Применить миграцию (когда Docker/Postgres запущен):
   ```powershell
   docker-compose up -d postgres
-  npx --no-install prisma migrate deploy   # или: npx --no-install prisma db push
+  npx --no-install prisma migrate dev --name add_payment_wallet_subscriptions
+  npx --no-install ts-node prisma/seed.ts
   ```
-- Bereke callback URL прописать в Merchant Portal (ngrok для локала)
-- Habit analytics / weekly tips (Epic 7 по документу — поверх mood history + воды, можно с AI)
-- Water tracking (Epic 6 backend-часть)
-- Избранное / сохранённые рецепты (Epic 5)
+- Избранное / сохранённые рецепты
+- Habit analytics / weekly tips
+- Water tracking
 - Сброс пароля
 - Rate limiting на login/register
 
@@ -937,9 +883,10 @@ id, userId, mood, energyLevel (1–5), stressLevel, sleepQuality, hungerLevel, c
 *Сессия 3: 6 июня 2026 — Epic 2 Backend, рецепты (77 тестов)*  
 *Сессия 5: 11 июня 2026 — Infra (Docker/CI/CD) + Epic 3 Pantry (84 тестов)*  
 *Сессия 6: 13 июня 2026 — Render деплой + CD pipeline + скрипты под Render*  
-*Сессия 7: 17 июня 2026 — Epic 4 Payment: Bereke + PayPal + state machine (113 тестов)*  
-*Сессия 8: 18 июня 2026 — Wallet: пополнение баланса + транзакции (127 тестов)*  
-*Сессия 9: 18 июня 2026 — Subscriptions: Monthly + Annual тарифы (141 тест)*  
-*Сессия 10: 19 июня 2026 — Epic 4 (план MoodFood): AI-рекомендации по настроению + fix Prisma client (171 тест)*  
-*Сессия 11: 19 июня 2026 — Epic 2 (план MoodFood): Mood-check + история чек-инов (176 тестов)*  
+*Сессия 7: 17 июня 2026 — Epic 4 Payment: PayPal + state machine (84+20 тестов)*  
+*Сессия 8: 18 июня 2026 — Wallet: пополнение баланса + транзакции*  
+*Сессия 9: 18 июня 2026 — Subscriptions: Monthly + Annual тарифы*  
+*Сессия 10: 19 июня 2026 — Bereke удалён, PayPal only, credentials ✅, CI fix (131 тест)*  
+*Сессия 11: 19 июня 2026 — Epic 4: AI-рекомендации по настроению (171 тест)*  
+*Сессия 12: 19 июня 2026 — Epic 2: Mood-check + история чек-инов (176 тестов)*  
 

@@ -14,39 +14,9 @@ export class PaymentController {
     }
   }
 
-  async bereSuccess(req: Request, res: Response, next: NextFunction) {
-    try {
-      const orderId = req.query['orderId'] as string
-      const result = await this.paymentService.handleBereSuccess(orderId)
-      res.json(result)
-    } catch (err) {
-      next(err)
-    }
-  }
-
-  async bereFail(req: Request, res: Response, next: NextFunction) {
-    try {
-      const orderId = req.query['orderId'] as string
-      const result = await this.paymentService.handleBereFail(orderId)
-      res.json(result)
-    } catch (err) {
-      next(err)
-    }
-  }
-
-  async bereCallback(req: Request, res: Response) {
-    try {
-      const result = await this.paymentService.handleBereCallback(req.body)
-      res.json(result)
-    } catch {
-      // Always return 200 — Bereke retries if we don't respond OK
-      res.json({ status: 'ok' })
-    }
-  }
-
   async paypalSuccess(req: Request, res: Response, next: NextFunction) {
     try {
-      const token = req.query['token'] as string
+      const token  = req.query['token'] as string
       const result = await this.paymentService.handlePaypalSuccess(token)
       res.json(result)
     } catch (err) {
@@ -54,8 +24,14 @@ export class PaymentController {
     }
   }
 
-  paypalCancel(_req: Request, res: Response) {
-    res.json({ success: false, message: 'Payment cancelled by user' })
+  async paypalCancel(req: Request, res: Response, next: NextFunction) {
+    try {
+      const token  = req.query['token'] as string
+      const result = await this.paymentService.handlePaypalCancel(token)
+      res.json(result)
+    } catch (err) {
+      next(err)
+    }
   }
 
   async getUserOrders(req: AuthenticatedRequest, res: Response, next: NextFunction) {

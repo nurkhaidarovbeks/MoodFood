@@ -4,19 +4,14 @@ import { SubscriptionService } from '../src/modules/subscription/subscription.se
 import { PaymentService } from '../src/modules/payment/payment.service'
 
 // ─── Mock external payment services ──────────────────────────────────────────
-jest.mock('../src/services/bereke.service', () => ({
-  bereRegisterOrder: jest.fn(),
-  bereGetStatus:     jest.fn(),
-  bereRefund:        jest.fn(),
-}))
 jest.mock('../src/services/paypal.service', () => ({
   createPayPalOrder:  jest.fn(),
   capturePayPalOrder: jest.fn(),
 }))
 
-import { bereRegisterOrder, bereGetStatus } from '../src/services/bereke.service'
-const mockBereRegister = bereRegisterOrder as jest.MockedFunction<typeof bereRegisterOrder>
-const mockBereStatus   = bereGetStatus     as jest.MockedFunction<typeof bereGetStatus>
+import { createPayPalOrder, capturePayPalOrder } from '../src/services/paypal.service'
+const mockPPCreate  = createPayPalOrder  as jest.MockedFunction<typeof createPayPalOrder>
+const mockPPCapture = capturePayPalOrder as jest.MockedFunction<typeof capturePayPalOrder>
 
 // ─── Setup ────────────────────────────────────────────────────────────────────
 
@@ -90,11 +85,11 @@ function makeOrder(overrides: Partial<{
     userId,
     status:        OrderStatus.pending,
     orderType:     OrderType.subscription,
-    gateway:       PaymentGateway.bereke,
-    amount:        2990,
-    currency:      'KZT',
+    gateway:       PaymentGateway.paypal,
+    amount:        9.99,
+    currency:      'USD',
     gatewayOrderId: gwId,
-    paymentUrl:    'https://pay.bereke/form',
+    paymentUrl:    'https://paypal.com/approve',
     transactionId: null,
     description:   'Monthly Subscription',
     createdAt:     new Date(),
@@ -120,24 +115,23 @@ describe('getPlans', () => {
 // ─── subscribe ────────────────────────────────────────────────────────────────
 
 describe('subscribe', () => {
-  it('SUB-2. creates pending subscription and returns Bereke payment URL', async () => {
+  it('SUB-2. creates pending subscription and returns PayPal approval URL', async () => {
     mockPrisma.subscriptionPlan.findUnique.mockResolvedValue(monthlyPlan as any)
-    mockPrisma.userSubscription.findFirst.mockResolvedValue(null) // no idempotent match
-    // paymentService.checkout internals
+    mockPrisma.userSubscription.findFirst.mockResolvedValue(null)
     mockPrisma.order.findFirst.mockResolvedValue(null)
     mockPrisma.order.create.mockResolvedValue(makeOrder({ status: OrderStatus.created, gatewayOrderId: null, paymentUrl: null }) as any)
-    mockBereRegister.mockResolvedValue({ gatewayOrderId: gwId, paymentUrl: 'https://pay.bereke/form' })
+    mockPPCreate.mockResolvedValue({ orderId: gwId, approvalUrl: 'https://paypal.com/approve' })
     mockPrisma.order.update.mockResolvedValue(makeOrder() as any)
     mockPrisma.userSubscription.create.mockResolvedValue(makeSub({ status: SubscriptionStatus.pending }) as any)
 
-    const result = await subscriptionService.subscribe(userId, { planType: 'monthly', gateway: 'bereke' })
+    const result = await subscriptionService.subscribe(userId, { planType: 'monthly', gateway: 'paypal' })
 
     expect(mockPrisma.userSubscription.create).toHaveBeenCalledWith(
       expect.objectContaining({
         data: expect.objectContaining({ userId, planId, status: SubscriptionStatus.pending }),
       }),
     )
-    expect(result.paymentUrl).toBe('https://pay.bereke/form')
+    expect(result.paymentUrl).toBe('https://paypal.com/approve')
     expect(result.plan.type).toBe('monthly')
     expect(result.idempotent).toBe(false)
   })
@@ -164,9 +158,9 @@ describe('subscribe', () => {
     mockPrisma.userSubscription.findFirst.mockResolvedValue(makeSub({ status: SubscriptionStatus.pending }) as any)
     mockPrisma.order.findUnique.mockResolvedValue(makeOrder() as any)
 
-    const result = await subscriptionService.subscribe(userId, { planType: 'monthly', gateway: 'bereke' })
+    const result = await subscriptionService.subscribe(userId, { planType: 'monthly', gateway: 'paypal' })
 
-    expect(mockBereRegister).not.toHaveBeenCalled()
+    expect(mockPPCreate).not.toHaveBeenCalled()
     expect(result.idempotent).toBe(true)
   })
 
@@ -174,7 +168,7 @@ describe('subscribe', () => {
     mockPrisma.subscriptionPlan.findUnique.mockResolvedValue(null)
 
     await expect(
-      subscriptionService.subscribe(userId, { planType: 'monthly', gateway: 'bereke' }),
+      subscriptionService.subscribe(userId, { planType: 'monthly', gateway: 'paypal' }),
     ).rejects.toMatchObject({ statusCode: 404, code: 'PLAN_NOT_FOUND' })
   })
 })
@@ -257,13 +251,12 @@ describe('cancelSubscription', () => {
 
 // ─── Payment: activation on subscription order paid ──────────────────────────
 
-describe('activateSubscriptionForOrder (via handleBereSuccess)', () => {
-  it('SUB-13. activates subscription when Bereke confirms subscription order paid', async () => {
+describe('activateSubscriptionForOrder (via handlePaypalSuccess)', () => {
+  it('SUB-13. activates subscription when PayPal capture confirms subscription order paid', async () => {
     mockPrisma.order.findFirst.mockResolvedValue(makeOrder({ status: OrderStatus.pending }) as any)
-    mockBereStatus.mockResolvedValue({ orderStatus: 2, amountKzt: 2990, actionCode: 0 })
+    mockPPCapture.mockResolvedValue({ success: true, transactionId: 'txn-abc' })
     mockPrisma.order.update.mockResolvedValue(makeOrder({ status: OrderStatus.paid }) as any)
 
-    // activateSubscriptionForOrder internals
     mockPrisma.userSubscription.findFirst.mockResolvedValue({
       ...makeSub({ status: SubscriptionStatus.pending, startedAt: null, expiresAt: null }),
       plan: monthlyPlan,
@@ -272,7 +265,7 @@ describe('activateSubscriptionForOrder (via handleBereSuccess)', () => {
     mockPrisma.userSubscription.updateMany.mockResolvedValue({ count: 0 } as any)
     mockPrisma.userSubscription.update.mockResolvedValue(makeSub() as any)
 
-    const result = await paymentService.handleBereSuccess(gwId)
+    const result = await paymentService.handlePaypalSuccess(gwId)
 
     expect(mockPrisma.userSubscription.update).toHaveBeenCalledWith(
       expect.objectContaining({
@@ -284,7 +277,7 @@ describe('activateSubscriptionForOrder (via handleBereSuccess)', () => {
 
   it('SUB-14. cancels previous active subscription on new subscription activation', async () => {
     mockPrisma.order.findFirst.mockResolvedValue(makeOrder({ status: OrderStatus.pending }) as any)
-    mockBereStatus.mockResolvedValue({ orderStatus: 2, amountKzt: 2990, actionCode: 0 })
+    mockPPCapture.mockResolvedValue({ success: true, transactionId: 'txn-abc' })
     mockPrisma.order.update.mockResolvedValue(makeOrder({ status: OrderStatus.paid }) as any)
     mockPrisma.userSubscription.findFirst.mockResolvedValue({
       ...makeSub({ status: SubscriptionStatus.pending, startedAt: null, expiresAt: null }),
@@ -294,7 +287,7 @@ describe('activateSubscriptionForOrder (via handleBereSuccess)', () => {
     mockPrisma.userSubscription.updateMany.mockResolvedValue({ count: 1 } as any)
     mockPrisma.userSubscription.update.mockResolvedValue(makeSub() as any)
 
-    await paymentService.handleBereSuccess(gwId)
+    await paymentService.handlePaypalSuccess(gwId)
 
     expect(mockPrisma.userSubscription.updateMany).toHaveBeenCalledWith(
       expect.objectContaining({
