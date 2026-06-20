@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import '../../../core/models/recipe_model.dart';
 import '../../../core/providers/ingredients_provider.dart';
 import '../../../core/providers/recipe_provider.dart';
@@ -367,38 +368,52 @@ class _ChipFilter extends StatelessWidget {
   }
 }
 
-class _RecipeGridCard extends StatelessWidget {
+class _RecipeGridCard extends StatefulWidget {
   final Recipe recipe;
   final List<String> pantry;
 
   const _RecipeGridCard({required this.recipe, required this.pantry});
 
-  static const _emojis = {
-    'Scrambled Eggs': '🍳',
-    'Chicken': '🍗',
-    'Banana': '🍌',
-    'Pasta': '🍝',
-    'Yogurt': '🥣',
-    'Tuna': '🐟',
-    'Avocado': '🥑',
-    'Quinoa': '🥗',
-    'Salmon': '🐟',
-    'Berry': '🫐',
-    'Stir Fry': '🥘',
-    'Lentil': '🍲',
+  @override
+  State<_RecipeGridCard> createState() => _RecipeGridCardState();
+}
+
+class _RecipeGridCardState extends State<_RecipeGridCard> {
+  static const _savedKey = 'saved_recipes';
+  bool _isSaved = false;
+
+  // Food photo URLs from Unsplash keyed by keyword in recipe title
+  static const _photos = {
+    'Eggs': 'https://images.unsplash.com/photo-1482049016688-2d3e1b311543?w=400&q=70&fit=crop',
+    'Chicken': 'https://images.unsplash.com/photo-1598515214211-89d3c73ae83b?w=400&q=70&fit=crop',
+    'Banana': 'https://images.unsplash.com/photo-1571771894821-ce9b6c11b08e?w=400&q=70&fit=crop',
+    'Pasta': 'https://images.unsplash.com/photo-1555949258-eb67b1ef0ceb?w=400&q=70&fit=crop',
+    'Yogurt': 'https://images.unsplash.com/photo-1488477181946-6428a0291777?w=400&q=70&fit=crop',
+    'Tuna': 'https://images.unsplash.com/photo-1519708227418-c8fd9a32b7a2?w=400&q=70&fit=crop',
+    'Avocado': 'https://images.unsplash.com/photo-1523049673857-eb18f1d7b578?w=400&q=70&fit=crop',
+    'Quinoa': 'https://images.unsplash.com/photo-1546069901-ba9599a7e63c?w=400&q=70&fit=crop',
+    'Salmon': 'https://images.unsplash.com/photo-1519708227418-c8fd9a32b7a2?w=400&q=70&fit=crop',
+    'Berry': 'https://images.unsplash.com/photo-1498557850523-fd3d118b962e?w=400&q=70&fit=crop',
+    'Stir': 'https://images.unsplash.com/photo-1512058564366-18510be2db19?w=400&q=70&fit=crop',
+    'Lentil': 'https://images.unsplash.com/photo-1547592180-85f173990554?w=400&q=70&fit=crop',
+    'Smoothie': 'https://images.unsplash.com/photo-1638176066959-7cf4f8cef945?w=400&q=70&fit=crop',
+    'Bowl': 'https://images.unsplash.com/photo-1546069901-ba9599a7e63c?w=400&q=70&fit=crop',
+    'Salad': 'https://images.unsplash.com/photo-1512621776951-a57141f2eefd?w=400&q=70&fit=crop',
+    'Soup': 'https://images.unsplash.com/photo-1547592180-85f173990554?w=400&q=70&fit=crop',
   };
 
-  String get _emoji {
-    for (final entry in _emojis.entries) {
-      if (recipe.title.contains(entry.key)) return entry.value;
+  static const _fallbackPhoto =
+      'https://images.unsplash.com/photo-1546069901-ba9599a7e63c?w=400&q=70&fit=crop';
+
+  String get _photoUrl {
+    for (final entry in _photos.entries) {
+      if (widget.recipe.title.contains(entry.key)) return entry.value;
     }
-    return '🍽️';
+    return _fallbackPhoto;
   }
 
   String get _difficulty {
-    switch (recipe.difficulty?.toLowerCase()) {
-      case 'easy':
-        return 'Easy';
+    switch (widget.recipe.difficulty?.toLowerCase()) {
       case 'medium':
         return 'Medium';
       case 'hard':
@@ -409,13 +424,47 @@ class _RecipeGridCard extends StatelessWidget {
   }
 
   Color get _difficultyColor {
-    switch (recipe.difficulty?.toLowerCase()) {
+    switch (widget.recipe.difficulty?.toLowerCase()) {
       case 'medium':
         return const Color(0xFFF57C00);
       case 'hard':
         return const Color(0xFFD32F2F);
       default:
         return AppTheme.primary;
+    }
+  }
+
+  @override
+  void initState() {
+    super.initState();
+    _loadSaved();
+  }
+
+  Future<void> _loadSaved() async {
+    final prefs = await SharedPreferences.getInstance();
+    final saved = prefs.getStringList(_savedKey) ?? [];
+    if (mounted) setState(() => _isSaved = saved.contains(widget.recipe.id));
+  }
+
+  Future<void> _toggleSave() async {
+    final prefs = await SharedPreferences.getInstance();
+    final saved = (prefs.getStringList(_savedKey) ?? []).toList();
+    if (_isSaved) {
+      saved.remove(widget.recipe.id);
+    } else {
+      saved.add(widget.recipe.id);
+    }
+    await prefs.setStringList(_savedKey, saved);
+    setState(() => _isSaved = !_isSaved);
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(_isSaved ? '❤️ Recipe saved!' : 'Recipe removed'),
+          behavior: SnackBarBehavior.floating,
+          duration: const Duration(seconds: 1),
+          backgroundColor: _isSaved ? AppTheme.primary : AppTheme.textSecondary,
+        ),
+      );
     }
   }
 
@@ -438,21 +487,64 @@ class _RecipeGridCard extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // Food image area
-            Container(
-              height: 110,
-              decoration: BoxDecoration(
-                color: AppTheme.background,
-                borderRadius: const BorderRadius.vertical(
-                  top: Radius.circular(18),
+            // Food photo
+            Stack(
+              children: [
+                ClipRRect(
+                  borderRadius: const BorderRadius.vertical(
+                    top: Radius.circular(18),
+                  ),
+                  child: Image.network(
+                    _photoUrl,
+                    height: 110,
+                    width: double.infinity,
+                    fit: BoxFit.cover,
+                    loadingBuilder: (_, child, progress) {
+                      if (progress == null) return child;
+                      return Container(
+                        height: 110,
+                        color: AppTheme.background,
+                        child: const Center(
+                          child: CircularProgressIndicator(
+                            strokeWidth: 2,
+                            color: AppTheme.primary,
+                          ),
+                        ),
+                      );
+                    },
+                    errorBuilder: (_, __, ___) => Container(
+                      height: 110,
+                      color: AppTheme.background,
+                      child: const Center(
+                        child: Text('🍽️', style: TextStyle(fontSize: 40)),
+                      ),
+                    ),
+                  ),
                 ),
-              ),
-              child: Center(
-                child: Text(
-                  _emoji,
-                  style: const TextStyle(fontSize: 52),
+                // Save button overlay
+                Positioned(
+                  top: 6,
+                  right: 6,
+                  child: GestureDetector(
+                    onTap: _toggleSave,
+                    child: Container(
+                      width: 30,
+                      height: 30,
+                      decoration: BoxDecoration(
+                        color: Colors.white.withValues(alpha: 0.9),
+                        shape: BoxShape.circle,
+                      ),
+                      child: Icon(
+                        _isSaved ? Icons.favorite : Icons.favorite_border,
+                        size: 16,
+                        color: _isSaved
+                            ? const Color(0xFFE53935)
+                            : AppTheme.textSecondary,
+                      ),
+                    ),
+                  ),
                 ),
-              ),
+              ],
             ),
             Padding(
               padding: const EdgeInsets.fromLTRB(10, 8, 10, 10),
@@ -460,7 +552,7 @@ class _RecipeGridCard extends StatelessWidget {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    recipe.title,
+                    widget.recipe.title,
                     style: const TextStyle(
                       fontSize: 13,
                       fontWeight: FontWeight.w700,
@@ -480,7 +572,7 @@ class _RecipeGridCard extends StatelessWidget {
                       ),
                       const SizedBox(width: 3),
                       Text(
-                        '${recipe.cookingTimeMin ?? '?'} min',
+                        '${widget.recipe.cookingTimeMin ?? '?'} min',
                         style: const TextStyle(
                           fontSize: 11,
                           color: AppTheme.textSecondary,
@@ -494,7 +586,7 @@ class _RecipeGridCard extends StatelessWidget {
                       ),
                       const SizedBox(width: 3),
                       Text(
-                        '${recipe.calories?.toInt() ?? '?'}',
+                        '${widget.recipe.calories?.toInt() ?? '?'}',
                         style: const TextStyle(
                           fontSize: 11,
                           color: AppTheme.textSecondary,
@@ -533,7 +625,8 @@ class _RecipeGridCard extends StatelessWidget {
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
-      builder: (_) => _RecipeDetailSheet(recipe: recipe, pantry: pantry),
+      builder: (_) =>
+          _RecipeDetailSheet(recipe: widget.recipe, pantry: widget.pantry),
     );
   }
 }

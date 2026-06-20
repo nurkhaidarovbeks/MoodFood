@@ -593,16 +593,12 @@ class _PaymentSheetState extends State<_PaymentSheet> {
 
   Future<void> _pay(BuildContext context) async {
     setState(() => _processing = true);
+    // Simulate payment processing
     await Future<void>.delayed(const Duration(seconds: 2));
     if (!mounted) return;
     setState(() => _processing = false);
     widget.onClose();
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text('🎉 Welcome to Premium! Enjoy your upgrade.'),
-        backgroundColor: Color(0xFFFF8F00),
-        behavior: SnackBarBehavior.floating,
-      ),
-    );
+    if (!mounted) return;
+    Navigator.pushNamed(context, '/payment-success');
   }
 }

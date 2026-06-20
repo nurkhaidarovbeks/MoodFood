@@ -1,10 +1,14 @@
+import 'dart:io';
 import 'dart:math' as math;
 import 'dart:ui' as ui;
 import 'package:flutter/material.dart';
+import 'package:image_picker/image_picker.dart';
 import 'package:provider/provider.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import '../../../core/models/mood_entry_model.dart';
 import '../../../core/providers/auth_provider.dart';
 import '../../../core/providers/mood_provider.dart';
+import '../../../core/providers/subscription_provider.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../recipes/screens/recipes_screen.dart';
 
@@ -293,55 +297,75 @@ class _DailyMoodCard extends StatelessWidget {
   }
 }
 
-class _StatsRow extends StatelessWidget {
+class _StatsRow extends StatefulWidget {
   final MoodEntry? todayEntry;
   const _StatsRow({required this.todayEntry});
+
+  @override
+  State<_StatsRow> createState() => _StatsRowState();
+}
+
+class _StatsRowState extends State<_StatsRow> {
+  static const _waterKey = 'water_glasses';
+  static const _goal = 8;
+  int _glasses = 0;
+
+  @override
+  void initState() {
+    super.initState();
+    _load();
+  }
+
+  Future<void> _load() async {
+    final prefs = await SharedPreferences.getInstance();
+    final today = DateTime.now().toIso8601String().substring(0, 10);
+    final saved = prefs.getString(_waterKey);
+    if (saved != null && saved.startsWith(today)) {
+      final count = int.tryParse(saved.split(':').last) ?? 0;
+      if (mounted) setState(() => _glasses = count);
+    }
+  }
+
+  Future<void> _set(int v) async {
+    final clamped = v.clamp(0, 12);
+    setState(() => _glasses = clamped);
+    final prefs = await SharedPreferences.getInstance();
+    final today = DateTime.now().toIso8601String().substring(0, 10);
+    await prefs.setString(_waterKey, '$today:$clamped');
+  }
 
   @override
   Widget build(BuildContext context) {
     return Row(
       children: [
         Expanded(
-          child: _StatCard(
-            icon: Icons.water_drop_outlined,
-            iconColor: const Color(0xFF2196F3),
-            bgColor: const Color(0xFFE3F2FD),
-            value: '6/8',
-            label: 'glasses today',
-            title: 'Water',
+          child: _WaterCard(
+            glasses: _glasses,
+            goal: _goal,
+            onAdd: () => _set(_glasses + 1),
+            onRemove: () => _set(_glasses - 1),
           ),
         ),
         const SizedBox(width: 12),
         Expanded(
-          child: _StatCard(
-            icon: Icons.local_fire_department_outlined,
-            iconColor: const Color(0xFFFF7043),
-            bgColor: const Color(0xFFFBE9E7),
-            value: '1,240',
-            label: 'of 2,000 goal',
-            title: 'Calories',
-          ),
+          child: _CaloriesCard(entry: widget.todayEntry),
         ),
       ],
     );
   }
 }
 
-class _StatCard extends StatelessWidget {
-  final IconData icon;
-  final Color iconColor;
-  final Color bgColor;
-  final String value;
-  final String label;
-  final String title;
+class _WaterCard extends StatelessWidget {
+  final int glasses;
+  final int goal;
+  final VoidCallback onAdd;
+  final VoidCallback onRemove;
 
-  const _StatCard({
-    required this.icon,
-    required this.iconColor,
-    required this.bgColor,
-    required this.value,
-    required this.label,
-    required this.title,
+  const _WaterCard({
+    required this.glasses,
+    required this.goal,
+    required this.onAdd,
+    required this.onRemove,
   });
 
   @override
@@ -349,7 +373,7 @@ class _StatCard extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
-        color: bgColor,
+        color: const Color(0xFFE3F2FD),
         borderRadius: BorderRadius.circular(16),
       ),
       child: Column(
@@ -357,13 +381,14 @@ class _StatCard extends StatelessWidget {
         children: [
           Row(
             children: [
-              Icon(icon, size: 16, color: iconColor),
+              const Icon(Icons.water_drop_outlined,
+                  size: 16, color: Color(0xFF2196F3)),
               const SizedBox(width: 6),
-              Text(
-                title,
+              const Text(
+                'Water',
                 style: TextStyle(
                   fontSize: 12,
-                  color: iconColor,
+                  color: Color(0xFF2196F3),
                   fontWeight: FontWeight.w600,
                 ),
               ),
@@ -371,18 +396,130 @@ class _StatCard extends StatelessWidget {
           ),
           const SizedBox(height: 8),
           Text(
-            value,
+            '$glasses/$goal',
             style: const TextStyle(
               fontSize: 22,
               fontWeight: FontWeight.w800,
               color: AppTheme.textDark,
             ),
           ),
+          const Text(
+            'glasses today',
+            style: TextStyle(fontSize: 11, color: AppTheme.textSecondary),
+          ),
+          const SizedBox(height: 10),
+          Row(
+            children: [
+              _WaterBtn(
+                icon: Icons.remove,
+                onTap: onRemove,
+                enabled: glasses > 0,
+              ),
+              const SizedBox(width: 8),
+              _WaterBtn(icon: Icons.add, onTap: onAdd, enabled: true),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _WaterBtn extends StatelessWidget {
+  final IconData icon;
+  final VoidCallback onTap;
+  final bool enabled;
+
+  const _WaterBtn({
+    required this.icon,
+    required this.onTap,
+    required this.enabled,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: enabled ? onTap : null,
+      child: Container(
+        width: 28,
+        height: 28,
+        decoration: BoxDecoration(
+          color: enabled
+              ? const Color(0xFF2196F3).withValues(alpha: 0.15)
+              : Colors.grey.withValues(alpha: 0.1),
+          borderRadius: BorderRadius.circular(8),
+        ),
+        child: Icon(
+          icon,
+          size: 16,
+          color: enabled ? const Color(0xFF2196F3) : Colors.grey,
+        ),
+      ),
+    );
+  }
+}
+
+class _CaloriesCard extends StatelessWidget {
+  final MoodEntry? entry;
+  const _CaloriesCard({required this.entry});
+
+  @override
+  Widget build(BuildContext context) {
+    final calories = entry != null ? '${(entry!.energyLevel * 200).round()}' : '0';
+    return Container(
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: const Color(0xFFFBE9E7),
+        borderRadius: BorderRadius.circular(16),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Row(
+            children: [
+              Icon(Icons.local_fire_department_outlined,
+                  size: 16, color: Color(0xFFFF7043)),
+              SizedBox(width: 6),
+              Text(
+                'Calories',
+                style: TextStyle(
+                  fontSize: 12,
+                  color: Color(0xFFFF7043),
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 8),
           Text(
-            label,
+            calories,
             style: const TextStyle(
-              fontSize: 11,
-              color: AppTheme.textSecondary,
+              fontSize: 22,
+              fontWeight: FontWeight.w800,
+              color: AppTheme.textDark,
+            ),
+          ),
+          const Text(
+            'of 2,000 goal',
+            style: TextStyle(fontSize: 11, color: AppTheme.textSecondary),
+          ),
+          const SizedBox(height: 10),
+          GestureDetector(
+            onTap: () => Navigator.pushNamed(context, '/mood-check'),
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+              decoration: BoxDecoration(
+                color: const Color(0xFFFF7043).withValues(alpha: 0.15),
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: const Text(
+                '+ Log meal',
+                style: TextStyle(
+                  fontSize: 11,
+                  fontWeight: FontWeight.w600,
+                  color: Color(0xFFFF7043),
+                ),
+              ),
             ),
           ),
         ],
@@ -622,6 +759,7 @@ class _AIChatTab extends StatefulWidget {
 class _AIChatTabState extends State<_AIChatTab> {
   final _msgCtrl = TextEditingController();
   final _scrollCtrl = ScrollController();
+  final _picker = ImagePicker();
   final List<_ChatMsg> _messages = [
     const _ChatMsg(
       text:
@@ -686,6 +824,51 @@ class _AIChatTabState extends State<_AIChatTab> {
         }
       });
     });
+  }
+
+  Future<void> _pickImage(ImageSource source) async {
+    try {
+      final picked = await _picker.pickImage(
+        source: source,
+        maxWidth: 800,
+        imageQuality: 80,
+      );
+      if (picked == null || !mounted) return;
+      final now = DateTime.now();
+      final timeStr =
+          '${now.hour % 12 == 0 ? 12 : now.hour % 12}:${now.minute.toString().padLeft(2, '0')} ${now.hour < 12 ? 'AM' : 'PM'}';
+      setState(() {
+        _messages.add(_ChatMsg(
+          text: '📷 [Photo shared]',
+          isUser: true,
+          time: timeStr,
+          imagePath: picked.path,
+        ));
+      });
+      await Future<void>.delayed(const Duration(milliseconds: 1200));
+      if (!mounted) return;
+      final replyTime =
+          '${now.hour % 12 == 0 ? 12 : now.hour % 12}:${now.minute.toString().padLeft(2, '0')} ${now.hour < 12 ? 'AM' : 'PM'}';
+      setState(() {
+        _messages.add(_ChatMsg(
+          text:
+              '📸 I can see your food photo! Based on what I can tell, this looks like a nutritious meal. For accurate calorie and macro tracking, try describing the specific ingredients. I can give you detailed nutritional insights and mood-boosting recommendations!',
+          isUser: false,
+          time: replyTime,
+        ));
+      });
+      Future.delayed(const Duration(milliseconds: 100), () {
+        if (_scrollCtrl.hasClients) {
+          _scrollCtrl.animateTo(
+            _scrollCtrl.position.maxScrollExtent,
+            duration: const Duration(milliseconds: 300),
+            curve: Curves.easeOut,
+          );
+        }
+      });
+    } catch (_) {
+      // Permission denied or cancelled
+    }
   }
 
   String _getResponse(String input) {
@@ -863,9 +1046,7 @@ class _AIChatTabState extends State<_AIChatTab> {
                     children: [
                       Expanded(
                         child: OutlinedButton.icon(
-                          onPressed: () {
-                            _sendMessage('Analyze this photo of my food');
-                          },
+                          onPressed: () => _pickImage(ImageSource.camera),
                           icon: const Icon(Icons.camera_alt_outlined, size: 16),
                           label: const Text('Camera'),
                           style: OutlinedButton.styleFrom(
@@ -881,9 +1062,7 @@ class _AIChatTabState extends State<_AIChatTab> {
                       const SizedBox(width: 10),
                       Expanded(
                         child: OutlinedButton.icon(
-                          onPressed: () {
-                            _sendMessage('Analyze this food from my gallery');
-                          },
+                          onPressed: () => _pickImage(ImageSource.gallery),
                           icon: const Icon(Icons.photo_outlined, size: 16),
                           label: const Text('Gallery'),
                           style: OutlinedButton.styleFrom(
@@ -909,7 +1088,7 @@ class _AIChatTabState extends State<_AIChatTab> {
               child: Row(
                 children: [
                   GestureDetector(
-                    onTap: () => _sendMessage('Analyze my food photo'),
+                    onTap: () => _pickImage(ImageSource.gallery),
                     child: const Icon(
                       Icons.camera_alt_outlined,
                       size: 22,
@@ -979,7 +1158,13 @@ class _ChatMsg {
   final String text;
   final bool isUser;
   final String time;
-  const _ChatMsg({required this.text, required this.isUser, required this.time});
+  final String? imagePath;
+  const _ChatMsg({
+    required this.text,
+    required this.isUser,
+    required this.time,
+    this.imagePath,
+  });
 }
 
 class _ChatBubble extends StatelessWidget {
@@ -1040,13 +1225,32 @@ class _ChatBubble extends StatelessWidget {
                 ),
               ],
             ),
-            child: Text(
-              msg.text,
-              style: TextStyle(
-                fontSize: 13,
-                color: msg.isUser ? Colors.white : AppTheme.textDark,
-                height: 1.5,
-              ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                if (msg.imagePath != null)
+                  ClipRRect(
+                    borderRadius: BorderRadius.circular(10),
+                    child: Image.file(
+                      File(msg.imagePath!),
+                      width: 180,
+                      height: 130,
+                      fit: BoxFit.cover,
+                    ),
+                  ),
+                if (msg.imagePath != null && msg.text != '📷 [Photo shared]')
+                  const SizedBox(height: 6),
+                if (msg.text != '📷 [Photo shared]' || msg.imagePath == null)
+                  Text(
+                    msg.text,
+                    style: TextStyle(
+                      fontSize: 13,
+                      color: msg.isUser ? Colors.white : AppTheme.textDark,
+                      height: 1.5,
+                    ),
+                  ),
+              ],
             ),
           ),
           const SizedBox(height: 4),
@@ -1697,8 +1901,30 @@ class _AchievementsSection extends StatelessWidget {
 
 // ─── Profile Tab ─────────────────────────────────────────────────────────────
 
-class _ProfileTab extends StatelessWidget {
+class _ProfileTab extends StatefulWidget {
   const _ProfileTab();
+
+  @override
+  State<_ProfileTab> createState() => _ProfileTabState();
+}
+
+class _ProfileTabState extends State<_ProfileTab> {
+  static const _avatarKey = 'avatar_path';
+  String? _avatarPath;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadAvatar();
+  }
+
+  Future<void> _loadAvatar() async {
+    final prefs = await SharedPreferences.getInstance();
+    final path = prefs.getString(_avatarKey);
+    if (path != null && File(path).existsSync()) {
+      if (mounted) setState(() => _avatarPath = path);
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -1706,6 +1932,7 @@ class _ProfileTab extends StatelessWidget {
     final user = auth.user;
     final entries = context.watch<MoodProvider>().entries;
     final streak = math.min(entries.length, 7);
+    final isPremium = context.watch<SubscriptionProvider>().isPremium;
 
     return Scaffold(
       backgroundColor: AppTheme.background,
@@ -1736,24 +1963,56 @@ class _ProfileTab extends StatelessWidget {
                         children: [
                           Row(
                             children: [
-                              Container(
-                                width: 60,
-                                height: 60,
-                                decoration: BoxDecoration(
-                                  color: const Color(0xFFEEEEEE),
-                                  borderRadius: BorderRadius.circular(16),
-                                ),
-                                child: Center(
-                                  child: Text(
-                                    (user?.displayName.isNotEmpty == true
-                                        ? user!.displayName[0].toUpperCase()
-                                        : '?'),
-                                    style: const TextStyle(
-                                      fontSize: 28,
-                                      fontWeight: FontWeight.w700,
-                                      color: AppTheme.textSecondary,
+                              GestureDetector(
+                                onTap: () async {
+                                  await Navigator.pushNamed(context, '/edit-profile');
+                                  _loadAvatar();
+                                },
+                                child: Stack(
+                                  children: [
+                                    Container(
+                                      width: 60,
+                                      height: 60,
+                                      decoration: BoxDecoration(
+                                        color: AppTheme.primary.withValues(alpha: 0.12),
+                                        borderRadius: BorderRadius.circular(16),
+                                      ),
+                                      child: _avatarPath != null
+                                          ? ClipRRect(
+                                              borderRadius: BorderRadius.circular(16),
+                                              child: Image.file(
+                                                File(_avatarPath!),
+                                                fit: BoxFit.cover,
+                                              ),
+                                            )
+                                          : Center(
+                                              child: Text(
+                                                user?.displayName.isNotEmpty == true
+                                                    ? user!.displayName[0].toUpperCase()
+                                                    : '?',
+                                                style: const TextStyle(
+                                                  fontSize: 28,
+                                                  fontWeight: FontWeight.w700,
+                                                  color: AppTheme.primary,
+                                                ),
+                                              ),
+                                            ),
                                     ),
-                                  ),
+                                    Positioned(
+                                      bottom: 0,
+                                      right: 0,
+                                      child: Container(
+                                        width: 18,
+                                        height: 18,
+                                        decoration: BoxDecoration(
+                                          color: AppTheme.primary,
+                                          shape: BoxShape.circle,
+                                          border: Border.all(color: Colors.white, width: 1.5),
+                                        ),
+                                        child: const Icon(Icons.edit, color: Colors.white, size: 9),
+                                      ),
+                                    ),
+                                  ],
                                 ),
                               ),
                               const SizedBox(width: 14),
@@ -1778,19 +2037,28 @@ class _ProfileTab extends StatelessWidget {
                                       ),
                                     ),
                                     const SizedBox(height: 6),
-                                    Container(
-                                      padding: const EdgeInsets.symmetric(
-                                          horizontal: 10, vertical: 3),
-                                      decoration: BoxDecoration(
-                                        color: const Color(0xFFFFF3E0),
-                                        borderRadius: BorderRadius.circular(20),
-                                      ),
-                                      child: const Text(
-                                        '🏆 Free Plan',
-                                        style: TextStyle(
-                                          fontSize: 11,
-                                          color: Color(0xFFE65100),
-                                          fontWeight: FontWeight.w600,
+                                    GestureDetector(
+                                      onTap: isPremium
+                                          ? null
+                                          : () => Navigator.pushNamed(context, '/premium'),
+                                      child: Container(
+                                        padding: const EdgeInsets.symmetric(
+                                            horizontal: 10, vertical: 3),
+                                        decoration: BoxDecoration(
+                                          color: isPremium
+                                              ? const Color(0xFFE8F5E9)
+                                              : const Color(0xFFFFF3E0),
+                                          borderRadius: BorderRadius.circular(20),
+                                        ),
+                                        child: Text(
+                                          isPremium ? '⭐ Premium' : '🏆 Free Plan',
+                                          style: TextStyle(
+                                            fontSize: 11,
+                                            color: isPremium
+                                                ? const Color(0xFF2E7D32)
+                                                : const Color(0xFFE65100),
+                                            fontWeight: FontWeight.w600,
+                                          ),
                                         ),
                                       ),
                                     ),
