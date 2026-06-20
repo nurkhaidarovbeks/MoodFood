@@ -70,7 +70,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                       icon: Icons.person_outline,
                       label: 'Profile Info',
                       onTap: () =>
-                          Navigator.pushNamed(context, '/profile-setup'),
+                          Navigator.pushNamed(context, '/edit-profile'),
                     ),
                     _Divider(),
                     _SettingsTile(

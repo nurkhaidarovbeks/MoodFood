@@ -36,4 +36,21 @@ class UserModel {
       };
 
   String get displayName => name ?? email.split('@').first;
+
+  UserModel copyWith({
+    String? id,
+    String? email,
+    String? name,
+    String? authProvider,
+    bool? isEmailVerified,
+    bool? isProfileComplete,
+  }) =>
+      UserModel(
+        id: id ?? this.id,
+        email: email ?? this.email,
+        name: name ?? this.name,
+        authProvider: authProvider ?? this.authProvider,
+        isEmailVerified: isEmailVerified ?? this.isEmailVerified,
+        isProfileComplete: isProfileComplete ?? this.isProfileComplete,
+      );
 }

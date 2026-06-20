@@ -16,6 +16,9 @@ import '../features/ingredients/screens/ingredients_screen.dart';
 import '../features/recipes/screens/recipes_screen.dart';
 import '../features/recommendations/screens/recommendations_screen.dart';
 import '../features/notifications/screens/notifications_screen.dart';
+import '../features/premium/screens/payment_success_screen.dart';
+import '../features/profile/screens/edit_profile_screen.dart';
+import '../features/payment/screens/paypal_webview_screen.dart';
 
 class AppRouter {
   static Route<dynamic> onGenerateRoute(RouteSettings settings) {
@@ -35,7 +38,10 @@ class AppRouter {
         final email = settings.arguments as String? ?? '';
         return MaterialPageRoute(builder: (_) => OtpScreen(email: email));
       case '/profile-setup':
-        return MaterialPageRoute(builder: (_) => const ProfileSetupScreen());
+        final isEditing = settings.arguments as bool? ?? false;
+        return MaterialPageRoute(
+          builder: (_) => ProfileSetupScreen(isEditing: isEditing),
+        );
       case '/home':
         return _fade(const HomeScreen());
       case '/mood-check':
@@ -61,6 +67,19 @@ class AppRouter {
         return MaterialPageRoute(builder: (_) => const PremiumScreen());
       case '/notifications':
         return MaterialPageRoute(builder: (_) => const NotificationsScreen());
+      case '/payment-success':
+        return _slide(const PaymentSuccessScreen());
+      case '/edit-profile':
+        return MaterialPageRoute(builder: (_) => const EditProfileScreen());
+      case '/paypal-webview':
+        final args = settings.arguments as Map<String, String>?;
+        return MaterialPageRoute(
+          builder: (_) => PayPalWebViewScreen(
+            paymentUrl: args?['paymentUrl'] ?? '',
+            orderId: args?['orderId'] ?? '',
+          ),
+          fullscreenDialog: true,
+        );
       default:
         return MaterialPageRoute(
           builder: (_) => const Scaffold(

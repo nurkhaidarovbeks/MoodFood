@@ -5,7 +5,8 @@ import '../../../core/providers/profile_provider.dart';
 import '../../../core/theme/app_theme.dart';
 
 class ProfileSetupScreen extends StatefulWidget {
-  const ProfileSetupScreen({super.key});
+  final bool isEditing;
+  const ProfileSetupScreen({super.key, this.isEditing = false});
 
   @override
   State<ProfileSetupScreen> createState() => _ProfileSetupScreenState();
@@ -54,6 +55,32 @@ class _ProfileSetupScreenState extends State<ProfileSetupScreen> {
     'Shellfish',
   ];
 
+  @override
+  void initState() {
+    super.initState();
+    if (widget.isEditing) {
+      WidgetsBinding.instance.addPostFrameCallback((_) => _loadExisting());
+    }
+  }
+
+  void _loadExisting() {
+    final profile = context.read<ProfileProvider>().profile;
+    if (profile == null) return;
+    setState(() {
+      if (profile.goal != null && profile.goal!.isNotEmpty) {
+        _selectedGoals.addAll(profile.goal!.split(','));
+      }
+      if (profile.dietaryRestrictions.isNotEmpty) {
+        final diet = profile.dietaryRestrictions.first;
+        _selectedDiet = diet[0].toUpperCase() + diet.substring(1);
+      }
+      for (final a in profile.allergies) {
+        final label = a.split('_').map((w) => w[0].toUpperCase() + w.substring(1)).join(' ');
+        _selectedAllergies.add(label);
+      }
+    });
+  }
+
   void _next() {
     if (_currentPage < _totalPages - 1) {
       _pageController.nextPage(
@@ -82,7 +109,18 @@ class _ProfileSetupScreenState extends State<ProfileSetupScreen> {
     final ok = await profileProvider.saveProfile(profile);
     if (!mounted) return;
     if (ok) {
-      Navigator.pushReplacementNamed(context, '/home');
+      if (widget.isEditing) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Profile updated!'),
+            backgroundColor: Color(0xFF7CB342),
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
+        Navigator.pop(context);
+      } else {
+        Navigator.pushReplacementNamed(context, '/home');
+      }
     } else {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
@@ -110,12 +148,46 @@ class _ProfileSetupScreenState extends State<ProfileSetupScreen> {
       body: SafeArea(
         child: Column(
           children: [
-            // Progress bar + step label
+            // Header
             Padding(
               padding: const EdgeInsets.fromLTRB(20, 16, 20, 0),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
+                  if (widget.isEditing)
+                    Padding(
+                      padding: const EdgeInsets.only(bottom: 12),
+                      child: Row(
+                        children: [
+                          GestureDetector(
+                            onTap: () => Navigator.pop(context),
+                            child: Container(
+                              width: 36,
+                              height: 36,
+                              decoration: BoxDecoration(
+                                color: Colors.white,
+                                shape: BoxShape.circle,
+                                border: Border.all(color: AppTheme.divider),
+                              ),
+                              child: const Icon(
+                                Icons.arrow_back,
+                                size: 18,
+                                color: AppTheme.textDark,
+                              ),
+                            ),
+                          ),
+                          const SizedBox(width: 12),
+                          const Text(
+                            'Edit Profile',
+                            style: TextStyle(
+                              fontSize: 20,
+                              fontWeight: FontWeight.w800,
+                              color: AppTheme.textDark,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
                   Row(
                     children: List.generate(_totalPages, (i) {
                       return Expanded(
@@ -214,7 +286,7 @@ class _ProfileSetupScreenState extends State<ProfileSetupScreen> {
                           children: [
                             Text(
                               _currentPage == _totalPages - 1
-                                  ? 'Complete Setup'
+                                  ? (widget.isEditing ? 'Save Changes' : 'Complete Setup')
                                   : 'Continue',
                               style: const TextStyle(
                                 fontSize: 16,

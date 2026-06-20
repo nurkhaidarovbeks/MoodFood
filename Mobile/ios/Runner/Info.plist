@@ -79,5 +79,11 @@
 		<string>UIInterfaceOrientationLandscapeLeft</string>
 		<string>UIInterfaceOrientationLandscapeRight</string>
 	</array>
+	<key>NSCameraUsageDescription</key>
+	<string>MoodFood uses your camera to analyze food photos for nutritional insights.</string>
+	<key>NSPhotoLibraryUsageDescription</key>
+	<string>MoodFood accesses your photo library to analyze food photos and let you update your profile picture.</string>
+	<key>NSPhotoLibraryAddUsageDescription</key>
+	<string>MoodFood saves food photo analyses to your photo library.</string>
 </dict>
 </plist>

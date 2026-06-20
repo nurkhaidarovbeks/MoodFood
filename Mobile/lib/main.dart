@@ -6,6 +6,7 @@ import 'core/providers/mood_provider.dart';
 import 'core/providers/profile_provider.dart';
 import 'core/providers/ingredients_provider.dart';
 import 'core/providers/recipe_provider.dart';
+import 'core/providers/subscription_provider.dart';
 import 'core/theme/app_theme.dart';
 import 'router/app_router.dart';
 
@@ -30,6 +31,7 @@ class MoodFoodApp extends StatelessWidget {
         ChangeNotifierProvider(create: (_) => MoodProvider()),
         ChangeNotifierProvider(create: (_) => IngredientsProvider()),
         ChangeNotifierProvider(create: (_) => RecipeProvider()),
+        ChangeNotifierProvider(create: (_) => SubscriptionProvider()),
       ],
       child: MaterialApp(
         title: 'MoodFood',

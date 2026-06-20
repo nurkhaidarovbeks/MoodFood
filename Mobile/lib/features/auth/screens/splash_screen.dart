@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../../../core/providers/auth_provider.dart';
 import '../../../core/providers/mood_provider.dart';
+import '../../../core/providers/subscription_provider.dart';
 import '../../../core/theme/app_theme.dart';
 
 class SplashScreen extends StatefulWidget {
@@ -35,10 +36,17 @@ class _SplashScreenState extends State<SplashScreen>
 
     final auth = context.read<AuthProvider>();
     final mood = context.read<MoodProvider>();
+    final sub = context.read<SubscriptionProvider>();
 
-    await auth.checkAuthStatus();
+    await Future.wait([
+      auth.checkAuthStatus(),
+      sub.load(),
+    ]);
     if (auth.isAuthenticated) {
-      await mood.loadEntries();
+      await Future.wait([
+        mood.loadEntries(),
+        sub.syncFromBackend(),
+      ]);
     }
 
     if (!mounted) return;

@@ -105,7 +105,12 @@ class RecommendationsScreen extends StatelessWidget {
                     height: 56,
                     child: ElevatedButton(
                       onPressed: () {
-                        Navigator.pop(context);
+                        Navigator.pushNamedAndRemoveUntil(
+                          context,
+                          '/home',
+                          (_) => false,
+                          arguments: {'tab': 1},
+                        );
                       },
                       style: ElevatedButton.styleFrom(
                         backgroundColor: AppTheme.primary,
@@ -115,11 +120,34 @@ class RecommendationsScreen extends StatelessWidget {
                         ),
                         elevation: 0,
                       ),
+                      child: const Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Icon(Icons.menu_book_outlined, size: 18),
+                          SizedBox(width: 8),
+                          Text(
+                            'Explore More Recipes',
+                            style: TextStyle(
+                              fontSize: 16,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  Center(
+                    child: TextButton(
+                      onPressed: () => Navigator.popUntil(
+                        context,
+                        ModalRoute.withName('/home'),
+                      ),
                       child: const Text(
-                        'Explore More Recipes',
+                        'Back to Home',
                         style: TextStyle(
-                          fontSize: 16,
-                          fontWeight: FontWeight.w600,
+                          fontSize: 14,
+                          color: AppTheme.textSecondary,
                         ),
                       ),
                     ),
