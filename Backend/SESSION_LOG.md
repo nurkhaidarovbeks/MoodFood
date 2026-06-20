@@ -731,15 +731,148 @@ req.query as unknown as { limit: number; offset: number }
 
 ---
 
+## Сессия 10 — 19 июня 2026 (Epic 4 по плану MoodFood: AI-рекомендации по настроению)
+
+> Автор: Nurkhaidarov Beksultan | Модель: Claude Opus 4.8
+
+> ⚠️ Нумерация эпиков разошлась: «Epic 4» в коммитах команды = Payment, а **Epic 4 по
+> исходному документу MoodFood = AI Meal Recommendations** — именно его реализует эта сессия
+> (был в «Следующий шаг» как «AI рекомендации по настроению»).
+
+### Сначала — починка: устаревший Prisma client
+
+После `git pull` 3 сьюта (payment, subscription, wallet) **не запускались** —
+`@prisma/client` не содержал моделей Order/Subscription/Wallet (клиент не был
+перегенерирован после добавления схемы). Тесты: «84 passed, но 3 suite failed».
+
+**Фикс:** `npx prisma generate` → **141 тест зелёный** (84 + 29 payment + 14 wallet + 14 subscription).
+Это и был «не все тесты были добавлены» — они были, но не компилировались.
+
+### Epic 4 — AI Meal Recommendations
+
+**Новый эндпоинт (JWT):**
+
+| Метод | Путь | Описание |
+|-------|------|---------|
+| `POST` | `/api/v1/recommendations` | Mood-check → 3 варианта (fastest / healthiest / cheapest) + AI-объяснение |
+
+**Тело запроса** (всё опционально):
+```json
+{
+  "mood": "tired",
+  "energyLevel": 2,            // 1–5
+  "stressLevel": "high",       // low | medium | high
+  "sleepQuality": "poor",      // poor | normal | good
+  "hungerLevel": "high",       // low | medium | high
+  "budgetLevel": "low",        // переопределяет профиль
+  "maxCookingTime": 20,        // только быстрые рецепты ≤ N мин
+  "useMyIngredients": true     // матч по кладовке + замены ингредиентов
+}
+```
+
+**Пайплайн (безопасный, по плану §13.3):**
+`вход → фильтр по диете (hard) → фильтр по времени → скоринг по состоянию → выбор 3 → AI-объяснение → JSON`
+
+**Новые файлы:**
+| Файл | Описание |
+|------|---------|
+| `src/modules/recommendations/recommendation.scoring.ts` | Чистые функции: `stateFitScore`, `selectThreeOptions`, `suggestSubstitutions` (правила §12.4) |
+| `src/modules/recommendations/recommendation.schema.ts` | Zod `RecommendationRequestSchema` |
+| `src/modules/recommendations/recommendation.service.ts` | Оркестрация (DI: prisma + MealAiService) |
+| `src/modules/recommendations/recommendation.controller.ts` | HTTP handler |
+| `src/modules/recommendations/recommendation.routes.ts` | `POST /` под `requireAuth` |
+| `src/services/meal-ai.service.ts` | Claude API (Anthropic SDK) + rule-based fallback |
+
+**Скоринг (правила состояния):**
+- Низкая энергия (energy ≤ 2 / mood tired) → белок + сложные углеводы, штраф за сахар
+- Высокий стресс → простые сбалансированные блюда, штраф за тяжёлые (>650 ккал)
+- Плохой сон → лёгкие блюда (≤450 ккал), штраф за тяжёлые (>600)
+- Сильный голод → сытные (белок + калории)
+- 3 варианта **всегда разные рецепты**: healthiest (макс fit) → fastest (мин время) → cheapest (мин цена)
+
+**AI-слой (`MealAiService`):**
+- Если `ANTHROPIC_API_KEY` задан → один batched-вызов Claude (модель из `ANTHROPIC_MODEL`,
+  по умолчанию `claude-haiku-4-5`), система-промпт с правилами безопасности (НЕ медицинские советы, §12.5)
+- Если ключа нет (dev / CI / тесты) → **детерминированный rule-based fallback** → приложение и тесты
+  работают полностью офлайн, без сетевых вызовов и затрат
+- `aiPowered: boolean` в ответе показывает, какой путь сработал
+
+**Замены ингредиентов (Epic 4 «alternatives»):** при `useMyIngredients` к каждому варианту
+добавляются `matchScore`, `missingIngredients`, `substitutions` (например chicken → eggs/beans),
+причём замены отфильтрованы по ограничениям пользователя.
+
+**Новые env:** `ANTHROPIC_API_KEY` (опц.), `ANTHROPIC_MODEL` (по умолч. `claude-haiku-4-5`).
+
+**Новая зависимость:** `@anthropic-ai/sdk`.
+
+### Тесты
+
+| Файл | Кол-во | Что тестирует |
+|------|--------|-------------|
+| `tests/recommendation-scoring.test.ts` | 16 | Детекция состояния, fit-скоринг, выбор 3, замены |
+| `tests/recommendation.test.ts` | 8 | Пайплайн, диета (hard), время, кладовка, 404, без профиля |
+| `tests/meal-ai.test.ts` | 6 | Fallback без ключа, не-медицинский текст, формат |
+
+**Итого тестов: 171 (было 141, +30) — все зелёные.** Никаких сетевых вызовов в тестах.
+
+### Ручная проверка
+```powershell
+docker-compose up -d postgres
+npx --no-install ts-node prisma/seed.ts        # 10 рецептов
+npm run dev
+# POST http://localhost:3000/api/v1/recommendations  (Bearer <jwt>)
+# { "mood": "tired", "energyLevel": 2, "maxCookingTime": 20 }
+```
+
+---
+
+## Сессия 11 — 19 июня 2026 (Epic 2 по плану MoodFood: Mood-check + история)
+
+> Автор: Nurkhaidarov Beksultan | Модель: Claude Opus 4.8
+
+Закрыл недостающую backend-часть Epic 2 (по документу) — **сохранение чек-инов
+состояния в БД и история** (бэклог-пункт «Mood history»). Раньше состояние только
+принималось в `/recommendations`, но нигде не хранилось.
+
+**Новая модель `MoodCheck`** (миграция `add_mood_checks`):
+```
+id, userId, mood, energyLevel (1–5), stressLevel, sleepQuality, hungerLevel, createdAt
+@@index([userId, createdAt])
+```
+Поля состояния — nullable String/Int (валидация через Zod, как в `/recommendations`).
+
+**Новый модуль `src/modules/moodcheck/`:** schema / service / controller / routes.
+
+**Новые эндпоинты `/api/v1/mood-checks` (все JWT):**
+
+| Метод | Путь | Описание |
+|-------|------|---------|
+| `POST` | `/mood-checks` | Записать чек-ин (нужно ≥1 поле) |
+| `GET` | `/mood-checks` | История (пагинация, newest-first) |
+| `GET` | `/mood-checks/latest` | Последний чек-ин (или `null`) |
+
+**Тесты:** `tests/moodcheck.test.ts` — 5 (create с null-заполнением, история + пагинация, latest, пустой latest).
+
+**Итого тестов: 176 (было 171, +5) — все зелёные.**
+
+> Миграции в репозитории рассинхронены (для orders/wallet/subscription нет папок —
+> схема = источник правды). Для mood_checks **добавил готовую миграцию** вручную:
+> `prisma/migrations/20260619090000_add_mood_checks/migration.sql`. Применить:
+> `npx --no-install prisma migrate deploy` (или `prisma db push`) когда поднят Postgres.
+
+---
+
 ## Следующий шаг
 
-- Миграция (когда Docker запущен):
+- Применить миграцию (когда Docker/Postgres запущен):
   ```powershell
+  docker-compose up -d postgres
   npx --no-install prisma migrate dev --name add_payment_wallet_subscriptions
   npx --no-install ts-node prisma/seed.ts
   ```
-- AI рекомендации по настроению (Mood-check → рецепты)
 - Избранное / сохранённые рецепты
+- Habit analytics / weekly tips
+- Water tracking
 - Сброс пароля
 - Rate limiting на login/register
 
@@ -754,4 +887,6 @@ req.query as unknown as { limit: number; offset: number }
 *Сессия 8: 18 июня 2026 — Wallet: пополнение баланса + транзакции*  
 *Сессия 9: 18 июня 2026 — Subscriptions: Monthly + Annual тарифы*  
 *Сессия 10: 19 июня 2026 — Bereke удалён, PayPal only, credentials ✅, CI fix (131 тест)*  
+*Сессия 11: 19 июня 2026 — Epic 4: AI-рекомендации по настроению (171 тест)*  
+*Сессия 12: 19 июня 2026 — Epic 2: Mood-check + история чек-инов (176 тестов)*  
 

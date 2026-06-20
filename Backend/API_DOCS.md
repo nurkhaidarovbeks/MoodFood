@@ -35,6 +35,8 @@ Copy `.env.example` → `.env` and fill in values.
 | `SMTP_FROM` | No | Sender address (default: `noreply@moodfood.app`) |
 | `APP_URL` | No | Base URL of this API server (for verification link) |
 | `FRONTEND_URL` | No | Frontend URL for CORS allowlist |
+| `ANTHROPIC_API_KEY` | No | Claude API key for AI meal explanations. If blank, recommendations use a deterministic rule-based fallback (fully offline) |
+| `ANTHROPIC_MODEL` | No | Claude model for explanations (default: `claude-haiku-4-5`) |
 
 ---
 
@@ -325,6 +327,100 @@ Partially update the nutrition profile. Only provided fields are changed; others
   "isProfileComplete": false
 }
 ```
+
+---
+
+### `POST /api/v1/recommendations` 🔒
+
+AI meal recommendations driven by a mood-check. Returns up to three distinct
+options — **fastest**, **healthiest**, **cheapest** — each with a short
+explanation of why it fits the user's current state. Dietary restrictions and
+allergies are enforced as a hard filter (via `DietaryRestrictionService`).
+
+**Request body** (all fields optional — more signals = better fit):
+```json
+{
+  "mood": "tired",
+  "energyLevel": 2,
+  "stressLevel": "high",
+  "sleepQuality": "poor",
+  "hungerLevel": "high",
+  "budgetLevel": "low",
+  "maxCookingTime": 20,
+  "useMyIngredients": true
+}
+```
+
+| Field | Type | Notes |
+|---|---|---|
+| `mood` | string | e.g. `tired`, `stressed`, `happy`, `low_energy` |
+| `energyLevel` | int 1–5 | ≤ 2 is treated as low energy |
+| `stressLevel` | `low`/`medium`/`high` | |
+| `sleepQuality` | `poor`/`normal`/`good` | |
+| `hungerLevel` | `low`/`medium`/`high` | |
+| `budgetLevel` | `low`/`medium`/`high` | overrides the profile's budget |
+| `maxCookingTime` | int (minutes) | only recipes ≤ N min |
+| `useMyIngredients` | boolean | match against pantry + suggest substitutions |
+
+**Success `200`:**
+```json
+{
+  "state": { "mood": "tired", "energyLevel": 2, "budgetLevel": "low" },
+  "aiPowered": false,
+  "options": [
+    {
+      "category": "healthiest",
+      "fitScore": 0.87,
+      "recipe": { "id": "...", "title": "Salmon with Quinoa", "cookingTimeMin": 30, "calories": 520, "proteinG": 48, "ingredients": [ ... ] },
+      "explanation": "Packed with 48g of protein for a steady energy lift, the most nourishing fit for how you feel right now.",
+      "matchScore": 0.0,
+      "missingIngredients": ["salmon", "quinoa"],
+      "substitutions": { "salmon": ["tuna", "tofu"] }
+    }
+  ]
+}
+```
+
+- `aiPowered` — `true` when explanations came from the Claude API, `false` when the
+  rule-based fallback was used (no `ANTHROPIC_API_KEY`).
+- `matchScore` / `missingIngredients` / `substitutions` appear only when
+  `useMyIngredients` is `true`.
+
+---
+
+### `POST /api/v1/mood-checks` 🔒
+
+Records a mood-check (Epic 2 state check-in). At least one field is required.
+
+**Request body:**
+```json
+{
+  "mood": "tired",
+  "energyLevel": 2,
+  "stressLevel": "high",
+  "sleepQuality": "poor",
+  "hungerLevel": "high"
+}
+```
+
+**Success `201`:** the saved check-in (`id`, `userId`, fields, `createdAt`).
+
+---
+
+### `GET /api/v1/mood-checks?limit=20&offset=0` 🔒
+
+Paginated history of the user's check-ins, newest first.
+
+**Success `200`:**
+```json
+{ "moodChecks": [ { "id": "...", "mood": "tired", "createdAt": "..." } ], "total": 5, "limit": 20, "offset": 0 }
+```
+
+---
+
+### `GET /api/v1/mood-checks/latest` 🔒
+
+The user's most recent check-in, or `null` if none exist.
 
 ---
 
