@@ -65,6 +65,126 @@ class _RecipesScreenState extends State<RecipesScreen> {
     return list;
   }
 
+  void _showFilterSheet(BuildContext context) {
+    showModalBottomSheet<void>(
+      context: context,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      ),
+      builder: (_) => StatefulBuilder(
+        builder: (ctx, setSheetState) {
+          return Padding(
+            padding: const EdgeInsets.fromLTRB(20, 12, 20, 32),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Center(
+                  child: Container(
+                    width: 36,
+                    height: 4,
+                    decoration: BoxDecoration(
+                      color: AppTheme.divider,
+                      borderRadius: BorderRadius.circular(2),
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 16),
+                const Text(
+                  'Filter Recipes',
+                  style: TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.w700,
+                    color: AppTheme.textDark,
+                  ),
+                ),
+                const SizedBox(height: 16),
+                const Text(
+                  'Category',
+                  style: TextStyle(
+                    fontSize: 13,
+                    fontWeight: FontWeight.w600,
+                    color: AppTheme.textSecondary,
+                  ),
+                ),
+                const SizedBox(height: 10),
+                Wrap(
+                  spacing: 8,
+                  runSpacing: 8,
+                  children: [
+                    _FilterOption(
+                      label: 'All Recipes',
+                      active: _activeChip == _RecipeChip.all,
+                      onTap: () {
+                        setSheetState(() {});
+                        setState(() => _activeChip = _RecipeChip.all);
+                      },
+                    ),
+                    _FilterOption(
+                      label: 'Quick Meals (≤15 min)',
+                      active: _activeChip == _RecipeChip.quick,
+                      onTap: () {
+                        setSheetState(() {});
+                        setState(() => _activeChip = _RecipeChip.quick);
+                      },
+                    ),
+                    _FilterOption(
+                      label: 'Budget-Friendly',
+                      active: _activeChip == _RecipeChip.budget,
+                      onTap: () {
+                        setSheetState(() {});
+                        setState(() => _activeChip = _RecipeChip.budget);
+                      },
+                    ),
+                    _FilterOption(
+                      label: 'Energy Boost',
+                      active: _activeChip == _RecipeChip.energy,
+                      onTap: () {
+                        setSheetState(() {});
+                        setState(() => _activeChip = _RecipeChip.energy);
+                      },
+                    ),
+                    _FilterOption(
+                      label: 'High Protein (≥20g)',
+                      active: _activeChip == _RecipeChip.protein,
+                      onTap: () {
+                        setSheetState(() {});
+                        setState(() => _activeChip = _RecipeChip.protein);
+                      },
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 20),
+                SizedBox(
+                  width: double.infinity,
+                  height: 50,
+                  child: ElevatedButton(
+                    onPressed: () => Navigator.pop(ctx),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: AppTheme.primary,
+                      foregroundColor: Colors.white,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(16),
+                      ),
+                      elevation: 0,
+                    ),
+                    child: const Text(
+                      'Apply Filter',
+                      style: TextStyle(
+                        fontSize: 15,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          );
+        },
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -159,18 +279,29 @@ class _RecipesScreenState extends State<RecipesScreen> {
                     ),
                   ),
                   const SizedBox(width: 8),
-                  Container(
-                    width: 44,
-                    height: 44,
-                    decoration: BoxDecoration(
-                      color: Colors.white,
-                      borderRadius: BorderRadius.circular(14),
-                      border: Border.all(color: AppTheme.divider),
-                    ),
-                    child: const Icon(
-                      Icons.tune,
-                      size: 20,
-                      color: AppTheme.textDark,
+                  GestureDetector(
+                    onTap: () => _showFilterSheet(context),
+                    child: Container(
+                      width: 44,
+                      height: 44,
+                      decoration: BoxDecoration(
+                        color: _activeChip == _RecipeChip.all
+                            ? Colors.white
+                            : AppTheme.primary,
+                        borderRadius: BorderRadius.circular(14),
+                        border: Border.all(
+                          color: _activeChip == _RecipeChip.all
+                              ? AppTheme.divider
+                              : AppTheme.primary,
+                        ),
+                      ),
+                      child: Icon(
+                        Icons.tune,
+                        size: 20,
+                        color: _activeChip == _RecipeChip.all
+                            ? AppTheme.textDark
+                            : Colors.white,
+                      ),
                     ),
                   ),
                 ],
@@ -382,34 +513,60 @@ class _RecipeGridCardState extends State<_RecipeGridCard> {
   static const _savedKey = 'saved_recipes';
   bool _isSaved = false;
 
-  // Food photo URLs from Unsplash keyed by keyword in recipe title
+  // Food photo URLs from Unsplash keyed by keyword (matched case-insensitively)
   static const _photos = {
-    'Eggs': 'https://images.unsplash.com/photo-1482049016688-2d3e1b311543?w=400&q=70&fit=crop',
-    'Chicken': 'https://images.unsplash.com/photo-1598515214211-89d3c73ae83b?w=400&q=70&fit=crop',
-    'Banana': 'https://images.unsplash.com/photo-1571771894821-ce9b6c11b08e?w=400&q=70&fit=crop',
-    'Pasta': 'https://images.unsplash.com/photo-1555949258-eb67b1ef0ceb?w=400&q=70&fit=crop',
-    'Yogurt': 'https://images.unsplash.com/photo-1488477181946-6428a0291777?w=400&q=70&fit=crop',
-    'Tuna': 'https://images.unsplash.com/photo-1519708227418-c8fd9a32b7a2?w=400&q=70&fit=crop',
-    'Avocado': 'https://images.unsplash.com/photo-1523049673857-eb18f1d7b578?w=400&q=70&fit=crop',
-    'Quinoa': 'https://images.unsplash.com/photo-1546069901-ba9599a7e63c?w=400&q=70&fit=crop',
-    'Salmon': 'https://images.unsplash.com/photo-1519708227418-c8fd9a32b7a2?w=400&q=70&fit=crop',
-    'Berry': 'https://images.unsplash.com/photo-1498557850523-fd3d118b962e?w=400&q=70&fit=crop',
-    'Stir': 'https://images.unsplash.com/photo-1512058564366-18510be2db19?w=400&q=70&fit=crop',
-    'Lentil': 'https://images.unsplash.com/photo-1547592180-85f173990554?w=400&q=70&fit=crop',
-    'Smoothie': 'https://images.unsplash.com/photo-1638176066959-7cf4f8cef945?w=400&q=70&fit=crop',
-    'Bowl': 'https://images.unsplash.com/photo-1546069901-ba9599a7e63c?w=400&q=70&fit=crop',
-    'Salad': 'https://images.unsplash.com/photo-1512621776951-a57141f2eefd?w=400&q=70&fit=crop',
-    'Soup': 'https://images.unsplash.com/photo-1547592180-85f173990554?w=400&q=70&fit=crop',
+    'egg': 'https://images.unsplash.com/photo-1482049016688-2d3e1b311543?w=400&q=70&fit=crop',
+    'omelette': 'https://images.unsplash.com/photo-1482049016688-2d3e1b311543?w=400&q=70&fit=crop',
+    'chicken': 'https://images.unsplash.com/photo-1598515214211-89d3c73ae83b?w=400&q=70&fit=crop',
+    'turkey': 'https://images.unsplash.com/photo-1598515214211-89d3c73ae83b?w=400&q=70&fit=crop',
+    'banana': 'https://images.unsplash.com/photo-1571771894821-ce9b6c11b08e?w=400&q=70&fit=crop',
+    'pasta': 'https://images.unsplash.com/photo-1555949258-eb67b1ef0ceb?w=400&q=70&fit=crop',
+    'noodle': 'https://images.unsplash.com/photo-1555949258-eb67b1ef0ceb?w=400&q=70&fit=crop',
+    'yogurt': 'https://images.unsplash.com/photo-1488477181946-6428a0291777?w=400&q=70&fit=crop',
+    'tuna': 'https://images.unsplash.com/photo-1519708227418-c8fd9a32b7a2?w=400&q=70&fit=crop',
+    'salmon': 'https://images.unsplash.com/photo-1519708227418-c8fd9a32b7a2?w=400&q=70&fit=crop',
+    'fish': 'https://images.unsplash.com/photo-1519708227418-c8fd9a32b7a2?w=400&q=70&fit=crop',
+    'avocado': 'https://images.unsplash.com/photo-1523049673857-eb18f1d7b578?w=400&q=70&fit=crop',
+    'quinoa': 'https://images.unsplash.com/photo-1546069901-ba9599a7e63c?w=400&q=70&fit=crop',
+    'berry': 'https://images.unsplash.com/photo-1498557850523-fd3d118b962e?w=400&q=70&fit=crop',
+    'strawberry': 'https://images.unsplash.com/photo-1498557850523-fd3d118b962e?w=400&q=70&fit=crop',
+    'blueberry': 'https://images.unsplash.com/photo-1498557850523-fd3d118b962e?w=400&q=70&fit=crop',
+    'stir': 'https://images.unsplash.com/photo-1512058564366-18510be2db19?w=400&q=70&fit=crop',
+    'lentil': 'https://images.unsplash.com/photo-1547592180-85f173990554?w=400&q=70&fit=crop',
+    'bean': 'https://images.unsplash.com/photo-1547592180-85f173990554?w=400&q=70&fit=crop',
+    'soup': 'https://images.unsplash.com/photo-1547592180-85f173990554?w=400&q=70&fit=crop',
+    'smoothie': 'https://images.unsplash.com/photo-1638176066959-7cf4f8cef945?w=400&q=70&fit=crop',
+    'salad': 'https://images.unsplash.com/photo-1512621776951-a57141f2eefd?w=400&q=70&fit=crop',
+    'rice': 'https://images.unsplash.com/photo-1536304993881-ff6e9eefa2a6?w=400&q=70&fit=crop',
+    'oat': 'https://images.unsplash.com/photo-1517673132405-a56a62b18caf?w=400&q=70&fit=crop',
+    'porridge': 'https://images.unsplash.com/photo-1517673132405-a56a62b18caf?w=400&q=70&fit=crop',
+    'toast': 'https://images.unsplash.com/photo-1484723091739-30a097e8f929?w=400&q=70&fit=crop',
+    'bread': 'https://images.unsplash.com/photo-1484723091739-30a097e8f929?w=400&q=70&fit=crop',
+    'beef': 'https://images.unsplash.com/photo-1432139509613-5c4255815697?w=400&q=70&fit=crop',
+    'steak': 'https://images.unsplash.com/photo-1432139509613-5c4255815697?w=400&q=70&fit=crop',
+    'tofu': 'https://images.unsplash.com/photo-1547592180-85f173990554?w=400&q=70&fit=crop',
+    'wrap': 'https://images.unsplash.com/photo-1552332386-f8dd00dc2f85?w=400&q=70&fit=crop',
+    'bowl': 'https://images.unsplash.com/photo-1512621776951-a57141f2eefd?w=400&q=70&fit=crop',
+    'protein': 'https://images.unsplash.com/photo-1598515214211-89d3c73ae83b?w=400&q=70&fit=crop',
   };
 
-  static const _fallbackPhoto =
-      'https://images.unsplash.com/photo-1546069901-ba9599a7e63c?w=400&q=70&fit=crop';
+  // Varied fallbacks so "no match" recipes don't all look the same
+  static const _fallbacks = [
+    'https://images.unsplash.com/photo-1512621776951-a57141f2eefd?w=400&q=70&fit=crop',
+    'https://images.unsplash.com/photo-1498837167922-ddd27525d352?w=400&q=70&fit=crop',
+    'https://images.unsplash.com/photo-1504674900247-0877df9cc836?w=400&q=70&fit=crop',
+    'https://images.unsplash.com/photo-1490645935967-10de6ba17061?w=400&q=70&fit=crop',
+    'https://images.unsplash.com/photo-1546069901-ba9599a7e63c?w=400&q=70&fit=crop',
+  ];
 
   String get _photoUrl {
+    final title = widget.recipe.title.toLowerCase();
     for (final entry in _photos.entries) {
-      if (widget.recipe.title.contains(entry.key)) return entry.value;
+      if (title.contains(entry.key)) return entry.value;
     }
-    return _fallbackPhoto;
+    // Use recipe id hash for consistent but varied fallback per recipe
+    final idx = widget.recipe.id.hashCode.abs() % _fallbacks.length;
+    return _fallbacks[idx];
   }
 
   String get _difficulty {
@@ -1105,6 +1262,44 @@ class _ErrorState extends StatelessWidget {
               child: const Text('Retry'),
             ),
           ],
+        ),
+      ),
+    );
+  }
+}
+
+class _FilterOption extends StatelessWidget {
+  final String label;
+  final bool active;
+  final VoidCallback onTap;
+
+  const _FilterOption({
+    required this.label,
+    required this.active,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: onTap,
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 150),
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+        decoration: BoxDecoration(
+          color: active ? AppTheme.primary : AppTheme.background,
+          borderRadius: BorderRadius.circular(20),
+          border: Border.all(
+            color: active ? AppTheme.primary : AppTheme.divider,
+          ),
+        ),
+        child: Text(
+          label,
+          style: TextStyle(
+            fontSize: 13,
+            fontWeight: FontWeight.w500,
+            color: active ? Colors.white : AppTheme.textDark,
+          ),
         ),
       ),
     );

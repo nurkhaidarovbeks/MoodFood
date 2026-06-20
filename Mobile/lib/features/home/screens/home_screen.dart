@@ -23,6 +23,20 @@ class _HomeScreenState extends State<HomeScreen> {
   int _tabIndex = 0;
 
   @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    final args = ModalRoute.of(context)?.settings.arguments;
+    if (args is Map && args['tab'] is int) {
+      final tab = args['tab'] as int;
+      if (_tabIndex != tab) {
+        WidgetsBinding.instance.addPostFrameCallback(
+          (_) => setState(() => _tabIndex = tab),
+        );
+      }
+    }
+  }
+
+  @override
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: AppTheme.background,
