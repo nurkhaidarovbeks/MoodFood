@@ -1,7 +1,7 @@
 # MoodFood — Руководство команды
 
 > Репозиторий: https://github.com/nurkhaidarovbeks/MoodFood  
-> Последнее обновление: 13 июня 2026
+> Последнее обновление: 24 июня 2026
 
 ---
 
@@ -28,18 +28,25 @@ MoodFood/
 │   │   ├── config/          ← env.ts, database.ts
 │   │   ├── middleware/      ← auth.ts, validate.ts, errorHandler.ts
 │   │   ├── modules/
-│   │   │   ├── auth/        ← регистрация, вход, Google/Apple, OTP
-│   │   │   ├── profile/     ← профиль питания пользователя
-│   │   │   ├── pantry/      ← кладовка ингредиентов пользователя
-│   │   │   └── recipes/     ← рецепты, рекомендации
+│   │   │   ├── auth/            ← регистрация, вход, Google/Apple, OTP
+│   │   │   ├── profile/         ← профиль питания пользователя
+│   │   │   ├── pantry/          ← кладовка ингредиентов пользователя
+│   │   │   ├── recipes/         ← рецепты, рекомендации по диете
+│   │   │   ├── moodcheck/       ← Epic 2: чек-ин состояния + история
+│   │   │   ├── recommendations/ ← Epic 4: AI-рекомендации по настроению
+│   │   │   ├── payment/         ← PayPal checkout, ордера, рефанд
+│   │   │   ├── wallet/          ← кошелёк: баланс, пополнение, транзакции
+│   │   │   └── subscription/    ← подписки: monthly/annual
 │   │   ├── services/
 │   │   │   ├── email.service.ts
 │   │   │   ├── google-oauth.service.ts
 │   │   │   ├── apple-auth.service.ts
-│   │   │   └── dietary-restriction.service.ts
+│   │   │   ├── dietary-restriction.service.ts
+│   │   │   ├── paypal.service.ts    ← PayPal REST API
+│   │   │   └── meal-ai.service.ts   ← OpenAI GPT-4o-mini + rule-based fallback
 │   │   └── utils/           ← jwt.ts, hash.ts
-│   ├── prisma/              ← schema.prisma, миграции
-│   ├── tests/               ← 84 автотестов
+│   ├── prisma/              ← schema.prisma, миграции, seed.ts
+│   ├── tests/               ← 166 автотестов
 │   ├── .env.example         ← шаблон переменных
 │   ├── docker-compose.yml   ← PostgreSQL через Docker
 │   └── moodfood.postman_collection.json
@@ -162,20 +169,28 @@ npm run dev
 |-----------|------------|---------|
 | `DATABASE_URL` | ✅ | `postgresql://moodfood:moodfood_dev@localhost:5434/moodfood?schema=public` |
 | `JWT_SECRET` | ✅ | Любая строка 32+ символов |
-| `JWT_EXPIRES_IN` | — | Срок токена, по умолчанию `7d` |
+| `JWT_EXPIRES_IN` | — | Срок токена, по умолчанию `30d` |
 | `REQUIRE_EMAIL_VERIFICATION` | — | `true`/`false`, по умолчанию `false` |
 | `GOOGLE_CLIENT_ID` | — | Для Google OAuth |
 | `APPLE_CLIENT_ID` | — | Bundle ID приложения для Apple Sign In |
 | `SMTP_HOST` / `SMTP_USER` / `SMTP_PASS` | — | Если пусто — письма в консоль |
 | `APP_URL` | — | URL сервера (для ссылок в письмах) |
+| `OPENAI_API_KEY` | — | OpenAI ключ для AI-объяснений (без него — rule-based fallback) |
+| `OPENAI_MODEL` | — | Модель OpenAI, по умолчанию `gpt-4o-mini` |
+| `PAYPAL_CLIENT_ID` | — | PayPal App credentials (sandbox или live) |
+| `PAYPAL_CLIENT_SECRET` | — | PayPal App credentials |
+| `PAYPAL_BASE_URL` | — | `https://api-m.sandbox.paypal.com` или `https://api-m.paypal.com` |
+| `PAYPAL_RETURN_URL` | — | URL редиректа после успешной оплаты |
+| `PAYPAL_CANCEL_URL` | — | URL редиректа при отмене оплаты |
 
 ### Команды
 
 ```powershell
 npm run dev          # запуск сервера с hot-reload (режим разработки)
-npm test             # все тесты (84 штуки, ~4 сек)
+npm test             # все тесты (166 штук, ~8 сек)
 npm run build        # сборка TypeScript → JavaScript
 npx prisma studio    # визуальный просмотр БД (http://localhost:5555)
+npx ts-node prisma/seed.ts   # заполнить БД 20 тестовыми рецептами (идемпотентно)
 ```
 
 **Два способа запустить окружение:**
@@ -275,13 +290,76 @@ Authorization: Bearer <jwt-токен>
 
 | Метод | Путь | Auth | Описание |
 |-------|------|------|---------|
-| `GET` | `/recipes` | — | Список рецептов (с фильтрацией) |
+| `GET` | `/recipes` | — | Список рецептов (с фильтрацией по `?mood=tired`) |
 | `GET` | `/recipes/:id` | — | Один рецепт |
 | `POST` | `/recipes` | ✅ | Создать рецепт |
 | `PUT` | `/recipes/:id` | ✅ | Обновить рецепт |
 | `PATCH` | `/recipes/:id` | ✅ | Частично обновить рецепт |
 | `DELETE` | `/recipes/:id` | ✅ | Удалить рецепт |
 | `GET` | `/recipes/recommendations` | ✅ | Рекомендации (ограничения + опционально `useMyIngredients=true&minMatchScore=0.8`) |
+
+### Mood-Check (Epic 2)
+
+| Метод | Путь | Auth | Описание |
+|-------|------|------|---------|
+| `POST` | `/mood-checks` | ✅ | Записать чек-ин состояния (нужно ≥1 поле) |
+| `GET` | `/mood-checks` | ✅ | История чек-инов (пагинация, newest-first) |
+| `GET` | `/mood-checks/latest` | ✅ | Последний чек-ин (или `null`) |
+
+Тело запроса (все поля опциональны, нужно хотя бы одно):
+```json
+{ "mood": "tired", "energyLevel": 2, "stressLevel": "high", "sleepQuality": "poor", "hungerLevel": "high" }
+```
+
+### AI-рекомендации (Epic 4)
+
+| Метод | Путь | Auth | Описание |
+|-------|------|------|---------|
+| `POST` | `/recommendations` | ✅ | Mood-check → 3 варианта (fastest/healthiest/cheapest) + AI-объяснение |
+
+Тело запроса (всё опционально):
+```json
+{
+  "mood": "tired",
+  "energyLevel": 2,
+  "stressLevel": "high",
+  "sleepQuality": "poor",
+  "hungerLevel": "high",
+  "budgetLevel": "low",
+  "maxCookingTime": 20,
+  "useMyIngredients": true
+}
+```
+
+Ответ содержит `"aiPowered": true/false` — показывает, использовался ли OpenAI или rule-based fallback.
+
+### Платежи
+
+| Метод | Путь | Auth | Описание |
+|-------|------|------|---------|
+| `POST` | `/payment/checkout` | ✅ | Создать ордер → `{ paymentUrl }` (PayPal) |
+| `GET` | `/payment/paypal/success?token=` | — | PayPal редирект после оплаты |
+| `GET` | `/payment/paypal/cancel?token=` | — | PayPal редирект при отмене |
+| `GET` | `/payment/orders` | ✅ | История ордеров пользователя |
+| `GET` | `/payment/orders/:id` | ✅ | Один ордер |
+| `POST` | `/payment/orders/:id/refund` | ✅ | Возврат |
+
+### Кошелёк
+
+| Метод | Путь | Auth | Описание |
+|-------|------|------|---------|
+| `GET` | `/wallet` | ✅ | Баланс + последние 20 транзакций |
+| `GET` | `/wallet/transactions` | ✅ | Полная история транзакций (пагинация) |
+| `POST` | `/wallet/topup` | ✅ | Пополнить баланс → `{ paymentUrl }` |
+
+### Подписки
+
+| Метод | Путь | Auth | Описание |
+|-------|------|------|---------|
+| `GET` | `/subscriptions/plans` | — | Доступные тарифы (monthly/annual) |
+| `GET` | `/subscriptions/me` | ✅ | Текущая подписка пользователя |
+| `POST` | `/subscriptions/subscribe` | ✅ | Оформить подписку → `{ paymentUrl }` |
+| `DELETE` | `/subscriptions/me` | ✅ | Отменить подписку (soft cancel) |
 
 ---
 
@@ -656,15 +734,22 @@ cd Backend
 npm test
 ```
 
-84 теста, запускаются без реальной базы данных (~4 секунды).
+166 тестов, запускаются без реальной базы данных (~8 секунд).
 
 | Файл | Тестов | Что тестирует |
 |------|--------|-------------|
-| `auth.test.ts` | 20 | Регистрация, вход, Google OAuth, Apple Sign In, OTP |
-| `profile.test.ts` | 12 | Создание профиля, PATCH, GET |
-| `dietary-restriction.test.ts` | 22 | Фильтрация по всем 10 типам + кастомные |
-| `recipe.test.ts` | 23 | CRUD рецептов, рекомендации, фильтрация, matchScore |
+| `auth.test.ts` | 27 | Регистрация, вход, Google OAuth, Apple Sign In, OTP |
+| `profile.test.ts` | 8 | Создание профиля, PATCH, GET |
+| `dietary-restriction.test.ts` | 24 | Фильтрация по всем 10 типам + кастомные |
+| `recipe.test.ts` | 22 | CRUD рецептов, рекомендации, фильтрация, matchScore |
 | `pantry.test.ts` | 7 | Добавление, удаление, очистка кладовки |
+| `payment.test.ts` | 20 | State machine, PayPal checkout/success/cancel, idempotency |
+| `wallet.test.ts` | 13 | Баланс, транзакции, пополнение, кредитование при оплате |
+| `subscription.test.ts` | 14 | Планы, оформление, авто-expire, отмена, активация |
+| `recommendation-scoring.test.ts` | 16 | Скоринг по состоянию, выбор 3, замены |
+| `recommendation.test.ts` | 8 | Пайплайн, диета (hard), кладовка, 404 |
+| `meal-ai.test.ts` | 6 | Fallback без ключа, не-медицинский текст, формат |
+| `moodcheck.test.ts` | 5 | Create, история, пагинация, latest |
 
 ---
 
@@ -685,12 +770,13 @@ npm test
 | Epic | Статус | Что сделано |
 |------|--------|------------|
 | Epic 1 | ✅ Готов | Auth (email, Google, Apple, OTP), профиль, диетические ограничения |
-| Epic 2 | ✅ Готов | CRUD рецептов, рекомендации с фильтрацией |
+| Epic 2 Backend | ✅ Готов | CRUD рецептов + Mood-check: чек-ин состояния + история |
 | Epic 3 Backend | ✅ Готов | Кладовка (pantry), фильтрация рецептов по ингредиентам + matchScore |
-| Epic 3 Frontend | ⏳ Следующий | Экраны Pantry + Recipes + Recommendations |
+| Epic 4 Backend | ✅ Готов | Payment (PayPal), Wallet, Subscriptions (monthly/annual) |
+| Epic 4 (по документу) | ✅ Готов | AI-рекомендации по настроению (GPT-4o-mini + rule-based fallback) |
 | Infra | ✅ Готово | Docker, GitHub Actions CI/CD, Render деплой |
-| Epic 4 | ⏳ Следующий | AI-рекомендации по настроению, избранное, сброс пароля |
+| Epic 5+ | ⏳ Следующий | Избранные рецепты, water tracking, habit analytics, сброс пароля |
 
 ---
 
-*Backend: май–июнь 2026 · 84 теста · Epics 1–3 Backend завершены · Деплой: Render*
+*Backend: май–июнь 2026 · 166 тестов · Epics 1–4 Backend завершены · Деплой: Render · AI: OpenAI GPT-4o-mini*
