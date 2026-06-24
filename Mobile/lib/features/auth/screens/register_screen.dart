@@ -94,7 +94,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                   controller: _passwordCtrl,
                   obscureText: _obscure,
                   decoration: InputDecoration(
-                    hintText: 'Min 6 characters',
+                    hintText: 'Min 8 characters',
                     prefixIcon: const Icon(Icons.lock_outline,
                         color: AppTheme.textSecondary, size: 20),
                     suffixIcon: GestureDetector(
@@ -109,7 +109,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                     ),
                   ),
                   validator: (v) =>
-                      (v == null || v.length < 6) ? 'Min 6 characters' : null,
+                      (v == null || v.length < 8) ? 'Min 8 characters' : null,
                 ),
                 const SizedBox(height: 20),
                 const AuthFieldLabel('Confirm Password'),
