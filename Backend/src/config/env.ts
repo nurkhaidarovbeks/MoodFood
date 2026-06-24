@@ -36,11 +36,11 @@ export const env = {
   PAYPAL_RETURN_URL: optional('PAYPAL_RETURN_URL', 'http://localhost:3000/api/v1/payment/paypal/success'),
   PAYPAL_CANCEL_URL: optional('PAYPAL_CANCEL_URL', 'http://localhost:3000/api/v1/payment/paypal/cancel'),
 
-  // ─── AI (Anthropic / Claude) — meal recommendation explanations ───────────
-  // If ANTHROPIC_API_KEY is empty, the recommendation engine falls back to
+  // ─── AI (OpenAI / ChatGPT) — meal recommendation explanations ────────────
+  // If OPENAI_API_KEY is empty, the recommendation engine falls back to
   // deterministic rule-based explanations (app + tests work fully offline).
-  ANTHROPIC_API_KEY: optional('ANTHROPIC_API_KEY', ''),
-  // claude-haiku-4-5 — cheap & fast, ideal for short high-frequency blurbs.
-  // Override with claude-opus-4-8 / claude-sonnet-4-6 for higher-quality prose.
-  ANTHROPIC_MODEL: optional('ANTHROPIC_MODEL', 'claude-haiku-4-5'),
+  OPENAI_API_KEY: optional('OPENAI_API_KEY', ''),
+  // gpt-4o-mini — cheap & fast, ideal for short high-frequency blurbs.
+  // Override with gpt-4o for higher-quality prose.
+  OPENAI_MODEL: optional('OPENAI_MODEL', 'gpt-4o-mini'),
 }
