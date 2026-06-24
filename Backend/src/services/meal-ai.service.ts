@@ -1,15 +1,4 @@
-/**
- * MealAiService — generates short, friendly explanations of WHY a recommended
- * meal fits the user's current mood-check state.
- *
- * Backed by the Claude API (Anthropic SDK). When no ANTHROPIC_API_KEY is
- * configured — local dev, CI, tests — it transparently falls back to
- * deterministic rule-based explanations, so the recommendation endpoint always
- * works and never depends on a live API call.
- *
- * Safety: explanations are practical and non-medical (MoodFood plan §12.5).
- */
-import Anthropic from '@anthropic-ai/sdk'
+import OpenAI from 'openai'
 import { env } from '../config/env'
 import {
   isLowEnergy,
@@ -44,25 +33,19 @@ interface MealAiOptions {
 }
 
 export class MealAiService {
-  private client: Anthropic | null
+  private client: OpenAI | null
   private model: string
 
   constructor(opts: MealAiOptions = {}) {
-    const apiKey = opts.apiKey ?? env.ANTHROPIC_API_KEY
-    this.model = opts.model ?? env.ANTHROPIC_MODEL
-    this.client = apiKey ? new Anthropic({ apiKey }) : null
+    const apiKey = opts.apiKey ?? env.OPENAI_API_KEY
+    this.model = opts.model ?? env.OPENAI_MODEL
+    this.client = apiKey ? new OpenAI({ apiKey }) : null
   }
 
-  /** True when a live Claude API key is configured. */
   get aiEnabled(): boolean {
     return this.client !== null
   }
 
-  /**
-   * Returns a map of recipe id → explanation string. Tries the Claude API once
-   * (a single batched call for all meals); on any failure or when AI is
-   * disabled, returns rule-based explanations for every meal.
-   */
   async explainMeals(
     meals: MealToExplain[],
     state: MoodState,
@@ -71,11 +54,9 @@ export class MealAiService {
 
     if (this.client) {
       try {
-        const fromAi = await this.explainViaClaude(this.client, meals, state)
-        // Backfill any meal the model didn't return with a rule-based line.
+        const fromAi = await this.explainViaOpenAI(this.client, meals, state)
         return this.withFallback(fromAi, meals, state)
       } catch {
-        // Network/parse/anything — degrade gracefully, never fail the request.
         return this.allFallback(meals, state)
       }
     }
@@ -83,10 +64,10 @@ export class MealAiService {
     return this.allFallback(meals, state)
   }
 
-  // ─── Claude API path ─────────────────────────────────────────────────────
+  // ─── OpenAI API path ─────────────────────────────────────────────────────
 
-  private async explainViaClaude(
-    client: Anthropic,
+  private async explainViaOpenAI(
+    client: OpenAI,
     meals: MealToExplain[],
     state: MoodState,
   ): Promise<Record<string, string>> {
@@ -104,19 +85,16 @@ export class MealAiService {
       '[{"id":"<id>","explanation":"<one short sentence>"}]',
     ].join('\n')
 
-    const response = await client.messages.create({
+    const response = await client.chat.completions.create({
       model: this.model,
       max_tokens: 600,
-      system: SYSTEM_PROMPT,
-      messages: [{ role: 'user', content: userPrompt }],
+      messages: [
+        { role: 'system', content: SYSTEM_PROMPT },
+        { role: 'user', content: userPrompt },
+      ],
     })
 
-    const text = response.content
-      .filter((b): b is Anthropic.TextBlock => b.type === 'text')
-      .map(b => b.text)
-      .join('')
-      .trim()
-
+    const text = response.choices[0]?.message?.content?.trim() ?? ''
     return parseExplanationJson(text)
   }
 
@@ -142,10 +120,6 @@ export class MealAiService {
 
 // ─── Rule-based fallback ──────────────────────────────────────────────────────
 
-/**
- * Deterministic explanation used when the Claude API is unavailable. Exported
- * for direct unit testing.
- */
 export function ruleBasedExplanation(meal: MealToExplain, state: MoodState): string {
   const parts: string[] = []
   const protein = meal.proteinG ?? 0
@@ -217,7 +191,6 @@ function fmtCost(c: number | null): string {
   return c != null ? `~$${c.toFixed(2)}` : 'cost unknown'
 }
 
-/** Defensively parses the model's JSON array into an id → explanation map. */
 function parseExplanationJson(text: string): Record<string, string> {
   const start = text.indexOf('[')
   const end = text.lastIndexOf(']')

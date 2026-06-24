@@ -16,7 +16,6 @@
     "db:seed": "ts-node prisma/seed.ts"
   },
   "dependencies": {
-    "@anthropic-ai/sdk": "^0.68.0",
     "@prisma/client": "^5.22.0",
     "apple-signin-auth": "^2.0.0",
     "bcrypt": "^5.1.1",
@@ -28,6 +27,7 @@
     "helmet": "^8.0.0",
     "jsonwebtoken": "^9.0.2",
     "nodemailer": "^6.9.16",
+    "openai": "^6.44.0",
     "zod": "^3.23.8"
   },
   "devDependencies": {
