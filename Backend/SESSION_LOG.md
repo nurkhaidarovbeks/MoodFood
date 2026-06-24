@@ -862,31 +862,94 @@ id, userId, mood, energyLevel (1–5), stressLevel, sleepQuality, hungerLevel, c
 
 ---
 
+---
+
+## Сессия 13 — 24 июня 2026 (OpenAI switch + PayPal fix + Postman)
+
+> Автор: Nurkhaidarov Beksultan | Модель: Claude Sonnet 4.6 | Ветка: `feature/epic2-epic4-ai-recommendations`
+
+### 1. Переключение с Anthropic на OpenAI (GPT-4o-mini)
+
+**Причина:** GPT-4o-mini в ~5-6 раз дешевле Claude Haiku для коротких объяснений блюд.
+
+**Изменения:**
+- Удалён пакет `@anthropic-ai/sdk`, установлен `openai`
+- `src/services/meal-ai.service.ts` переписан: `client.messages.create` → `client.chat.completions.create`
+- `src/config/env.ts`: `ANTHROPIC_API_KEY` / `ANTHROPIC_MODEL` → `OPENAI_API_KEY` / `OPENAI_MODEL`
+- `OPENAI_MODEL` по умолчанию: `gpt-4o-mini`
+- Rule-based fallback и логика `withFallback` — без изменений
+
+**На Render нужно добавить:**
+```
+OPENAI_API_KEY=sk-proj-...   (ключ из platform.openai.com, проект "Moodfood")
+```
+
+**166 тестов — все зелёные** (тесты работают офлайн через rule-based fallback, без вызова API).
+
+### 2. Фикс PayPal 500
+
+**Проблема:** `data.links.find(...)` падал с TypeError когда PayPal возвращал ответ об ошибке (нет учётных данных в Render) → 500 вместо понятного сообщения.
+
+**Фикс в `src/services/paypal.service.ts`:**
+- Добавлен `readPayPalError(res, context)` — читает тело ошибки PayPal, бросает `AppError(502, ...)`
+- Во всех 3 функциях: `if (!res.ok) await readPayPalError(res, ...)`
+- Guard `PAYPAL_NOT_CONFIGURED` — `AppError(500)` если нет CLIENT_ID/SECRET
+- `data.links?.find(...)` — null-safe
+
+**На Render нужны переменные:**
+```
+PAYPAL_CLIENT_ID=...
+PAYPAL_CLIENT_SECRET=...
+PAYPAL_BASE_URL=https://api-m.sandbox.paypal.com
+PAYPAL_RETURN_URL=https://moodfood-backend.onrender.com/api/v1/payment/paypal/success
+PAYPAL_CANCEL_URL=https://moodfood-backend.onrender.com/api/v1/payment/paypal/cancel
+```
+
+### 3. Полное обновление Postman-коллекции
+
+Файл: `Backend/moodfood.postman_collection.json`  
+`host` = `https://moodfood-backend.onrender.com`
+
+**Новые разделы:**
+- 💳 Payment (checkout, orders, refund, PayPal callbacks)
+- 👛 Wallet (баланс, пополнение, транзакции)
+- 📦 Subscriptions (планы, подписка, отмена)
+
+**Step-by-Step Test** расширен до **10 шагов** с автоматическими `pm.test` проверками:
+1. Register (saves token) / 1b. Login
+2. Fill Profile
+3. Add Pantry Ingredients
+4. Create Mood-Check
+5. Get Latest Mood-Check
+6. AI Recommendations (basic) — проверяет `options`, `category`, `fitScore`, `explanation`
+7. AI Recommendations (pantry + substitutions) — проверяет `matchScore`, `missingIngredients`
+8. Mood-Check History
+9. Get Subscription Plans
+10. Get Wallet Balance
+
+---
+
 ## Следующий шаг
 
-- Применить миграцию (когда Docker/Postgres запущен):
-  ```powershell
-  docker-compose up -d postgres
-  npx --no-install prisma migrate dev --name add_payment_wallet_subscriptions
-  npx --no-install ts-node prisma/seed.ts
-  ```
-- Избранное / сохранённые рецепты
-- Habit analytics / weekly tips
+- Добавить на Render env-переменные: `OPENAI_API_KEY`, все `PAYPAL_*`
+- Избранное / сохранённые рецепты (Epic 5)
 - Water tracking
+- Habit analytics / weekly tips
 - Сброс пароля
 - Rate limiting на login/register
 
 ---
 
-*Сессия 1: 30 мая 2026 — Epic 1 Backend (36 тестов)*  
-*Сессия 2: 2 июня 2026 — Apple/OTP/SQL/Git (55 тестов)*  
-*Сессия 3: 6 июня 2026 — Epic 2 Backend, рецепты (77 тестов)*  
-*Сессия 5: 11 июня 2026 — Infra (Docker/CI/CD) + Epic 3 Pantry (84 тестов)*  
-*Сессия 6: 13 июня 2026 — Render деплой + CD pipeline + скрипты под Render*  
-*Сессия 7: 17 июня 2026 — Epic 4 Payment: PayPal + state machine (84+20 тестов)*  
-*Сессия 8: 18 июня 2026 — Wallet: пополнение баланса + транзакции*  
-*Сессия 9: 18 июня 2026 — Subscriptions: Monthly + Annual тарифы*  
-*Сессия 10: 19 июня 2026 — Bereke удалён, PayPal only, credentials ✅, CI fix (131 тест)*  
-*Сессия 11: 19 июня 2026 — Epic 4: AI-рекомендации по настроению (171 тест)*  
-*Сессия 12: 19 июня 2026 — Epic 2: Mood-check + история чек-инов (176 тестов)*  
+*Сессия 1: 30 мая 2026 — Epic 1 Backend (36 тестов)*
+*Сессия 2: 2 июня 2026 — Apple/OTP/SQL/Git (55 тестов)*
+*Сессия 3: 6 июня 2026 — Epic 2 Backend, рецепты (77 тестов)*
+*Сессия 5: 11 июня 2026 — Infra (Docker/CI/CD) + Epic 3 Pantry (84 тестов)*
+*Сессия 6: 13 июня 2026 — Render деплой + CD pipeline + скрипты под Render*
+*Сессия 7: 17 июня 2026 — Epic 4 Payment: PayPal + state machine (84+20 тестов)*
+*Сессия 8: 18 июня 2026 — Wallet: пополнение баланса + транзакции*
+*Сессия 9: 18 июня 2026 — Subscriptions: Monthly + Annual тарифы*
+*Сессия 10: 19 июня 2026 — Bereke удалён, PayPal only, credentials ✅, CI fix (131 тест)*
+*Сессия 11: 19 июня 2026 — Epic 4: AI-рекомендации по настроению (171 тест)*
+*Сессия 12: 19 июня 2026 — Epic 2: Mood-check + история чек-инов (176 тестов)*
+*Сессия 13: 24 июня 2026 — OpenAI switch (gpt-4o-mini) + PayPal fix + Postman полная (166 тестов)*
 
