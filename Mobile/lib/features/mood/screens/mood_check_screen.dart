@@ -16,6 +16,7 @@ class _MoodCheckScreenState extends State<MoodCheckScreen> {
   double _energyLevel = 5;
   double _sleepQuality = 5;
   double _stressLevel = 5;
+  double _hungerLevel = 5;
 
   // 6 moods matching Figma design
   static const _moods = [
@@ -39,6 +40,12 @@ class _MoodCheckScreenState extends State<MoodCheckScreen> {
     return 'high';
   }
 
+  String _hungerCategory(double v) {
+    if (v <= 3) return 'low';
+    if (v <= 7) return 'medium';
+    return 'high';
+  }
+
   int _energyInt(double v) => ((v / 2).ceil()).clamp(1, 5);
 
   Future<void> _submit() async {
@@ -51,6 +58,7 @@ class _MoodCheckScreenState extends State<MoodCheckScreen> {
       energyLevel: _energyInt(_energyLevel),
       stressLevel: _stressCategory(_stressLevel),
       sleepQuality: _sleepCategory(_sleepQuality),
+      hungerLevel: _hungerCategory(_hungerLevel),
     );
 
     await context.read<MoodProvider>().saveMoodEntry(entry);
@@ -171,6 +179,16 @@ class _MoodCheckScreenState extends State<MoodCheckScreen> {
                 minLabel: 'Relaxed',
                 maxLabel: 'Very Stressed',
                 onChanged: (v) => setState(() => _stressLevel = v),
+              ),
+              const SizedBox(height: 20),
+
+              // Hunger level slider
+              _SliderSection(
+                title: 'Hunger Level',
+                value: _hungerLevel,
+                minLabel: 'Not Hungry',
+                maxLabel: 'Very Hungry',
+                onChanged: (v) => setState(() => _hungerLevel = v),
               ),
               const SizedBox(height: 36),
 

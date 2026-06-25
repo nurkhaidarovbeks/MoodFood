@@ -92,17 +92,52 @@ class _ProfileSetupScreenState extends State<ProfileSetupScreen> {
     }
   }
 
+  // Maps Flutter UI labels → backend DIETARY_RESTRICTION_KEYS
+  static const _allergyToKey = {
+    'Dairy':      'lactose_free',
+    'Eggs':       'egg_allergy',
+    'Peanuts':    'nut_allergy',
+    'Tree Nuts':  'nut_allergy',
+    'Soy':        'soy_allergy',
+    'Wheat':      'gluten_free',
+  };
+
+  static const _dietToKey = {
+    'Vegetarian':  'vegetarian',
+    'Vegan':       'vegan',
+    'Pescatarian': 'pescatarian',
+  };
+
   Future<void> _submit() async {
-    final diet = _selectedDiet == null || _selectedDiet == 'No Preference'
-        ? <String>[]
-        : [_selectedDiet!.toLowerCase()];
+    // Diet → known backend key or customRestrictions
+    final List<String> diet = [];
+    final List<String> custom = [];
+
+    if (_selectedDiet != null && _selectedDiet != 'No Preference') {
+      final key = _dietToKey[_selectedDiet!];
+      if (key != null) {
+        diet.add(key);
+      } else {
+        custom.add(_selectedDiet!.toLowerCase()); // e.g. 'keto', 'paleo'
+      }
+    }
+
+    // Allergies → known keys or customRestrictions
+    final List<String> allergies = [];
+    for (final label in _selectedAllergies) {
+      final key = _allergyToKey[label];
+      if (key != null) {
+        if (!allergies.contains(key)) allergies.add(key);
+      } else {
+        custom.add(label.toLowerCase()); // e.g. 'fish', 'shellfish'
+      }
+    }
 
     final profile = ProfileModel(
       goal: _selectedGoals.join(','),
       dietaryRestrictions: diet,
-      allergies: _selectedAllergies
-          .map((a) => a.toLowerCase().replaceAll(' ', '_'))
-          .toList(),
+      allergies: allergies,
+      customRestrictions: custom,
     );
 
     final profileProvider = context.read<ProfileProvider>();
