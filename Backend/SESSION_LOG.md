@@ -929,14 +929,122 @@ PAYPAL_CANCEL_URL=https://moodfood-backend.onrender.com/api/v1/payment/paypal/ca
 
 ---
 
+## Сессия 14 — 13–20 июня 2026 (Flutter Frontend: Epic 1–3 UI + PayPal)
+
+> Автор: Azharakhamitbek | Модель: Claude Sonnet 4.6 | Ветка: `feature/flutter-frontend-epic1`
+
+### 1. Интерактивный UI — все кнопки кликабельны
+
+Все экраны приложения доведены до рабочего состояния:
+- Фильтр рецептов: кнопка открывает bottom sheet с 5 опциями (Mood, Dietary, Quick Meals, Budget, Pantry)
+- AI Chat: кнопки Camera/Gallery открывают системный image picker
+- Notifications: кнопки Mark All Read, Delete работают
+- Home tab navigation: кнопки переключают табы через `IndexedStack`
+
+### 2. Premium / Subscription
+
+- `SubscriptionProvider` + `SubscriptionService` — новые файлы
+- Splash screen: параллельно загружает `sub.load()` + `auth.checkAuthStatus()`
+- После логина: `sub.syncFromBackend()` — синхронизирует статус с `/subscriptions/me`
+- Premium badge обновляется в реальном времени после оплаты
+- API constants: добавлены `subscriptionPlans`, `subscriptionSubscribe`, `subscriptionMe`, `subscriptionCancel`
+
+### 3. PayPal WebView flow
+
+- Новый экран `PayPalWebViewScreen` — открывает PayPal в WebView
+- Перехватывает `/payment/paypal/success` → синхронизирует подписку → `/payment-success`
+- Перехватывает `/payment/paypal/cancel` → pop с SnackBar
+- `_PaymentSheetState._pay()` вызывает `POST /subscriptions/subscribe` → получает `paymentUrl` → открывает WebView
+- Forte Bank: "coming soon" Snackbar
+
+### 4. Рецепты с реальными фото
+
+- `_photos` map с 12 ключами продуктов → Unsplash URL
+- 5 fallback фото на случай отсутствия совпадения
+- Поиск по `title.toLowerCase().contains(entry.key)` — регистронезависимый
+
+### 5. Редактируемый профиль
+
+- `EditProfileScreen`: имя + аватар (Camera/Gallery через image_picker)
+- Avatar сохраняется в SharedPreferences как base64
+- `ProfileProvider.updateAvatar()` / `updateName()`
+
+### 6. Water tracking
+
+- Виджет `_StatsRow` → `_WaterCard` с кнопками +/−
+- Сохранение: `SharedPreferences` ключ `water_glasses` в формате `2026-06-13:5`
+- Автосброс каждый день (по дате)
+
+### 7. Фиксы валидации
+
+- Регистрация: пароль мин. 8 символов (соответствие backend Zod `min(8)`)
+- Profile Setup Step 3: маппинг UI-лейблов → backend DIETARY_RESTRICTION_KEYS:
+  - `Dairy` → `lactose_free`, `Eggs` → `egg_allergy`, `Soy` → `soy_allergy`
+  - `Peanuts`/`Tree Nuts` → `nut_allergy`, `Wheat` → `gluten_free`
+  - `Fish`, `Shellfish`, `Keto`, `Paleo` → `customRestrictions` (не блокируют валидацию)
+
+**Коммиты:**
+- `3a12c26` feat(mobile): premium flow, editable profile, interactive UI
+- `46ee561` fix(mobile): load premium on cold start; sync Tracker water + Profile saved count
+- `f3afae7` fix(mobile): recipe photos, filter sheet, recommendations navigation
+- `11c36c9` feat(mobile): connect PayPal payment to live backend
+- `aa0ee92` fix(mobile): align password validation with backend requirements
+- `e3ec57a` fix(mobile): map allergy/diet labels to backend DIETARY_RESTRICTION_KEYS
+
+---
+
+## Сессия 15 — 25 июня 2026 (Flutter Frontend: Epic 4–5 AI Recommendations)
+
+> Автор: Azharakhamitbek | Модель: Claude Sonnet 4.6 | Ветка: `feature/flutter-frontend-epic1`
+
+### 1. MoodCheck → синхронизация с бэкендом
+
+- `MoodEntry` модель: добавлено опциональное поле `hungerLevel`
+- `MoodCheckScreen`: новый слайдер **Hunger Level** (Not Hungry → Very Hungry → `low/medium/high`)
+- Новый сервис `MoodCheckService`:
+  - `create(entry)` — `POST /api/v1/mood-checks` (fire-and-forget, не блокирует UI)
+  - `getLatest()` — `GET /api/v1/mood-checks/latest`
+- `MoodProvider.saveMoodEntry()`: сохраняет локально → fire-and-forget sync на бэкенд
+
+### 2. AI Recommendations — реальные данные с бэкенда
+
+**Новый сервис `RecommendationService`:**
+- `recommend(entry, useMyIngredients, maxCookingTime)` — `POST /api/v1/recommendations`
+- Отправляет: `mood`, `energyLevel`, `stressLevel`, `sleepQuality`, `hungerLevel`
+- Парсит ответ: `RecommendationOption` (fitScore, category, explanation, recipe, missingIngredients)
+
+**`RecommendationsScreen` полностью переписан:**
+- Loading spinner: «Finding the perfect meals for you…»
+- `_RecommendationCard`: цветной header по категории (energizing/calming/comforting/light/nourishing), fitScore badge, время готовки, калории, сложность
+- AI explanation block с иконкой 🤖
+- AI badge («AI») в заголовке когда `aiPowered=true`
+- Missing ingredients (pantry mode): chips с оранжевыми badge
+- `_ErrorCard`: «Couldn't reach the server» + кнопка Retry
+- `_EmptyCard`: для пустого ответа от сервера
+
+### 3. API Constants
+
+Добавлены:
+- `moodChecks = '/mood-checks'`
+- `moodChecksLatest = '/mood-checks/latest'`
+- `aiRecommendations = '/recommendations'`
+
+### 4. Установка как нативное приложение
+
+- Приложение собрано через Xcode (Product → Run) и установлено на Cherry🍒 как полноценное iOS приложение
+- Больше не требует `flutter run` для запуска — открывается с иконки
+
+**Коммит:** `76aef51` feat(mobile): Epic 4-5 — connect AI recommendations to backend
+
+---
+
 ## Следующий шаг
 
 - Добавить на Render env-переменные: `OPENAI_API_KEY`, все `PAYPAL_*`
-- Избранное / сохранённые рецепты (Epic 5)
-- Water tracking
-- Habit analytics / weekly tips
+- Habit analytics / weekly tips (Epic 5+)
+- Сохранённые рецепты → синхронизация с бэкендом
 - Сброс пароля
-- Rate limiting на login/register
+- Rate limiting на login/register (бэкенд)
 
 ---
 
