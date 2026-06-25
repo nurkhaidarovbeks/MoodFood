@@ -167,6 +167,24 @@ function tokenize(name: string): string[] {
     .filter(t => t.length >= 2)
 }
 
+// Compound ingredients whose qualifier makes them a DIFFERENT product, so the
+// bare head noun must not match the compound (e.g. "butter" ≠ "peanut butter").
+const INCOMPATIBLE_QUALIFIERS: Record<string, string[]> = {
+  butter: ['peanut', 'almond', 'cashew', 'nut', 'cocoa', 'apple', 'shea', 'body'],
+  cream: ['ice'],
+}
+
+function hasIncompatibleQualifier(aSet: Set<string>, bSet: Set<string>): boolean {
+  for (const [head, bad] of Object.entries(INCOMPATIBLE_QUALIFIERS)) {
+    if (!aSet.has(head) || !bSet.has(head)) continue
+    const aBad = bad.some(q => aSet.has(q))
+    const bBad = bad.some(q => bSet.has(q))
+    // One side is "<qualifier> X" and the other is plain "X" → not the same thing.
+    if (aBad !== bBad) return true
+  }
+  return false
+}
+
 /** True when two ingredient names refer to the same thing (fuzzy, see above). */
 export function ingredientMatches(a: string, b: string): boolean {
   const at = tokenize(a)
@@ -179,6 +197,9 @@ export function ingredientMatches(a: string, b: string): boolean {
   // Need at least one meaningful shared token to avoid trivial collisions.
   const shared = [...aSet].filter(t => bSet.has(t) && t.length >= 3)
   if (shared.length === 0) return false
+
+  // Guard against compound nouns like "peanut butter" matching plain "butter".
+  if (hasIncompatibleQualifier(aSet, bSet)) return false
 
   const subset = (small: Set<string>, big: Set<string>) => [...small].every(t => big.has(t))
   return subset(aSet, bSet) || subset(bSet, aSet)
