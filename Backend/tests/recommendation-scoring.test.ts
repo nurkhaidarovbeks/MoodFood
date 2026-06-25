@@ -10,6 +10,8 @@ import {
   stateFitScore,
   selectThreeOptions,
   suggestSubstitutions,
+  ingredientMatches,
+  isIngredientAvailable,
   type ScorableRecipe,
   type MoodState,
 } from '../src/modules/recommendations/recommendation.scoring'
@@ -187,6 +189,60 @@ describe('selectThreeOptions', () => {
     const opts = selectThreeOptions([chicken, noTime, lentil], {})
     const fastest = opts.find(o => o.category === 'fastest')!
     expect(fastest.recipe.id).not.toBe('no-time')
+  })
+})
+
+// ─── Ingredient name matching (fuzzy) ──────────────────────────────────────────
+
+describe('ingredientMatches', () => {
+  it('matches singular vs plural', () => {
+    expect(ingredientMatches('egg', 'eggs')).toBe(true)
+    expect(ingredientMatches('tomatoes', 'tomato')).toBe(true)
+    expect(ingredientMatches('berries', 'berry')).toBe(true)
+  })
+
+  it('matches a generic word inside a specific recipe ingredient', () => {
+    expect(ingredientMatches('cheese', 'cheddar cheese')).toBe(true)
+    expect(ingredientMatches('milk', 'almond milk')).toBe(true)
+    expect(ingredientMatches('rice', 'white rice')).toBe(true)
+  })
+
+  it('matches multi-word names exactly', () => {
+    expect(ingredientMatches('sour cream', 'sour cream')).toBe(true)
+    expect(ingredientMatches('bell pepper', 'bell pepper')).toBe(true)
+  })
+
+  it('does not match unrelated ingredients', () => {
+    expect(ingredientMatches('egg', 'eggplant')).toBe(false) // eggplant tokenises to "eggplant"
+    expect(ingredientMatches('milk', 'chicken breast')).toBe(false)
+    expect(ingredientMatches('cheese', 'cherry tomatoes')).toBe(false)
+  })
+
+  it('isIngredientAvailable checks a list', () => {
+    const fridge = ['egg', 'cheese', 'milk', 'bread']
+    expect(isIngredientAvailable('eggs', fridge)).toBe(true)
+    expect(isIngredientAvailable('cheddar cheese', fridge)).toBe(true)
+    expect(isIngredientAvailable('canned tuna', fridge)).toBe(false)
+  })
+})
+
+// ─── Selection prefers cookable recipes ─────────────────────────────────────────
+
+describe('selectThreeOptions with isCookable', () => {
+  it('draws every option from the cookable subset when enough exist', () => {
+    // smoothie, chicken, lentil are cookable; salmon is not.
+    const cookableIds = new Set(['r-smoothie', 'r-chicken', 'r-lentil'])
+    const opts = selectThreeOptions(ALL, { energyLevel: 2 }, r => cookableIds.has(r.id))
+    expect(opts).toHaveLength(3)
+    expect(opts.map(o => o.recipe.id)).not.toContain('r-salmon')
+  })
+
+  it('falls back to non-cookable only after cookable are exhausted', () => {
+    const cookableIds = new Set(['r-smoothie']) // only one cookable
+    const opts = selectThreeOptions(ALL, {}, r => cookableIds.has(r.id))
+    expect(opts).toHaveLength(3) // still returns three
+    // The single cookable recipe is among the picks.
+    expect(opts.map(o => o.recipe.id)).toContain('r-smoothie')
   })
 })
 

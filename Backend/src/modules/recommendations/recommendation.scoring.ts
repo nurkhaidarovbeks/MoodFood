@@ -142,6 +142,53 @@ function clamp01(n: number): number {
   return Math.max(0, Math.min(1, n))
 }
 
+// ─── Ingredient name matching (singular/plural + substring aware) ─────────────
+//
+// Photo/pantry ingredient names rarely match recipe names exactly: the vision
+// model normalises to singular ("eggs" -> "egg") and uses generic words
+// ("cheese") while the recipe DB stores "eggs", "cheddar cheese", "almond milk".
+// We tokenise both, singularise each token, and match when one name's tokens are
+// a subset of the other's (sharing at least one ≥3-char token). This makes
+// egg↔eggs, cheese⊆cheddar cheese, milk⊆almond milk, rice⊆white rice all match.
+
+function singularize(word: string): string {
+  if (word.length > 4 && word.endsWith('ies')) return word.slice(0, -3) + 'y' // berries→berry
+  if (word.length > 4 && word.endsWith('oes')) return word.slice(0, -2) // tomatoes→tomato
+  if (word.length > 3 && word.endsWith('s') && !word.endsWith('ss')) return word.slice(0, -1) // eggs→egg
+  return word
+}
+
+function tokenize(name: string): string[] {
+  return (name ?? '')
+    .toLowerCase()
+    .trim()
+    .split(/[\s-]+/)
+    .map(singularize)
+    .filter(t => t.length >= 2)
+}
+
+/** True when two ingredient names refer to the same thing (fuzzy, see above). */
+export function ingredientMatches(a: string, b: string): boolean {
+  const at = tokenize(a)
+  const bt = tokenize(b)
+  if (at.length === 0 || bt.length === 0) return false
+
+  const aSet = new Set(at)
+  const bSet = new Set(bt)
+
+  // Need at least one meaningful shared token to avoid trivial collisions.
+  const shared = [...aSet].filter(t => bSet.has(t) && t.length >= 3)
+  if (shared.length === 0) return false
+
+  const subset = (small: Set<string>, big: Set<string>) => [...small].every(t => big.has(t))
+  return subset(aSet, bSet) || subset(bSet, aSet)
+}
+
+/** True when any available ingredient matches the given recipe ingredient name. */
+export function isIngredientAvailable(recipeIngredientName: string, available: string[]): boolean {
+  return available.some(a => ingredientMatches(a, recipeIngredientName))
+}
+
 // ─── Selection ────────────────────────────────────────────────────────────────
 
 /**
@@ -149,10 +196,16 @@ function clamp01(n: number): number {
  * Healthiest is resolved first (it's the core product value), then fastest,
  * then cheapest, each from the remaining pool. Returns fewer than three options
  * only when fewer than three eligible recipes exist.
+ *
+ * When `isCookable` is provided (photo/pantry flows), each category prefers a
+ * recipe the user can actually make: as long as any cookable recipe remains, the
+ * pick is drawn from the cookable subset, falling back to the rest only once
+ * cookable options are exhausted. This keeps "use what I have" front and centre.
  */
 export function selectThreeOptions(
   recipes: ScorableRecipe[],
   state: MoodState,
+  isCookable?: (recipe: ScorableRecipe) => boolean,
 ): SelectedOption[] {
   if (recipes.length === 0) return []
 
@@ -161,7 +214,13 @@ export function selectThreeOptions(
 
   const take = (category: OptionCategory, picker: (rs: ScorableRecipe[]) => ScorableRecipe) => {
     if (remaining.length === 0) return
-    const chosen = picker(remaining)
+    // Prefer cookable recipes while any remain.
+    let pool = remaining
+    if (isCookable) {
+      const cookable = remaining.filter(isCookable)
+      if (cookable.length > 0) pool = cookable
+    }
+    const chosen = picker(pool)
     options.push({ category, recipe: chosen, fitScore: stateFitScore(chosen, state) })
     remaining.splice(remaining.indexOf(chosen), 1)
   }

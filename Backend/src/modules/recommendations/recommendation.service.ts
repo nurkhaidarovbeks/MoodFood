@@ -10,6 +10,7 @@ import { MealAiService, type MealToExplain } from '../../services/meal-ai.servic
 import {
   selectThreeOptions,
   suggestSubstitutions,
+  isIngredientAvailable,
   type MoodState,
   type ScorableRecipe,
 } from './recommendation.scoring'
@@ -105,22 +106,35 @@ export class RecommendationService {
       })
       pantryIds = new Set(pantry.map(p => p.ingredientId))
     }
-    const nameSet = usePhoto
-      ? new Set(photoNames!.map(n => n.toLowerCase().trim()).filter(Boolean))
-      : null
+    const photoNameList = usePhoto
+      ? photoNames!.map(n => n.toLowerCase().trim()).filter(Boolean)
+      : []
 
+    // Photo names match fuzzily (singular/plural + substring); saved pantry
+    // matches exactly by ingredient id (those rows are already canonical).
     const hasIngredient = (ri: {
       ingredientId: string
       ingredient: { name: string }
     }): boolean =>
       usePhoto
-        ? nameSet!.has(ri.ingredient.name.toLowerCase().trim())
+        ? isIngredientAvailable(ri.ingredient.name, photoNameList)
         : pantryIds.has(ri.ingredientId)
 
     const scorables: ScorableRecipe[] = eligible.map(toScorable)
-    const selected = selectThreeOptions(scorables, state)
 
+    // When ingredients are known, prefer recipes the user can actually make:
+    // selection draws each option from the cookable subset while any remain.
     const byId = new Map(eligible.map(r => [r.id, r]))
+    const cookableIds = new Set<string>()
+    if (enrich) {
+      for (const row of eligible) {
+        if (row.recipeIngredients.some(hasIngredient)) cookableIds.add(row.id)
+      }
+    }
+    const isCookable = enrich ? (s: ScorableRecipe) => cookableIds.has(s.id) : undefined
+
+    const selected = selectThreeOptions(scorables, state, isCookable)
+
     const excludedTerms = getExcludedTermsForUser(userContext)
 
     // Build the per-option payload (without explanations yet).
