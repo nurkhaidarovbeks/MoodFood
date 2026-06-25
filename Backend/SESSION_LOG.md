@@ -1038,6 +1038,47 @@ PAYPAL_CANCEL_URL=https://moodfood-backend.onrender.com/api/v1/payment/paypal/ca
 
 ---
 
+## Сессия 16 — 25 июня 2026 (Epic 5 Backend: macros + Favorites)
+
+> Автор: Nurkhaidarov Beksultan | Модель: Claude Sonnet 4.6 | Ветка: `feature/epic2-epic4-ai-recommendations`
+
+### Что сделано
+
+**Макросы (fatG / carbsG) в Recipe:**
+- `prisma/schema.prisma` — добавлены `fatG Float?` и `carbsG Float?` в модель `Recipe`
+- `src/modules/recipes/recipe.schema.ts` — добавлены поля в `RecipeCreateSchema`
+- `src/modules/recipes/recipe.service.ts` — поля переданы в `formatRecipe`, `createRecipe`, `updateRecipe`, `patchRecipe`
+- `prisma/seed.ts` — все 20 рецептов дополнены реальными значениями fat/carbs (в граммах)
+
+**Favorites (избранные рецепты):**
+- Новая модель `UserFavorite` в схеме (уникальный `[userId, recipeId]`, индекс `[userId, createdAt]`)
+- Миграция: `prisma/migrations/20260625100000_add_recipe_macros_favorites/migration.sql`
+- Новый модуль `src/modules/favorites/` (schema / service / controller / routes)
+- 4 эндпоинта под `requireAuth`:
+  - `GET /api/v1/favorites` — список с пагинацией, newest-first
+  - `POST /api/v1/favorites { recipeId }` — добавить, 409 если уже есть
+  - `DELETE /api/v1/favorites/:id` — удалить по favoriteId
+  - `GET /api/v1/favorites/check/:recipeId` — → `{ isFavorite, favoriteId }`
+- Зарегистрированы в `src/app.ts`
+- `tests/favorites.test.ts` — 9 тестов: getFavorites (2), addFavorite (3), removeFavorite (2), isFavorite (2)
+
+**Postman коллекция полностью перестроена:**
+- 10 папок по Epic 1–5 + Payment/Wallet/Subscriptions + Step-by-Step Integration Test
+- 76 запросов с pm.test проверками
+- Epic 5 — Favorites: 10 запросов (happy path + edge cases + 401)
+
+**Итого тестов: 175 (было 166, +9) — все зелёные**
+**Prisma клиент перегенерирован: `npx prisma generate`**
+
+### Применить миграцию на продакшн (Render)
+```bash
+npx prisma migrate deploy
+# или
+npx prisma db push
+```
+
+---
+
 ## Следующий шаг
 
 - Добавить на Render env-переменные: `OPENAI_API_KEY`, все `PAYPAL_*`

@@ -4,488 +4,1758 @@
     "description": "Complete MoodFood backend collection. Import → set {{host}} variable if needed. Step-by-step folder runs top-to-bottom via Collection Runner.",
     "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
   },
-  "variable": [
-    { "key": "host",     "value": "https://moodfood-backend.onrender.com" },
-    { "key": "base_url", "value": "{{host}}/api/v1" },
-    { "key": "token",    "value": "" }
-  ],
   "item": [
-
     {
       "name": "🟢 Health",
       "item": [
         {
           "name": "Health Check",
-          "request": { "method": "GET", "url": "{{host}}/health" }
-        }
-      ]
-    },
-
-    {
-      "name": "🔐 Auth",
-      "item": [
-        {
-          "name": "Register",
-          "event": [{ "listen": "test", "script": { "exec": [
-            "var j = pm.response.json();",
-            "if (j.token) pm.collectionVariables.set('token', j.token);"
-          ]}}],
-          "request": {
-            "method": "POST",
-            "header": [{ "key": "Content-Type", "value": "application/json" }],
-            "url": "{{base_url}}/auth/register",
-            "body": { "mode": "raw", "raw": "{\n  \"email\": \"alice@moodfood.app\",\n  \"password\": \"SecurePass123!\",\n  \"name\": \"Alice\"\n}" }
-          }
-        },
-        {
-          "name": "Login",
-          "event": [{ "listen": "test", "script": { "exec": [
-            "var j = pm.response.json();",
-            "if (j.token) pm.collectionVariables.set('token', j.token);"
-          ]}}],
-          "request": {
-            "method": "POST",
-            "header": [{ "key": "Content-Type", "value": "application/json" }],
-            "url": "{{base_url}}/auth/login",
-            "body": { "mode": "raw", "raw": "{\n  \"email\": \"alice@moodfood.app\",\n  \"password\": \"SecurePass123!\"\n}" }
-          }
-        },
-        {
-          "name": "Login — Wrong Password (expect 401)",
-          "request": {
-            "method": "POST",
-            "header": [{ "key": "Content-Type", "value": "application/json" }],
-            "url": "{{base_url}}/auth/login",
-            "body": { "mode": "raw", "raw": "{\n  \"email\": \"alice@moodfood.app\",\n  \"password\": \"wrongpassword\"\n}" }
-          }
-        },
-        {
-          "name": "Register — Duplicate Email (expect 409)",
-          "request": {
-            "method": "POST",
-            "header": [{ "key": "Content-Type", "value": "application/json" }],
-            "url": "{{base_url}}/auth/register",
-            "body": { "mode": "raw", "raw": "{\n  \"email\": \"alice@moodfood.app\",\n  \"password\": \"SecurePass123!\"\n}" }
-          }
-        },
-        {
-          "name": "OTP — Send Code",
-          "request": {
-            "method": "POST",
-            "header": [{ "key": "Content-Type", "value": "application/json" }],
-            "url": "{{base_url}}/auth/otp/send",
-            "body": { "mode": "raw", "raw": "{\n  \"email\": \"alice@moodfood.app\"\n}" }
-          }
-        },
-        {
-          "name": "OTP — Verify Code (saves token)",
-          "event": [{ "listen": "test", "script": { "exec": [
-            "var j = pm.response.json();",
-            "if (j.token) pm.collectionVariables.set('token', j.token);"
-          ]}}],
-          "request": {
-            "method": "POST",
-            "header": [{ "key": "Content-Type", "value": "application/json" }],
-            "url": "{{base_url}}/auth/otp/verify",
-            "body": { "mode": "raw", "raw": "{\n  \"email\": \"alice@moodfood.app\",\n  \"code\": \"123456\"\n}" }
-          }
-        },
-        {
-          "name": "Apple Sign In",
-          "event": [{ "listen": "test", "script": { "exec": [
-            "var j = pm.response.json();",
-            "if (j.token) pm.collectionVariables.set('token', j.token);"
-          ]}}],
-          "request": {
-            "method": "POST",
-            "header": [{ "key": "Content-Type", "value": "application/json" }],
-            "url": "{{base_url}}/auth/apple",
-            "body": { "mode": "raw", "raw": "{\n  \"idToken\": \"<apple-id-token>\",\n  \"name\": \"Alice\"\n}" }
-          }
-        }
-      ]
-    },
-
-    {
-      "name": "👤 Profile",
-      "item": [
-        {
-          "name": "Get Profile",
           "request": {
             "method": "GET",
-            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
-            "url": "{{base_url}}/profile"
-          }
-        },
+            "header": [],
+            "url": {
+              "raw": "{{host}}/health",
+              "host": [
+                "{{host}}"
+              ],
+              "path": [
+                "health"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"200\", () => pm.response.to.have.status(200));",
+                  "pm.test(\"status ok\", () => pm.expect(pm.response.json().status).to.eql(\"ok\"));"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "🔐 Epic 1 — Auth & Profile",
+      "item": [
         {
-          "name": "Fill Profile (PUT — полный)",
+          "name": "1.1 Register",
           "request": {
-            "method": "PUT",
+            "method": "POST",
             "header": [
-              { "key": "Authorization", "value": "Bearer {{token}}" },
-              { "key": "Content-Type", "value": "application/json" }
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
             ],
-            "url": "{{base_url}}/profile",
+            "url": {
+              "raw": "{{base_url}}/auth/register",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "auth",
+                "register"
+              ]
+            },
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"age\": 22,\n  \"goal\": \"Eat healthier and feel more energetic\",\n  \"lifestyle\": \"student\",\n  \"budgetLevel\": \"low\",\n  \"dietaryRestrictions\": [],\n  \"allergies\": [],\n  \"customRestrictions\": []\n}"
+              "raw": "{\n  \"email\": \"test@moodfood.kz\",\n  \"password\": \"Test1234!\",\n  \"name\": \"Beks\"\n}"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"201\", () => pm.response.to.have.status(201));",
+                  "const j = pm.response.json(); pm.collectionVariables.set(\"token\", j.token);",
+                  "pm.test(\"has token\", () => pm.expect(j.token).to.be.a(\"string\"));"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        },
+        {
+          "name": "1.2 Login (saves token)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/auth/login",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "auth",
+                "login"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"test@moodfood.kz\",\n  \"password\": \"Test1234!\"\n}"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"200\", () => pm.response.to.have.status(200));",
+                  "const j = pm.response.json(); pm.collectionVariables.set(\"token\", j.token);"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        },
+        {
+          "name": "1.3 Login — Wrong Password (expect 401)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/auth/login",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "auth",
+                "login"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"test@moodfood.kz\",\n  \"password\": \"wrongpass\"\n}"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"401\", () => pm.response.to.have.status(401));"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        },
+        {
+          "name": "1.4 Register — Duplicate Email (expect 409)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/auth/register",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "auth",
+                "register"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"test@moodfood.kz\",\n  \"password\": \"Test1234!\",\n  \"name\": \"Beks\"\n}"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"409\", () => pm.response.to.have.status(409));"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        },
+        {
+          "name": "1.5 OTP — Send Code",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/auth/otp/send",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "auth",
+                "otp",
+                "send"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"test@moodfood.kz\"\n}"
             }
           }
         },
         {
-          "name": "Patch Profile — только goal",
+          "name": "1.6 OTP — Verify Code",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/auth/otp/verify",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "auth",
+                "otp",
+                "verify"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"test@moodfood.kz\",\n  \"code\": \"123456\"\n}"
+            }
+          }
+        },
+        {
+          "name": "1.7 Apple Sign In",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/auth/apple",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "auth",
+                "apple"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"idToken\": \"<apple-id-token>\"\n}"
+            }
+          }
+        },
+        {
+          "name": "1.8 Get Profile",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/profile",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "profile"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"200\", () => pm.response.to.have.status(200));"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        },
+        {
+          "name": "1.9 Fill Profile (PUT)",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}",
+                "type": "text"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/profile",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "profile"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"age\": 22,\n  \"goal\": \"Eat healthier\",\n  \"lifestyle\": \"student\",\n  \"budgetLevel\": \"low\",\n  \"dietaryRestrictions\": [],\n  \"allergies\": [],\n  \"customRestrictions\": []\n}"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"200\", () => pm.response.to.have.status(200));",
+                  "pm.test(\"profile complete\", () => pm.expect(pm.response.json().isProfileComplete).to.be.true);"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        },
+        {
+          "name": "1.10 Patch Profile — goal only",
           "request": {
             "method": "PATCH",
             "header": [
-              { "key": "Authorization", "value": "Bearer {{token}}" },
-              { "key": "Content-Type", "value": "application/json" }
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}",
+                "type": "text"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
             ],
-            "url": "{{base_url}}/profile",
-            "body": { "mode": "raw", "raw": "{\n  \"goal\": \"Build muscle\"\n}" }
+            "url": {
+              "raw": "{{base_url}}/profile",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "profile"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"goal\": \"Boost energy\"\n}"
+            }
           }
         },
         {
-          "name": "Fill Profile — vegan + nut allergy",
+          "name": "1.11 Fill Profile — vegan + nut allergy",
           "request": {
             "method": "PUT",
             "header": [
-              { "key": "Authorization", "value": "Bearer {{token}}" },
-              { "key": "Content-Type", "value": "application/json" }
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}",
+                "type": "text"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
             ],
-            "url": "{{base_url}}/profile",
-            "body": {
-              "mode": "raw",
-              "raw": "{\n  \"age\": 25,\n  \"goal\": \"Stay light and healthy\",\n  \"lifestyle\": \"professional\",\n  \"budgetLevel\": \"medium\",\n  \"dietaryRestrictions\": [\"vegan\"],\n  \"allergies\": [\"nut_allergy\"],\n  \"customRestrictions\": [\"mushrooms\"]\n}"
-            }
-          }
-        },
-        {
-          "name": "Get Profile — No Token (expect 401)",
-          "request": { "method": "GET", "url": "{{base_url}}/profile" }
-        }
-      ]
-    },
-
-    {
-      "name": "🥦 Pantry (Кладовка)",
-      "item": [
-        {
-          "name": "Get My Ingredients",
-          "request": {
-            "method": "GET",
-            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
-            "url": "{{base_url}}/pantry"
-          }
-        },
-        {
-          "name": "Add Ingredients",
-          "request": {
-            "method": "POST",
-            "header": [
-              { "key": "Authorization", "value": "Bearer {{token}}" },
-              { "key": "Content-Type", "value": "application/json" }
-            ],
-            "url": "{{base_url}}/pantry",
-            "body": {
-              "mode": "raw",
-              "raw": "{\n  \"ingredients\": [\"eggs\", \"rice\", \"tomato\", \"chicken breast\", \"rolled oats\", \"banana\"]\n}"
-            }
-          }
-        },
-        {
-          "name": "Remove One Ingredient",
-          "request": {
-            "method": "DELETE",
-            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
-            "url": "{{base_url}}/pantry/<pantry-item-id>"
-          }
-        },
-        {
-          "name": "Clear Pantry",
-          "request": {
-            "method": "DELETE",
-            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
-            "url": "{{base_url}}/pantry/clear"
-          }
-        }
-      ]
-    },
-
-    {
-      "name": "🍽 Recipes",
-      "item": [
-        {
-          "name": "List All Recipes",
-          "request": {
-            "method": "GET",
-            "url": "{{base_url}}/recipes"
-          }
-        },
-        {
-          "name": "List Recipes — Filter by Mood (energetic)",
-          "request": {
-            "method": "GET",
             "url": {
-              "raw": "{{base_url}}/recipes?mood=energetic&limit=10",
-              "query": [
-                { "key": "mood", "value": "energetic" },
-                { "key": "limit", "value": "10" }
+              "raw": "{{base_url}}/profile",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "profile"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"age\": 22,\n  \"goal\": \"Eat plant-based\",\n  \"lifestyle\": \"student\",\n  \"budgetLevel\": \"low\",\n  \"dietaryRestrictions\": [\n    \"vegan\"\n  ],\n  \"allergies\": [\n    \"nut_allergy\"\n  ],\n  \"customRestrictions\": []\n}"
+            }
+          }
+        },
+        {
+          "name": "1.12 Get Profile — No Token (expect 401)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/profile",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "profile"
               ]
             }
-          }
-        },
-        {
-          "name": "List Recipes — Filter by Mood (tired)",
-          "request": {
-            "method": "GET",
-            "url": {
-              "raw": "{{base_url}}/recipes?mood=tired",
-              "query": [{ "key": "mood", "value": "tired" }]
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"401\", () => pm.response.to.have.status(401));"
+                ],
+                "type": "text/javascript"
+              }
             }
-          }
-        },
-        {
-          "name": "Get Recipe by ID",
-          "request": {
-            "method": "GET",
-            "url": "{{base_url}}/recipes/<recipe-id>"
-          }
-        },
-        {
-          "name": "Create Recipe",
-          "request": {
-            "method": "POST",
-            "header": [
-              { "key": "Authorization", "value": "Bearer {{token}}" },
-              { "key": "Content-Type", "value": "application/json" }
-            ],
-            "url": "{{base_url}}/recipes",
-            "body": {
-              "mode": "raw",
-              "raw": "{\n  \"title\": \"Spinach Omelette\",\n  \"cookingTimeMin\": 10,\n  \"difficulty\": \"easy\",\n  \"estimatedCost\": 2.5,\n  \"calories\": 320,\n  \"proteinG\": 22,\n  \"steps\": \"Beat eggs, cook with spinach on medium heat.\",\n  \"moodTags\": [\"energetic\", \"happy\"],\n  \"ingredients\": [\n    { \"name\": \"eggs\", \"category\": \"dairy\", \"amount\": \"3\", \"unit\": \"pcs\" },\n    { \"name\": \"spinach\", \"category\": \"vegetable\", \"amount\": \"50\", \"unit\": \"g\" }\n  ]\n}"
-            }
-          }
-        },
-        {
-          "name": "Recipe Recommendations (dietary filter)",
-          "request": {
-            "method": "GET",
-            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
-            "url": "{{base_url}}/recipes/recommendations"
-          }
-        },
-        {
-          "name": "Recipe Recommendations — By My Ingredients",
-          "request": {
-            "method": "GET",
-            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
-            "url": {
-              "raw": "{{base_url}}/recipes/recommendations?useMyIngredients=true",
-              "query": [{ "key": "useMyIngredients", "value": "true" }]
-            }
-          }
-        },
-        {
-          "name": "Recipe Recommendations — Min 80% Match",
-          "request": {
-            "method": "GET",
-            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
-            "url": {
-              "raw": "{{base_url}}/recipes/recommendations?useMyIngredients=true&minMatchScore=0.8",
-              "query": [
-                { "key": "useMyIngredients", "value": "true" },
-                { "key": "minMatchScore", "value": "0.8" }
-              ]
-            }
-          }
+          ]
         }
       ]
     },
-
     {
-      "name": "😊 Mood-Check (Epic 2)",
+      "name": "😊 Epic 2 — Mood Check",
       "item": [
         {
-          "name": "Create Mood-Check — Tired / Stressed",
+          "name": "2.1 Create Mood-Check — Tired / Stressed",
           "request": {
             "method": "POST",
             "header": [
-              { "key": "Authorization", "value": "Bearer {{token}}" },
-              { "key": "Content-Type", "value": "application/json" }
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}",
+                "type": "text"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
             ],
-            "url": "{{base_url}}/mood-checks",
+            "url": {
+              "raw": "{{base_url}}/mood-checks",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "mood-checks"
+              ]
+            },
             "body": {
               "mode": "raw",
               "raw": "{\n  \"mood\": \"tired\",\n  \"energyLevel\": 2,\n  \"stressLevel\": \"high\",\n  \"sleepQuality\": \"poor\",\n  \"hungerLevel\": \"high\"\n}"
             }
-          }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"201\", () => pm.response.to.have.status(201));",
+                  "const j = pm.response.json(); pm.collectionVariables.set(\"moodCheckId\", j.id);"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
         },
         {
-          "name": "Create Mood-Check — Happy / Energetic",
+          "name": "2.2 Create Mood-Check — Happy / Energetic",
           "request": {
             "method": "POST",
             "header": [
-              { "key": "Authorization", "value": "Bearer {{token}}" },
-              { "key": "Content-Type", "value": "application/json" }
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}",
+                "type": "text"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
             ],
-            "url": "{{base_url}}/mood-checks",
+            "url": {
+              "raw": "{{base_url}}/mood-checks",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "mood-checks"
+              ]
+            },
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"mood\": \"happy\",\n  \"energyLevel\": 5,\n  \"stressLevel\": \"low\",\n  \"sleepQuality\": \"good\",\n  \"hungerLevel\": \"medium\"\n}"
+              "raw": "{\n  \"mood\": \"happy\",\n  \"energyLevel\": 5,\n  \"stressLevel\": \"low\",\n  \"sleepQuality\": \"good\",\n  \"hungerLevel\": \"low\"\n}"
             }
-          }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"201\", () => pm.response.to.have.status(201));"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
         },
         {
-          "name": "Get Mood-Check History",
+          "name": "2.3 Get Mood-Check History",
           "request": {
             "method": "GET",
-            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}",
+                "type": "text"
+              }
+            ],
             "url": {
-              "raw": "{{base_url}}/mood-checks?limit=20&offset=0",
+              "raw": "{{base_url}}/mood-checks",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "mood-checks"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"200\", () => pm.response.to.have.status(200));",
+                  "pm.test(\"has moodChecks\", () => pm.expect(pm.response.json().moodChecks).to.be.an(\"array\"));"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        },
+        {
+          "name": "2.4 Get Latest Mood-Check",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/mood-checks/latest",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "mood-checks",
+                "latest"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"200\", () => pm.response.to.have.status(200));"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        },
+        {
+          "name": "2.5 Create — Empty Body (expect 400)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}",
+                "type": "text"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/mood-checks",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "mood-checks"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{}"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"400\", () => pm.response.to.have.status(400));"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        },
+        {
+          "name": "2.6 Create — No Token (expect 401)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/mood-checks",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "mood-checks"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"mood\": \"tired\"\n}"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"401\", () => pm.response.to.have.status(401));"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "🥦 Epic 3 — Pantry & Recipes",
+      "item": [
+        {
+          "name": "3.1 Get My Pantry",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/pantry",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "pantry"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"200\", () => pm.response.to.have.status(200));"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        },
+        {
+          "name": "3.2 Add Ingredients",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}",
+                "type": "text"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/pantry",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "pantry"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"ingredients\": [\n    \"eggs\",\n    \"rice\",\n    \"tomato\",\n    \"olive oil\",\n    \"garlic\"\n  ]\n}"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"201\", () => pm.response.to.have.status(201));",
+                  "const j = pm.response.json(); if(j.added && j.added[0]) pm.collectionVariables.set(\"pantryIngredientId\", j.added[0].ingredientId);"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        },
+        {
+          "name": "3.3 Remove One Ingredient",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/pantry/{{pantryIngredientId}}",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "pantry",
+                "{{pantryIngredientId}}"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"200\", () => pm.response.to.have.status(200));"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        },
+        {
+          "name": "3.4 Clear Pantry",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/pantry/clear",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "pantry",
+                "clear"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"200\", () => pm.response.to.have.status(200));"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        },
+        {
+          "name": "3.5 List All Recipes",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/recipes",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "recipes"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"200\", () => pm.response.to.have.status(200));",
+                  "const j = pm.response.json(); if(j.recipes && j.recipes[0]) pm.collectionVariables.set(\"recipeId\", j.recipes[0].id);",
+                  "pm.test(\"has fatG\", () => pm.expect(j.recipes[0]).to.have.property(\"fatG\"));",
+                  "pm.test(\"has carbsG\", () => pm.expect(j.recipes[0]).to.have.property(\"carbsG\"));"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        },
+        {
+          "name": "3.6 List Recipes — Filter by Mood (energetic)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/recipes?mood=energetic",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "recipes"
+              ],
               "query": [
-                { "key": "limit", "value": "20" },
-                { "key": "offset", "value": "0" }
+                {
+                  "key": "mood",
+                  "value": "energetic"
+                }
               ]
             }
           }
         },
         {
-          "name": "Get Latest Mood-Check",
+          "name": "3.7 List Recipes — Filter by Mood (tired)",
           "request": {
             "method": "GET",
-            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
-            "url": "{{base_url}}/mood-checks/latest"
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/recipes?mood=tired",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "recipes"
+              ],
+              "query": [
+                {
+                  "key": "mood",
+                  "value": "tired"
+                }
+              ]
+            }
           }
         },
         {
-          "name": "Create — Empty Body (expect 400)",
+          "name": "3.8 Get Recipe by ID",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/recipes/{{recipeId}}",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "recipes",
+                "{{recipeId}}"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"200\", () => pm.response.to.have.status(200));",
+                  "pm.test(\"has all macros\", () => { const j = pm.response.json(); [\"calories\",\"proteinG\",\"fatG\",\"carbsG\"].forEach(k => pm.expect(j).to.have.property(k)); });"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        },
+        {
+          "name": "3.9 Create Recipe (with fatG/carbsG)",
           "request": {
             "method": "POST",
             "header": [
-              { "key": "Authorization", "value": "Bearer {{token}}" },
-              { "key": "Content-Type", "value": "application/json" }
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}",
+                "type": "text"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
             ],
-            "url": "{{base_url}}/mood-checks",
-            "body": { "mode": "raw", "raw": "{}" }
+            "url": {
+              "raw": "{{base_url}}/recipes",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "recipes"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"title\": \"Test Bowl\",\n  \"cookingTimeMin\": 10,\n  \"difficulty\": \"easy\",\n  \"estimatedCost\": 3.5,\n  \"calories\": 350,\n  \"proteinG\": 20,\n  \"fatG\": 10,\n  \"carbsG\": 45,\n  \"steps\": \"Combine and serve.\",\n  \"moodTags\": [\n    \"calm\"\n  ],\n  \"ingredients\": [\n    {\n      \"name\": \"quinoa\",\n      \"category\": \"grain\",\n      \"amount\": \"80\",\n      \"unit\": \"g\"\n    }\n  ]\n}"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"201\", () => pm.response.to.have.status(201));",
+                  "pm.test(\"fatG returned\", () => pm.expect(pm.response.json().fatG).to.equal(10));"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        },
+        {
+          "name": "3.10 Recipe Recommendations (dietary filter)",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/recipes/recommendations",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "recipes",
+                "recommendations"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"200\", () => pm.response.to.have.status(200));"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        },
+        {
+          "name": "3.11 Recipe Recommendations — By My Ingredients",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/recipes/recommendations?useMyIngredients=true",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "recipes",
+                "recommendations"
+              ],
+              "query": [
+                {
+                  "key": "useMyIngredients",
+                  "value": "true"
+                }
+              ]
+            }
           }
         },
         {
-          "name": "Create — No Token (expect 401)",
+          "name": "3.12 Recipe Recommendations — Min 80% Match",
           "request": {
-            "method": "POST",
-            "header": [{ "key": "Content-Type", "value": "application/json" }],
-            "url": "{{base_url}}/mood-checks",
-            "body": { "mode": "raw", "raw": "{\n  \"mood\": \"tired\",\n  \"energyLevel\": 2\n}" }
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/recipes/recommendations?useMyIngredients=true&minMatchScore=0.8",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "recipes",
+                "recommendations"
+              ],
+              "query": [
+                {
+                  "key": "useMyIngredients",
+                  "value": "true"
+                },
+                {
+                  "key": "minMatchScore",
+                  "value": "0.8"
+                }
+              ]
+            }
           }
         }
       ]
     },
-
     {
-      "name": "🤖 AI Recommendations (Epic 4)",
+      "name": "🤖 Epic 4 — AI Recommendations",
       "item": [
         {
-          "name": "Recommend — Tired / Low Energy",
+          "name": "4.1 Recommend — Tired / Low Energy",
           "request": {
             "method": "POST",
             "header": [
-              { "key": "Authorization", "value": "Bearer {{token}}" },
-              { "key": "Content-Type", "value": "application/json" }
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}",
+                "type": "text"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
             ],
-            "url": "{{base_url}}/recommendations",
+            "url": {
+              "raw": "{{base_url}}/recommendations",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "recommendations"
+              ]
+            },
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"mood\": \"tired\",\n  \"energyLevel\": 2,\n  \"maxCookingTime\": 30\n}"
+              "raw": "{\n  \"mood\": \"tired\",\n  \"energyLevel\": 2,\n  \"stressLevel\": \"low\",\n  \"sleepQuality\": \"normal\",\n  \"hungerLevel\": \"high\"\n}"
             }
-          }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"200\", () => pm.response.to.have.status(200));",
+                  "const j = pm.response.json(); pm.test(\"3 options\", () => pm.expect(j.options).to.be.an(\"array\").with.lengthOf(3));",
+                  "pm.test(\"has aiPowered\", () => pm.expect(j).to.have.property(\"aiPowered\"));"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
         },
         {
-          "name": "Recommend — High Stress",
+          "name": "4.2 Recommend — High Stress",
           "request": {
             "method": "POST",
             "header": [
-              { "key": "Authorization", "value": "Bearer {{token}}" },
-              { "key": "Content-Type", "value": "application/json" }
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}",
+                "type": "text"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
             ],
-            "url": "{{base_url}}/recommendations",
+            "url": {
+              "raw": "{{base_url}}/recommendations",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "recommendations"
+              ]
+            },
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"mood\": \"stressed\",\n  \"stressLevel\": \"high\"\n}"
+              "raw": "{\n  \"mood\": \"stressed\",\n  \"energyLevel\": 3,\n  \"stressLevel\": \"high\"\n}"
             }
-          }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"200\", () => pm.response.to.have.status(200));"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
         },
         {
-          "name": "Recommend — Poor Sleep",
+          "name": "4.3 Recommend — Poor Sleep",
           "request": {
             "method": "POST",
             "header": [
-              { "key": "Authorization", "value": "Bearer {{token}}" },
-              { "key": "Content-Type", "value": "application/json" }
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}",
+                "type": "text"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
             ],
-            "url": "{{base_url}}/recommendations",
+            "url": {
+              "raw": "{{base_url}}/recommendations",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "recommendations"
+              ]
+            },
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"sleepQuality\": \"poor\",\n  \"energyLevel\": 3\n}"
+              "raw": "{\n  \"sleepQuality\": \"poor\",\n  \"energyLevel\": 2\n}"
             }
-          }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"200\", () => pm.response.to.have.status(200));"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
         },
         {
-          "name": "Recommend — Very Hungry + Low Budget",
+          "name": "4.4 Recommend — Very Hungry + Low Budget",
           "request": {
             "method": "POST",
             "header": [
-              { "key": "Authorization", "value": "Bearer {{token}}" },
-              { "key": "Content-Type", "value": "application/json" }
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}",
+                "type": "text"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
             ],
-            "url": "{{base_url}}/recommendations",
+            "url": {
+              "raw": "{{base_url}}/recommendations",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "recommendations"
+              ]
+            },
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"hungerLevel\": \"high\",\n  \"budgetLevel\": \"low\"\n}"
+              "raw": "{\n  \"hungerLevel\": \"high\",\n  \"budgetLevel\": \"low\",\n  \"maxCookingTime\": 15\n}"
             }
-          }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"200\", () => pm.response.to.have.status(200));"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
         },
         {
-          "name": "Recommend — Use My Pantry + Substitutions",
+          "name": "4.5 Recommend — Use My Pantry + Substitutions",
           "request": {
             "method": "POST",
             "header": [
-              { "key": "Authorization", "value": "Bearer {{token}}" },
-              { "key": "Content-Type", "value": "application/json" }
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}",
+                "type": "text"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
             ],
-            "url": "{{base_url}}/recommendations",
+            "url": {
+              "raw": "{{base_url}}/recommendations",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "recommendations"
+              ]
+            },
             "body": {
               "mode": "raw",
               "raw": "{\n  \"mood\": \"tired\",\n  \"energyLevel\": 2,\n  \"useMyIngredients\": true\n}"
             }
-          }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"200\", () => pm.response.to.have.status(200));",
+                  "const j = pm.response.json(); pm.test(\"matchScore present\", () => j.options.forEach(o => pm.expect(o).to.have.property(\"matchScore\")));"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
         },
         {
-          "name": "Recommend — All Fields Combined",
+          "name": "4.6 Recommend — All Fields Combined",
           "request": {
             "method": "POST",
             "header": [
-              { "key": "Authorization", "value": "Bearer {{token}}" },
-              { "key": "Content-Type", "value": "application/json" }
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}",
+                "type": "text"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
             ],
-            "url": "{{base_url}}/recommendations",
+            "url": {
+              "raw": "{{base_url}}/recommendations",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "recommendations"
+              ]
+            },
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"mood\": \"tired\",\n  \"energyLevel\": 2,\n  \"stressLevel\": \"high\",\n  \"sleepQuality\": \"poor\",\n  \"hungerLevel\": \"high\",\n  \"maxCookingTime\": 20,\n  \"useMyIngredients\": true\n}"
+              "raw": "{\n  \"mood\": \"tired\",\n  \"energyLevel\": 1,\n  \"stressLevel\": \"high\",\n  \"sleepQuality\": \"poor\",\n  \"hungerLevel\": \"high\",\n  \"budgetLevel\": \"low\",\n  \"maxCookingTime\": 20,\n  \"useMyIngredients\": true\n}"
             }
-          }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"200\", () => pm.response.to.have.status(200));"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
         },
         {
-          "name": "Recommend — No Token (expect 401)",
+          "name": "4.7 Recommend — No Token (expect 401)",
           "request": {
             "method": "POST",
-            "header": [{ "key": "Content-Type", "value": "application/json" }],
-            "url": "{{base_url}}/recommendations",
-            "body": { "mode": "raw", "raw": "{\n  \"mood\": \"tired\"\n}" }
-          }
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/recommendations",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "recommendations"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"mood\": \"happy\"\n}"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"401\", () => pm.response.to.have.status(401));"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
         }
       ]
     },
-
+    {
+      "name": "❤️ Epic 5 — Favorites",
+      "item": [
+        {
+          "name": "5.1 Add Recipe to Favorites",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}",
+                "type": "text"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/favorites",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "favorites"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"recipeId\": \"{{recipeId}}\"\n}"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"201\", () => pm.response.to.have.status(201));",
+                  "const j = pm.response.json(); pm.collectionVariables.set(\"favoriteId\", j.favoriteId);",
+                  "pm.test(\"has recipe title\", () => pm.expect(j.recipe).to.have.property(\"title\"));",
+                  "pm.test(\"has fatG\", () => pm.expect(j.recipe).to.have.property(\"fatG\"));",
+                  "pm.test(\"has carbsG\", () => pm.expect(j.recipe).to.have.property(\"carbsG\"));",
+                  "pm.test(\"has estimatedCost\", () => pm.expect(j.recipe).to.have.property(\"estimatedCost\"));"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        },
+        {
+          "name": "5.2 Add Same Recipe Again (expect 409)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}",
+                "type": "text"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/favorites",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "favorites"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"recipeId\": \"{{recipeId}}\"\n}"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"409\", () => pm.response.to.have.status(409));"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        },
+        {
+          "name": "5.3 Add Recipe — Not Found (expect 404)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}",
+                "type": "text"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/favorites",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "favorites"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"recipeId\": \"00000000-0000-0000-0000-000000000000\"\n}"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"404\", () => pm.response.to.have.status(404));"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        },
+        {
+          "name": "5.4 Get My Favorites (paginated)",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/favorites",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "favorites"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"200\", () => pm.response.to.have.status(200));",
+                  "const j = pm.response.json();",
+                  "pm.test(\"has favorites array\", () => pm.expect(j.favorites).to.be.an(\"array\"));",
+                  "pm.test(\"has total\", () => pm.expect(j).to.have.property(\"total\"));",
+                  "pm.test(\"has savedAt\", () => pm.expect(j.favorites[0]).to.have.property(\"savedAt\"));"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        },
+        {
+          "name": "5.5 Get Favorites — Page 2",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/favorites?limit=5&offset=5",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "favorites"
+              ],
+              "query": [
+                {
+                  "key": "limit",
+                  "value": "5"
+                },
+                {
+                  "key": "offset",
+                  "value": "5"
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"200\", () => pm.response.to.have.status(200));"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        },
+        {
+          "name": "5.6 Check if Recipe is Favorited",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/favorites/check/{{recipeId}}",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "favorites",
+                "check",
+                "{{recipeId}}"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"200\", () => pm.response.to.have.status(200));",
+                  "const j = pm.response.json(); pm.test(\"isFavorite true\", () => pm.expect(j.isFavorite).to.be.true);",
+                  "pm.test(\"favoriteId string\", () => pm.expect(j.favoriteId).to.be.a(\"string\"));"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        },
+        {
+          "name": "5.7 Check Non-Favorited Recipe",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/favorites/check/00000000-0000-0000-0000-000000000000",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "favorites",
+                "check",
+                "00000000-0000-0000-0000-000000000000"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"200\", () => pm.response.to.have.status(200));",
+                  "pm.test(\"isFavorite false\", () => pm.expect(pm.response.json().isFavorite).to.be.false);"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        },
+        {
+          "name": "5.8 Remove from Favorites",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/favorites/{{favoriteId}}",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "favorites",
+                "{{favoriteId}}"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"200\", () => pm.response.to.have.status(200));",
+                  "pm.test(\"message ok\", () => pm.expect(pm.response.json().message).to.include(\"removed\"));"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        },
+        {
+          "name": "5.9 Remove — Not Found (expect 404)",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/favorites/nonexistent-id",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "favorites",
+                "nonexistent-id"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"404\", () => pm.response.to.have.status(404));"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        },
+        {
+          "name": "5.10 Get Favorites — No Token (expect 401)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/favorites",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "favorites"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"401\", () => pm.response.to.have.status(401));"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        }
+      ]
+    },
     {
       "name": "💳 Payment",
       "item": [
@@ -494,13 +1764,30 @@
           "request": {
             "method": "POST",
             "header": [
-              { "key": "Authorization", "value": "Bearer {{token}}" },
-              { "key": "Content-Type", "value": "application/json" }
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}",
+                "type": "text"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
             ],
-            "url": "{{base_url}}/payment/checkout",
+            "url": {
+              "raw": "{{base_url}}/payment/checkout",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "payment",
+                "checkout"
+              ]
+            },
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"amount\": 9.99,\n  \"orderType\": \"purchase\",\n  \"description\": \"MoodFood Premium\"\n}"
+              "raw": "{\n  \"amount\": 9.99,\n  \"gateway\": \"paypal\",\n  \"orderType\": \"purchase\"\n}"
             }
           }
         },
@@ -508,16 +1795,47 @@
           "name": "Get My Orders",
           "request": {
             "method": "GET",
-            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
-            "url": "{{base_url}}/payment/orders"
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/payment/orders",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "payment",
+                "orders"
+              ]
+            }
           }
         },
         {
           "name": "Get Order by ID",
           "request": {
             "method": "GET",
-            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
-            "url": "{{base_url}}/payment/orders/<order-id>"
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/payment/orders/{{orderId}}",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "payment",
+                "orders",
+                "{{orderId}}"
+              ]
+            }
           }
         },
         {
@@ -525,13 +1843,32 @@
           "request": {
             "method": "POST",
             "header": [
-              { "key": "Authorization", "value": "Bearer {{token}}" },
-              { "key": "Content-Type", "value": "application/json" }
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}",
+                "type": "text"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
             ],
-            "url": "{{base_url}}/payment/orders/<order-id>/refund",
+            "url": {
+              "raw": "{{base_url}}/payment/orders/{{orderId}}/refund",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "payment",
+                "orders",
+                "{{orderId}}",
+                "refund"
+              ]
+            },
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"reason\": \"Customer request\"\n}"
+              "raw": "{}"
             }
           }
         },
@@ -539,9 +1876,23 @@
           "name": "PayPal Success Callback (GET)",
           "request": {
             "method": "GET",
+            "header": [],
             "url": {
-              "raw": "{{base_url}}/payment/paypal/success?token=<paypal-order-token>",
-              "query": [{ "key": "token", "value": "<paypal-order-token>" }]
+              "raw": "{{base_url}}/payment/paypal/success?token={{paypalToken}}",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "payment",
+                "paypal",
+                "success"
+              ],
+              "query": [
+                {
+                  "key": "token",
+                  "value": "{{paypalToken}}"
+                }
+              ]
             }
           }
         },
@@ -549,15 +1900,28 @@
           "name": "PayPal Cancel Callback (GET)",
           "request": {
             "method": "GET",
+            "header": [],
             "url": {
-              "raw": "{{base_url}}/payment/paypal/cancel?token=<paypal-order-token>",
-              "query": [{ "key": "token", "value": "<paypal-order-token>" }]
+              "raw": "{{base_url}}/payment/paypal/cancel?token={{paypalToken}}",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "payment",
+                "paypal",
+                "cancel"
+              ],
+              "query": [
+                {
+                  "key": "token",
+                  "value": "{{paypalToken}}"
+                }
+              ]
             }
           }
         }
       ]
     },
-
     {
       "name": "👛 Wallet",
       "item": [
@@ -565,20 +1929,43 @@
           "name": "Get Wallet Balance",
           "request": {
             "method": "GET",
-            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
-            "url": "{{base_url}}/wallet"
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/wallet",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "wallet"
+              ]
+            }
           }
         },
         {
           "name": "Get Wallet Transactions",
           "request": {
             "method": "GET",
-            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}",
+                "type": "text"
+              }
+            ],
             "url": {
-              "raw": "{{base_url}}/wallet/transactions?limit=20&offset=0",
-              "query": [
-                { "key": "limit", "value": "20" },
-                { "key": "offset", "value": "0" }
+              "raw": "{{base_url}}/wallet/transactions",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "wallet",
+                "transactions"
               ]
             }
           }
@@ -588,19 +1975,35 @@
           "request": {
             "method": "POST",
             "header": [
-              { "key": "Authorization", "value": "Bearer {{token}}" },
-              { "key": "Content-Type", "value": "application/json" }
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}",
+                "type": "text"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
             ],
-            "url": "{{base_url}}/wallet/topup",
+            "url": {
+              "raw": "{{base_url}}/wallet/topup",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "wallet",
+                "topup"
+              ]
+            },
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"amount\": 10.00\n}"
+              "raw": "{\n  \"amount\": 10,\n  \"gateway\": \"paypal\"\n}"
             }
           }
         }
       ]
     },
-
     {
       "name": "📦 Subscriptions",
       "item": [
@@ -608,15 +2011,40 @@
           "name": "Get Plans (public)",
           "request": {
             "method": "GET",
-            "url": "{{base_url}}/subscriptions/plans"
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/subscriptions/plans",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "subscriptions",
+                "plans"
+              ]
+            }
           }
         },
         {
           "name": "Get My Subscription",
           "request": {
             "method": "GET",
-            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
-            "url": "{{base_url}}/subscriptions/me"
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/subscriptions/me",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "subscriptions",
+                "me"
+              ]
+            }
           }
         },
         {
@@ -624,13 +2052,30 @@
           "request": {
             "method": "POST",
             "header": [
-              { "key": "Authorization", "value": "Bearer {{token}}" },
-              { "key": "Content-Type", "value": "application/json" }
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}",
+                "type": "text"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
             ],
-            "url": "{{base_url}}/subscriptions/subscribe",
+            "url": {
+              "raw": "{{base_url}}/subscriptions/subscribe",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "subscriptions",
+                "subscribe"
+              ]
+            },
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"planType\": \"monthly\"\n}"
+              "raw": "{\n  \"planType\": \"monthly\",\n  \"gateway\": \"paypal\"\n}"
             }
           }
         },
@@ -639,13 +2084,30 @@
           "request": {
             "method": "POST",
             "header": [
-              { "key": "Authorization", "value": "Bearer {{token}}" },
-              { "key": "Content-Type", "value": "application/json" }
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}",
+                "type": "text"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
             ],
-            "url": "{{base_url}}/subscriptions/subscribe",
+            "url": {
+              "raw": "{{base_url}}/subscriptions/subscribe",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "subscriptions",
+                "subscribe"
+              ]
+            },
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"planType\": \"annual\"\n}"
+              "raw": "{\n  \"planType\": \"annual\",\n  \"gateway\": \"paypal\"\n}"
             }
           }
         },
@@ -653,216 +2115,576 @@
           "name": "Cancel Subscription",
           "request": {
             "method": "DELETE",
-            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
-            "url": "{{base_url}}/subscriptions/me"
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/subscriptions/me",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "subscriptions",
+                "me"
+              ]
+            }
           }
         }
       ]
     },
-
     {
-      "name": "🧪 Step-by-Step Test (полный флоу)",
-      "description": "Запускай сверху вниз или через Collection Runner. Шаг 1 или 1b сохраняет {{token}} автоматически. Сервер должен быть запущен, рецепты засеяны.",
+      "name": "🧪 Step-by-Step Integration Test (полный флоу)",
       "item": [
         {
           "name": "1. Register (saves token)",
-          "event": [{ "listen": "test", "script": { "exec": [
-            "var j = pm.response.json();",
-            "if (j.token) pm.collectionVariables.set('token', j.token);",
-            "pm.test('got token', () => pm.expect(pm.collectionVariables.get('token')).to.be.a('string').and.not.empty);"
-          ]}}],
           "request": {
             "method": "POST",
-            "header": [{ "key": "Content-Type", "value": "application/json" }],
-            "url": "{{base_url}}/auth/register",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/auth/register",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "auth",
+                "register"
+              ]
+            },
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"email\": \"tester@moodfood.app\",\n  \"password\": \"SecurePass123!\",\n  \"name\": \"MoodFood Tester\"\n}"
+              "raw": "{\n  \"email\": \"integration@moodfood.kz\",\n  \"password\": \"Test1234!\",\n  \"name\": \"TestUser\"\n}"
             }
-          }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"201\", () => pm.response.to.have.status(201));",
+                  "const j = pm.response.json(); pm.collectionVariables.set(\"token\", j.token);"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
         },
         {
-          "name": "1b. Login (если уже зарегистрирован — saves token)",
-          "event": [{ "listen": "test", "script": { "exec": [
-            "var j = pm.response.json();",
-            "if (j.token) pm.collectionVariables.set('token', j.token);"
-          ]}}],
+          "name": "1b. Login (если уже зарегистрирован)",
           "request": {
             "method": "POST",
-            "header": [{ "key": "Content-Type", "value": "application/json" }],
-            "url": "{{base_url}}/auth/login",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/auth/login",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "auth",
+                "login"
+              ]
+            },
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"email\": \"tester@moodfood.app\",\n  \"password\": \"SecurePass123!\"\n}"
+              "raw": "{\n  \"email\": \"integration@moodfood.kz\",\n  \"password\": \"Test1234!\"\n}"
             }
-          }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"200\", () => pm.response.to.have.status(200));",
+                  "const j = pm.response.json(); pm.collectionVariables.set(\"token\", j.token);"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
         },
         {
           "name": "2. Fill Profile",
-          "event": [{ "listen": "test", "script": { "exec": [
-            "pm.test('200 OK', () => pm.response.to.have.status(200));"
-          ]}}],
           "request": {
             "method": "PUT",
             "header": [
-              { "key": "Authorization", "value": "Bearer {{token}}" },
-              { "key": "Content-Type", "value": "application/json" }
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}",
+                "type": "text"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
             ],
-            "url": "{{base_url}}/profile",
+            "url": {
+              "raw": "{{base_url}}/profile",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "profile"
+              ]
+            },
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"age\": 21,\n  \"goal\": \"More energy\",\n  \"lifestyle\": \"student\",\n  \"budgetLevel\": \"low\",\n  \"dietaryRestrictions\": [],\n  \"allergies\": [],\n  \"customRestrictions\": []\n}"
+              "raw": "{\n  \"age\": 22,\n  \"goal\": \"Eat healthier\",\n  \"lifestyle\": \"student\",\n  \"budgetLevel\": \"low\",\n  \"dietaryRestrictions\": [],\n  \"allergies\": [],\n  \"customRestrictions\": []\n}"
             }
-          }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"200\", () => pm.response.to.have.status(200));",
+                  "pm.test(\"profile complete\", () => pm.expect(pm.response.json().isProfileComplete).to.be.true);"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
         },
         {
           "name": "3. Add Pantry Ingredients",
-          "event": [{ "listen": "test", "script": { "exec": [
-            "pm.test('200 OK', () => pm.response.to.have.status(200));"
-          ]}}],
           "request": {
             "method": "POST",
             "header": [
-              { "key": "Authorization", "value": "Bearer {{token}}" },
-              { "key": "Content-Type", "value": "application/json" }
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}",
+                "type": "text"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
             ],
-            "url": "{{base_url}}/pantry",
+            "url": {
+              "raw": "{{base_url}}/pantry",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "pantry"
+              ]
+            },
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"ingredients\": [\"rolled oats\", \"banana\", \"eggs\", \"rice\", \"chicken breast\"]\n}"
+              "raw": "{\n  \"ingredients\": [\n    \"eggs\",\n    \"rice\",\n    \"tomato\",\n    \"olive oil\"\n  ]\n}"
             }
-          }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"201\", () => pm.response.to.have.status(201));"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
         },
         {
-          "name": "4. Create Mood-Check (Epic 2)",
-          "event": [{ "listen": "test", "script": { "exec": [
-            "pm.test('201 Created', () => pm.response.to.have.status(201));",
-            "var j = pm.response.json();",
-            "pm.test('has id + createdAt', () => { pm.expect(j).to.have.property('id'); pm.expect(j).to.have.property('createdAt'); });"
-          ]}}],
+          "name": "4. Create Mood-Check",
           "request": {
             "method": "POST",
             "header": [
-              { "key": "Authorization", "value": "Bearer {{token}}" },
-              { "key": "Content-Type", "value": "application/json" }
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}",
+                "type": "text"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
             ],
-            "url": "{{base_url}}/mood-checks",
+            "url": {
+              "raw": "{{base_url}}/mood-checks",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "mood-checks"
+              ]
+            },
             "body": {
               "mode": "raw",
               "raw": "{\n  \"mood\": \"tired\",\n  \"energyLevel\": 2,\n  \"stressLevel\": \"high\",\n  \"sleepQuality\": \"poor\",\n  \"hungerLevel\": \"high\"\n}"
             }
-          }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"201\", () => pm.response.to.have.status(201));"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
         },
         {
           "name": "5. Get Latest Mood-Check",
-          "event": [{ "listen": "test", "script": { "exec": [
-            "pm.test('200 OK', () => pm.response.to.have.status(200));",
-            "var j = pm.response.json();",
-            "pm.test('mood = tired', () => pm.expect(j.mood).to.eql('tired'));"
-          ]}}],
           "request": {
             "method": "GET",
-            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
-            "url": "{{base_url}}/mood-checks/latest"
-          }
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/mood-checks/latest",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "mood-checks",
+                "latest"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"200\", () => pm.response.to.have.status(200));"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
         },
         {
-          "name": "6. AI Recommendations — basic (Epic 4)",
-          "event": [{ "listen": "test", "script": { "exec": [
-            "pm.test('200 OK', () => pm.response.to.have.status(200));",
-            "var j = pm.response.json();",
-            "pm.test('has options array', () => pm.expect(j.options).to.be.an('array').and.not.empty);",
-            "pm.test('each option has category + recipe + explanation + fitScore', () => {",
-            "  j.options.forEach(o => {",
-            "    pm.expect(o).to.have.property('category');",
-            "    pm.expect(o).to.have.property('recipe');",
-            "    pm.expect(o.explanation).to.be.a('string').and.not.empty;",
-            "    pm.expect(o).to.have.property('fitScore');",
-            "  });",
-            "});",
-            "pm.test('valid categories', () => {",
-            "  j.options.forEach(o => pm.expect(['fastest','healthiest','cheapest']).to.include(o.category));",
-            "});",
-            "console.log('aiPowered:', j.aiPowered, '| options:', j.options.length);"
-          ]}}],
+          "name": "6. AI Recommendations — basic",
           "request": {
             "method": "POST",
             "header": [
-              { "key": "Authorization", "value": "Bearer {{token}}" },
-              { "key": "Content-Type", "value": "application/json" }
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}",
+                "type": "text"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
             ],
-            "url": "{{base_url}}/recommendations",
+            "url": {
+              "raw": "{{base_url}}/recommendations",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "recommendations"
+              ]
+            },
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"mood\": \"tired\",\n  \"energyLevel\": 2,\n  \"stressLevel\": \"high\",\n  \"maxCookingTime\": 30\n}"
+              "raw": "{\n  \"mood\": \"tired\",\n  \"energyLevel\": 2,\n  \"stressLevel\": \"high\"\n}"
             }
-          }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"200\", () => pm.response.to.have.status(200));",
+                  "const j = pm.response.json();",
+                  "pm.test(\"3 options\", () => pm.expect(j.options).to.have.lengthOf(3));",
+                  "pm.test(\"fitScore present\", () => j.options.forEach(o => pm.expect(o).to.have.property(\"fitScore\")));",
+                  "pm.test(\"explanation present\", () => j.options.forEach(o => pm.expect(o.explanation).to.be.a(\"string\")));"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
         },
         {
           "name": "7. AI Recommendations — pantry + substitutions",
-          "event": [{ "listen": "test", "script": { "exec": [
-            "pm.test('200 OK', () => pm.response.to.have.status(200));",
-            "var j = pm.response.json();",
-            "pm.test('options have matchScore + missingIngredients + substitutions', () => {",
-            "  j.options.forEach(o => {",
-            "    pm.expect(o).to.have.property('matchScore');",
-            "    pm.expect(o).to.have.property('missingIngredients');",
-            "    pm.expect(o).to.have.property('substitutions');",
-            "  });",
-            "});",
-            "console.log('aiPowered:', j.aiPowered);"
-          ]}}],
           "request": {
             "method": "POST",
             "header": [
-              { "key": "Authorization", "value": "Bearer {{token}}" },
-              { "key": "Content-Type", "value": "application/json" }
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}",
+                "type": "text"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
             ],
-            "url": "{{base_url}}/recommendations",
+            "url": {
+              "raw": "{{base_url}}/recommendations",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "recommendations"
+              ]
+            },
             "body": {
               "mode": "raw",
               "raw": "{\n  \"mood\": \"tired\",\n  \"energyLevel\": 2,\n  \"useMyIngredients\": true\n}"
             }
-          }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"200\", () => pm.response.to.have.status(200));",
+                  "const j = pm.response.json();",
+                  "pm.test(\"matchScore\", () => j.options.forEach(o => pm.expect(o).to.have.property(\"matchScore\")));"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
         },
         {
-          "name": "8. Mood-Check History",
-          "event": [{ "listen": "test", "script": { "exec": [
-            "pm.test('200 OK', () => pm.response.to.have.status(200));",
-            "var j = pm.response.json();",
-            "pm.test('history has at least 1 entry', () => { pm.expect(j.total).to.be.above(0); pm.expect(j.moodChecks).to.be.an('array').and.not.empty; });"
-          ]}}],
+          "name": "8. List Recipes — check fatG/carbsG",
           "request": {
             "method": "GET",
-            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
-            "url": "{{base_url}}/mood-checks"
-          }
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/recipes",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "recipes"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"200\", () => pm.response.to.have.status(200));",
+                  "const j = pm.response.json(); if(j.recipes && j.recipes[0]) pm.collectionVariables.set(\"recipeId\", j.recipes[0].id);",
+                  "pm.test(\"fatG is number\", () => pm.expect(j.recipes[0].fatG).to.be.a(\"number\"));",
+                  "pm.test(\"carbsG is number\", () => pm.expect(j.recipes[0].carbsG).to.be.a(\"number\"));"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
         },
         {
-          "name": "9. Get Subscription Plans",
-          "event": [{ "listen": "test", "script": { "exec": [
-            "pm.test('200 OK', () => pm.response.to.have.status(200));",
-            "var j = pm.response.json();",
-            "pm.test('returns array of plans', () => pm.expect(j).to.be.an('array'));"
-          ]}}],
+          "name": "9. Add to Favorites",
           "request": {
-            "method": "GET",
-            "url": "{{base_url}}/subscriptions/plans"
-          }
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}",
+                "type": "text"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/favorites",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "favorites"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"recipeId\": \"{{recipeId}}\"\n}"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"201\", () => pm.response.to.have.status(201));",
+                  "const j = pm.response.json(); pm.collectionVariables.set(\"favoriteId\", j.favoriteId);"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
         },
         {
-          "name": "10. Get Wallet Balance",
-          "event": [{ "listen": "test", "script": { "exec": [
-            "pm.test('200 OK', () => pm.response.to.have.status(200));"
-          ]}}],
+          "name": "10. Get My Favorites",
           "request": {
             "method": "GET",
-            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
-            "url": "{{base_url}}/wallet"
-          }
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/favorites",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "favorites"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"200\", () => pm.response.to.have.status(200));",
+                  "pm.test(\"at least 1 favorite\", () => pm.expect(pm.response.json().total).to.be.gte(1));"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        },
+        {
+          "name": "11. Mood-Check History",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/mood-checks",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "mood-checks"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"200\", () => pm.response.to.have.status(200));"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        },
+        {
+          "name": "12. Get Subscription Plans",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/subscriptions/plans",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "subscriptions",
+                "plans"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"200\", () => pm.response.to.have.status(200));",
+                  "pm.test(\"2 plans\", () => pm.expect(pm.response.json().plans).to.have.lengthOf(2));"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        },
+        {
+          "name": "13. Get Wallet Balance",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/wallet",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "wallet"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"200\", () => pm.response.to.have.status(200));"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
         }
       ]
     }
-
+  ],
+  "variable": [
+    {
+      "key": "host",
+      "value": "https://moodfood-backend.onrender.com"
+    },
+    {
+      "key": "base_url",
+      "value": "{{host}}/api/v1"
+    },
+    {
+      "key": "token",
+      "value": ""
+    }
   ]
 }

@@ -102,6 +102,7 @@ model User {
 
   profile           UserProfile?
   pantryIngredients UserIngredient[]
+  favorites         UserFavorite[]
   orders            Order[]
   wallet            Wallet?
   subscriptions     UserSubscription[]
@@ -153,12 +154,15 @@ model Recipe {
   estimatedCost  Float?
   calories       Float?
   proteinG       Float?
+  fatG           Float?  @map("fat_g")
+  carbsG         Float?  @map("carbs_g")
   steps          String?
 
   // JSON array of mood tag strings, e.g., ["happy", "energetic"]
   moodTags Json @default("[]")
 
   recipeIngredients RecipeIngredient[]
+  favorites         UserFavorite[]
 
   @@map("recipes")
 }
@@ -300,6 +304,22 @@ model MoodCheck {
 
   @@index([userId, createdAt])
   @@map("mood_checks")
+}
+
+// ─── User Favorites ───────────────────────────────────────────────────────────
+
+model UserFavorite {
+  id        String   @id @default(uuid())
+  userId    String   @map("user_id")
+  recipeId  String   @map("recipe_id")
+  createdAt DateTime @default(now()) @map("created_at")
+
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  recipe Recipe @relation(fields: [recipeId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, recipeId])
+  @@index([userId, createdAt])
+  @@map("user_favorites")
 }
 
 // ─── User Pantry (ingredients available at home) ──────────────────────────────

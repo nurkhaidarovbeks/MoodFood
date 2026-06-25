@@ -13,6 +13,7 @@ import walletRoutes from './modules/wallet/wallet.routes'
 import subscriptionRoutes from './modules/subscription/subscription.routes'
 import recommendationRoutes from './modules/recommendations/recommendation.routes'
 import moodCheckRoutes from './modules/moodcheck/moodcheck.routes'
+import favoritesRoutes from './modules/favorites/favorites.routes'
 
 const app = express()
 
@@ -50,6 +51,7 @@ app.use('/api/v1/wallet', walletRoutes)
 app.use('/api/v1/subscriptions', subscriptionRoutes)
 app.use('/api/v1/recommendations', recommendationRoutes)
 app.use('/api/v1/mood-checks', moodCheckRoutes)
+app.use('/api/v1/favorites', favoritesRoutes)
 
 // ─── 404 handler ─────────────────────────────────────────────────────────────
 app.use((_req, res) => {

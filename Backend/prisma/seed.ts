@@ -10,6 +10,8 @@ const recipes = [
     estimatedCost: 2.5,
     calories: 320,
     proteinG: 8,
+    fatG: 8,
+    carbsG: 52,
     steps: 'Blend banana, oats, almond milk, and honey until smooth. Serve cold.',
     moodTags: ['happy', 'energetic', 'calm'],
     ingredients: [
@@ -26,6 +28,8 @@ const recipes = [
     estimatedCost: 6.0,
     calories: 450,
     proteinG: 42,
+    fatG: 18,
+    carbsG: 10,
     steps: 'Grill chicken breast, slice and serve over mixed greens with olive oil and lemon dressing.',
     moodTags: ['energetic', 'focused'],
     ingredients: [
@@ -43,6 +47,8 @@ const recipes = [
     estimatedCost: 3.0,
     calories: 380,
     proteinG: 18,
+    fatG: 8,
+    carbsG: 58,
     steps: 'Sauté onion and garlic, add lentils, tomatoes, cumin and turmeric. Simmer 25 minutes.',
     moodTags: ['calm', 'cozy', 'happy'],
     ingredients: [
@@ -62,6 +68,8 @@ const recipes = [
     estimatedCost: 4.0,
     calories: 410,
     proteinG: 16,
+    fatG: 22,
+    carbsG: 38,
     steps: 'Toast bread, mash avocado with salt and lemon, top with a fried egg.',
     moodTags: ['energetic', 'focused', 'happy'],
     ingredients: [
@@ -78,6 +86,8 @@ const recipes = [
     estimatedCost: 9.0,
     calories: 520,
     proteinG: 48,
+    fatG: 20,
+    carbsG: 28,
     steps: 'Cook quinoa per package. Pan-sear salmon fillet 4 min each side. Serve with steamed broccoli.',
     moodTags: ['focused', 'energetic'],
     ingredients: [
@@ -95,6 +105,8 @@ const recipes = [
     estimatedCost: 4.5,
     calories: 360,
     proteinG: 22,
+    fatG: 14,
+    carbsG: 28,
     steps: 'Press and cube tofu, stir-fry with mixed vegetables and soy sauce over high heat.',
     moodTags: ['energetic', 'calm'],
     ingredients: [
@@ -113,6 +125,8 @@ const recipes = [
     estimatedCost: 3.5,
     calories: 280,
     proteinG: 20,
+    fatG: 6,
+    carbsG: 36,
     steps: 'Layer Greek yogurt, granola and fresh berries in a glass. Drizzle honey on top.',
     moodTags: ['happy', 'calm', 'cozy'],
     ingredients: [
@@ -130,6 +144,8 @@ const recipes = [
     estimatedCost: 7.0,
     calories: 580,
     proteinG: 35,
+    fatG: 28,
+    carbsG: 40,
     steps: 'Brown ground beef with taco seasoning. Serve in tortillas with salsa, cheese and sour cream.',
     moodTags: ['happy', 'cozy'],
     ingredients: [
@@ -148,6 +164,8 @@ const recipes = [
     estimatedCost: 5.5,
     calories: 490,
     proteinG: 12,
+    fatG: 18,
+    carbsG: 72,
     steps: 'Sauté mushrooms, add arborio rice, ladle warm broth gradually, finish with parmesan.',
     moodTags: ['cozy', 'calm'],
     ingredients: [
@@ -167,6 +185,8 @@ const recipes = [
     estimatedCost: 4.0,
     calories: 430,
     proteinG: 20,
+    fatG: 14,
+    carbsG: 58,
     steps: 'Roast chickpeas with spices. Serve over rice with roasted sweet potato, spinach and tahini.',
     moodTags: ['calm', 'happy', 'energetic'],
     ingredients: [
@@ -188,6 +208,8 @@ const recipes = [
     estimatedCost: 3.5,
     calories: 480,
     proteinG: 38,
+    fatG: 8,
+    carbsG: 58,
     steps: 'Warm cooked rice, flake canned tuna on top, add corn and a drizzle of olive oil.',
     moodTags: ['energetic', 'focused'],
     ingredients: [
@@ -204,6 +226,8 @@ const recipes = [
     estimatedCost: 3.0,
     calories: 420,
     proteinG: 16,
+    fatG: 12,
+    carbsG: 62,
     steps: 'Fry day-old rice with beaten eggs, peas, carrot and a splash of soy sauce.',
     moodTags: ['cozy', 'happy', 'energetic'],
     ingredients: [
@@ -221,6 +245,8 @@ const recipes = [
     estimatedCost: 3.0,
     calories: 450,
     proteinG: 18,
+    fatG: 10,
+    carbsG: 72,
     steps: 'Warm a tortilla, fill with spiced black beans, rice, corn and salsa, then roll.',
     moodTags: ['happy', 'energetic', 'cozy'],
     ingredients: [
@@ -238,6 +264,8 @@ const recipes = [
     estimatedCost: 2.0,
     calories: 380,
     proteinG: 14,
+    fatG: 12,
+    carbsG: 58,
     steps: 'Cook oats with milk, stir in peanut butter and top with banana slices.',
     moodTags: ['cozy', 'calm', 'happy'],
     ingredients: [
@@ -254,6 +282,8 @@ const recipes = [
     estimatedCost: 6.5,
     calories: 500,
     proteinG: 40,
+    fatG: 14,
+    carbsG: 38,
     steps: 'Brown ground turkey, roast sweet potato cubes, combine with spinach and olive oil.',
     moodTags: ['energetic', 'focused'],
     ingredients: [
@@ -270,6 +300,8 @@ const recipes = [
     estimatedCost: 3.5,
     calories: 180,
     proteinG: 10,
+    fatG: 6,
+    carbsG: 18,
     steps: 'Simmer vegetable broth, whisk in miso paste, add tofu cubes, spring onion and seaweed.',
     moodTags: ['calm', 'cozy'],
     ingredients: [
@@ -286,6 +318,8 @@ const recipes = [
     estimatedCost: 3.0,
     calories: 240,
     proteinG: 24,
+    fatG: 4,
+    carbsG: 28,
     steps: 'Spoon cottage cheese into a bowl, top with mixed berries and a few seeds.',
     moodTags: ['calm', 'happy'],
     ingredients: [
@@ -302,6 +336,8 @@ const recipes = [
     estimatedCost: 7.0,
     calories: 600,
     proteinG: 32,
+    fatG: 22,
+    carbsG: 60,
     steps: 'Simmer pork belly in broth, cook ramen noodles, top with a soft-boiled egg and scallions.',
     moodTags: ['cozy', 'happy'],
     ingredients: [
@@ -319,6 +355,8 @@ const recipes = [
     estimatedCost: 3.0,
     calories: 300,
     proteinG: 20,
+    fatG: 18,
+    carbsG: 8,
     steps: 'Sauté mushrooms and spinach, pour over beaten eggs and fold the omelette.',
     moodTags: ['energetic', 'focused', 'calm'],
     ingredients: [
@@ -335,6 +373,8 @@ const recipes = [
     estimatedCost: 3.5,
     calories: 360,
     proteinG: 12,
+    fatG: 12,
+    carbsG: 50,
     steps: 'Spread hummus on a tortilla, add cucumber, bell pepper and greens, then roll.',
     moodTags: ['calm', 'happy', 'energetic'],
     ingredients: [
@@ -394,6 +434,8 @@ async function main() {
         estimatedCost: r.estimatedCost,
         calories: r.calories,
         proteinG: r.proteinG,
+        fatG: (r as any).fatG ?? null,
+        carbsG: (r as any).carbsG ?? null,
         steps: r.steps,
         moodTags: r.moodTags,
       },
