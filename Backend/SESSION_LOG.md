@@ -420,19 +420,536 @@ External Database URL берётся в Render Dashboard → PostgreSQL → Info
 
 ---
 
-## Следующий шаг — Epic 3 Frontend + Epic 4
+## Сессия 7 — 17 июня 2026 (Epic 4: Payment — Bereke + PayPal)
 
-- Epic 3 Frontend: Pantry экран, Recipes экран, Recommendations экран (всё API готово)
-- Epic 4: AI рекомендации по настроению (Mood-check → рецепты)
-- Избранное / сохранённые рецепты
+> Автор: Nurkhaidarov Beksultan & Marlen Bahtiyar | Модель: Claude Sonnet 4.6
+
+### Новые таблицы БД
+
+**Миграция:** `add_orders`
+
+**Новые enum'ы в schema.prisma:**
+- `OrderStatus`: `created → pending → paid → fulfilled → completed → failed → refunded → cancelled`
+- `PaymentGateway`: `paypal` (единственный шлюз)
+
+**Новая модель `Order`:**
+```
+id, userId, amount, currency, status, orderType (purchase/topup/subscription),
+gateway, gatewayOrderId, paymentUrl, transactionId, description,
+createdAt, updatedAt
+```
+
+### Новые сервисы
+
+| Файл | Описание |
+|------|---------|
+| `src/services/paypal.service.ts` | `getPayPalToken`, `createPayPalOrder`, `capturePayPalOrder` — PayPal REST API |
+
+**PayPal API:**
+- `POST /v1/oauth2/token` → Bearer token (Client Credentials)
+- `POST /v2/checkout/orders` — создаёт ордер, возвращает `approvalUrl`
+- `POST /v2/checkout/orders/:id/capture` — захват средств после аппрува пользователем
+
+### Модуль `src/modules/payment/`
+
+| Файл | Описание |
+|------|---------|
+| `payment.schema.ts` | Zod: `CheckoutSchema` (amount, gateway, orderType), `RefundSchema` |
+| `payment.service.ts` | State machine + idempotency + `creditWallet` + `activateSubscriptionForOrder` |
+| `payment.controller.ts` | HTTP handlers |
+| `payment.routes.ts` | 6 роутов |
+
+**State machine `VALID_TRANSITIONS`:**
+```
+created   → pending, cancelled
+pending   → paid, failed, cancelled
+paid      → fulfilled, refunded
+fulfilled → completed, refunded
+failed    → pending
+completed → (terminal)
+refunded  → (terminal)
+cancelled → (terminal)
+```
+Невалидный переход бросает `AppError(400, INVALID_STATUS_TRANSITION)`.
+
+**Idempotency:** `POST /checkout` с теми же параметрами в течение 5 минут возвращает существующий pending-ордер без повторного вызова PayPal API.
+
+### API эндпоинты `/api/v1/payment`
+
+| Метод | Путь | Auth | Описание |
+|-------|------|------|---------|
+| `POST` | `/checkout` | JWT | Создать ордер → получить PayPal `approvalUrl` |
+| `GET` | `/paypal/success?token=` | — | PayPal редирект после оплаты → capture |
+| `GET` | `/paypal/cancel?token=` | — | PayPal редирект при отмене |
+| `GET` | `/orders` | JWT | Список своих ордеров |
+| `GET` | `/orders/:id` | JWT | Один ордер (только свой) |
+| `POST` | `/orders/:id/refund` | JWT | Возврат (смена статуса на refunded) |
+
+### Env переменные
+
+```bash
+PAYPAL_CLIENT_ID=           # developer.paypal.com → My Apps
+PAYPAL_CLIENT_SECRET=
+PAYPAL_BASE_URL=https://api-m.sandbox.paypal.com
+PAYPAL_RETURN_URL=https://moodfood-backend.onrender.com/api/v1/payment/paypal/success
+PAYPAL_CANCEL_URL=https://moodfood-backend.onrender.com/api/v1/payment/paypal/cancel
+```
+
+### Тесты
+
+| Файл | Кол-во | Что тестирует |
+|------|--------|-------------|
+| `tests/payment.test.ts` | 20 | State machine, PayPal checkout/success/cancel, idempotency, orders CRUD, refund |
+
+### Запуск миграции
+
+```powershell
+docker-compose up -d postgres
+npx --no-install prisma migrate dev --name add_orders
+```
+
+---
+
+## Сессия 8 — 18 июня 2026 (Wallet: пополнение баланса)
+
+> Автор: Nurkhaidarov Beksultan & Marlen Bahtiyar | Модель: Claude Sonnet 4.6
+
+### Новые таблицы БД
+
+**Миграция:** `add_wallet`
+
+**Новые enum'ы в schema.prisma:**
+- `OrderType`: `purchase | topup`
+- `TransactionType`: `topup | payment | refund`
+
+**Новая модель `Wallet`:**
+```
+id, userId (unique), balance, createdAt, updatedAt
+```
+
+**Новая модель `WalletTransaction`:**
+```
+id, walletId, orderId (unique, nullable), amount, currency, type, description, createdAt
+```
+
+**Изменения в `Order`:**
+- Добавлено поле `orderType: OrderType @default(purchase)`
+- Добавлена relation `walletTx WalletTransaction?`
+
+### Новый модуль `src/modules/wallet/`
+
+| Файл | Описание |
+|------|---------|
+| `wallet.schema.ts` | Zod: `TopupSchema`, `WalletTransactionsQuerySchema` |
+| `wallet.service.ts` | `getWallet`, `getTransactions`, `getBalance`, `debitWallet` |
+| `wallet.controller.ts` | HTTP handlers |
+| `wallet.routes.ts` | 3 роута, все под `requireAuth` |
+
+### Логика пополнения баланса
+
+**Флоу:**
+1. `POST /api/v1/wallet/topup { amount, gateway }` → создаёт `Order` с `orderType: topup` → возвращает payment URL
+2. Пользователь оплачивает через Bereke/PayPal
+3. При подтверждении PayPal оплаты (`/paypal/success`) → атомарная транзакция:
+   - `Order.status` → `paid`
+   - `Wallet.balance` +amount (upsert — создаёт кошелёк если нет)
+   - Создаётся `WalletTransaction` с `type: topup`
+4. `GET /api/v1/wallet` → текущий баланс + последние 20 транзакций
+
+**Idempotency:** повторный `POST /topup` с теми же параметрами в течение 5 мин возвращает существующий pending ордер.
+
+**`debitWallet`** — метод для будущего списания баланса. Проверяет `INSUFFICIENT_BALANCE` перед дебетом.
+
+### Изменения в `payment.service.ts`
+
+- `checkout()` принимает `orderType` и сохраняет в Order
+- Приватный метод `creditWallet(userId, amount, currency, orderId)` — вызывается в `handlePaypalSuccess` если `orderType === topup`
+- Обычные `purchase` ордера кошелёк не затрагивают
+
+### Новые API эндпоинты `/api/v1/wallet`
+
+| Метод | Путь | Auth | Описание |
+|-------|------|------|---------|
+| `GET` | `/` | JWT | Текущий баланс + последние 20 транзакций |
+| `GET` | `/transactions?limit=&offset=` | JWT | Полная история транзакций с пагинацией |
+| `POST` | `/topup` | JWT | Пополнить баланс — возвращает `{ orderId, paymentUrl }` |
+
+### Тесты
+
+| Файл | Кол-во | Что тестирует |
+|------|--------|-------------|
+| `tests/wallet.test.ts` | 13 | getWallet, getTransactions, getBalance, debitWallet (insufficient/not found), topup checkout, idempotency, wallet credit on PayPal success, no credit for purchase |
+
+**Итого тестов: 124 (было 113, +11 wallet) — все зелёные**
+
+---
+
+## Сессия 9 — 18 июня 2026 (Subscriptions: Monthly + Annual)
+
+> Автор: Nurkhaidarov Beksultan & Marlen Bahtiyar | Модель: Claude Sonnet 4.6
+
+### Новые таблицы БД
+
+**Миграция:** `add_subscriptions`
+
+**Новые enum'ы в schema.prisma:**
+- `SubscriptionPlanType`: `monthly | annual`
+- `SubscriptionStatus`: `pending | active | cancelled | expired`
+- `OrderType` расширен: +`subscription`
+
+**Новая модель `SubscriptionPlan`:**
+```
+id, type (unique), name, priceKzt, priceUsd, durationDays, description, isActive, createdAt, updatedAt
+```
+
+**Новая модель `UserSubscription`:**
+```
+id, userId, planId, orderId (unique), status, startedAt, expiresAt, createdAt, updatedAt
+```
+
+### Тарифы (seed)
+
+| Тариф | KZT | USD | Дней |
+|-------|-----|-----|------|
+| Monthly | 2,990 | $9.99 | 30 |
+| Annual | 24,990 | $79.99 | 365 (-30%) |
+
+Seed запускается: `npx --no-install ts-node prisma/seed.ts`
+
+### Новый модуль `src/modules/subscription/`
+
+| Файл | Описание |
+|------|---------|
+| `subscription.schema.ts` | Zod: `SubscribeSchema` |
+| `subscription.service.ts` | getPlans, subscribe, getMySubscription, hasActiveSubscription, cancelSubscription |
+| `subscription.controller.ts` | HTTP handlers |
+| `subscription.routes.ts` | 4 роута |
+
+### Логика подписки
+
+**Флоу оформления:**
+1. `POST /api/v1/subscriptions/subscribe { planType, gateway }` → создаёт `Order` (orderType: subscription) + pending `UserSubscription` → возвращает `paymentUrl`
+2. Пользователь оплачивает через PayPal
+3. При подтверждении PayPal оплаты (`/paypal/success`):
+   - Предыдущая активная подписка → `cancelled`
+   - Новая подписка → `active`, `startedAt = now`, `expiresAt = now + durationDays`
+   - Всё атомарно в `$transaction`
+
+**Idempotency:** повторный `/subscribe` с теми же параметрами в течение 5 мин возвращает существующий pending ордер.
+
+**Soft cancel:** `DELETE /me` меняет статус на `cancelled`, но доступ сохраняется до `expiresAt`.
+
+**Auto-expire:** `getMySubscription` автоматически помечает просроченные подписки как `expired`.
+
+### Изменения в `payment.service.ts`
+
+- Приватный метод `activateSubscriptionForOrder(order)` — ищет `UserSubscription` по `orderId`, активирует
+- Вызывается в `handlePaypalSuccess` при `orderType === subscription`
+
+### Новые API эндпоинты `/api/v1/subscriptions`
+
+| Метод | Путь | Auth | Описание |
+|-------|------|------|---------|
+| `GET` | `/plans` | — | Список тарифов (публичный) |
+| `GET` | `/me` | JWT | Текущая подписка пользователя |
+| `POST` | `/subscribe` | JWT | Оформить подписку → `{ orderId, paymentUrl }` |
+| `DELETE` | `/me` | JWT | Отменить подписку (soft cancel) |
+
+### Тесты
+
+| Файл | Кол-во | Что тестирует |
+|------|--------|-------------|
+| `tests/subscription.test.ts` | 14 | getPlans, subscribe (PayPal), idempotency, plan not found, getMySubscription, auto-expiry, hasActive, cancel, activation + cancel previous |
+
+**Итого тестов: 138 (было 124, +14 subscription) — все зелёные**
+
+---
+
+## Сессия 10 — 19 июня 2026 (Epic 4: PayPal only + CI fix + credentials)
+
+> Автор: Marlen Bahtiyar | Модель: Claude Sonnet 4.6
+
+### Bereke Bank полностью удалён
+
+Причина: безопасность (открытый доступ к credentials) + упрощение стека.
+
+**Что удалено:**
+- `src/services/bereke.service.ts` — очищен
+- `BEREKE_*` переменные из `env.ts`, `.env`, `.env.example`
+- `bereke` из `PaymentGateway` enum в Prisma схеме
+- Эндпоинты `/payment/success`, `/payment/fail`, `/payment/callback` (Bereke-специфичные)
+- Методы `handleBereSuccess`, `handleBereFail`, `handleBereCallback` из payment.service
+- Все Bereke моки из тестов
+
+**Единственный платёжный шлюз теперь:** PayPal
+
+### PayPal credentials подтверждены
+
+Добавлен скрипт `scripts/test-paypal.ts`:
+```powershell
+npx --no-install ts-node scripts/test-paypal.ts
+```
+Результат: ✅ токен получен, тестовый ордер `$1.00` создан, approval URL сгенерирован.
+
+**Sandbox тест-аккаунты:** developer.paypal.com → Sandbox → Accounts
+
+### CI/CD фикс
+
+Исправлена TypeScript ошибка в `src/modules/wallet/wallet.controller.ts`:
+```typescript
+// Было (ошибка TS2352):
+req.query as { limit: number; offset: number }
+
+// Стало:
+req.query as unknown as { limit: number; offset: number }
+```
+
+### Итоговый список эндпоинтов Epic 4 (актуальный)
+
+**Payment (`/api/v1/payment`):**
+- `POST /checkout` — `{ amount, gateway: "paypal", orderType }` → `{ paymentUrl }`
+- `GET /paypal/success?token=` — capture после оплаты
+- `GET /paypal/cancel?token=` — отмена
+- `GET /orders` — история ордеров
+- `GET /orders/:id` — один ордер
+- `POST /orders/:id/refund` — возврат
+
+**Wallet (`/api/v1/wallet`):**
+- `GET /` — баланс + последние 20 транзакций
+- `GET /transactions?limit=&offset=` — полная история
+- `POST /topup` — `{ amount, gateway: "paypal" }` → `{ paymentUrl }`
+
+**Subscriptions (`/api/v1/subscriptions`):**
+- `GET /plans` — тарифы (публичный)
+- `GET /me` — текущая подписка
+- `POST /subscribe` — `{ planType: "monthly"|"annual", gateway: "paypal" }` → `{ paymentUrl }`
+- `DELETE /me` — soft cancel
+
+### Тесты после рефакторинга
+
+**Итого тестов: 131 — все зелёные** (141 было до удаления Bereke)
+
+---
+
+## Сессия 10 — 19 июня 2026 (Epic 4 по плану MoodFood: AI-рекомендации по настроению)
+
+> Автор: Nurkhaidarov Beksultan | Модель: Claude Opus 4.8
+
+> ⚠️ Нумерация эпиков разошлась: «Epic 4» в коммитах команды = Payment, а **Epic 4 по
+> исходному документу MoodFood = AI Meal Recommendations** — именно его реализует эта сессия
+> (был в «Следующий шаг» как «AI рекомендации по настроению»).
+
+### Сначала — починка: устаревший Prisma client
+
+После `git pull` 3 сьюта (payment, subscription, wallet) **не запускались** —
+`@prisma/client` не содержал моделей Order/Subscription/Wallet (клиент не был
+перегенерирован после добавления схемы). Тесты: «84 passed, но 3 suite failed».
+
+**Фикс:** `npx prisma generate` → **141 тест зелёный** (84 + 29 payment + 14 wallet + 14 subscription).
+Это и был «не все тесты были добавлены» — они были, но не компилировались.
+
+### Epic 4 — AI Meal Recommendations
+
+**Новый эндпоинт (JWT):**
+
+| Метод | Путь | Описание |
+|-------|------|---------|
+| `POST` | `/api/v1/recommendations` | Mood-check → 3 варианта (fastest / healthiest / cheapest) + AI-объяснение |
+
+**Тело запроса** (всё опционально):
+```json
+{
+  "mood": "tired",
+  "energyLevel": 2,            // 1–5
+  "stressLevel": "high",       // low | medium | high
+  "sleepQuality": "poor",      // poor | normal | good
+  "hungerLevel": "high",       // low | medium | high
+  "budgetLevel": "low",        // переопределяет профиль
+  "maxCookingTime": 20,        // только быстрые рецепты ≤ N мин
+  "useMyIngredients": true     // матч по кладовке + замены ингредиентов
+}
+```
+
+**Пайплайн (безопасный, по плану §13.3):**
+`вход → фильтр по диете (hard) → фильтр по времени → скоринг по состоянию → выбор 3 → AI-объяснение → JSON`
+
+**Новые файлы:**
+| Файл | Описание |
+|------|---------|
+| `src/modules/recommendations/recommendation.scoring.ts` | Чистые функции: `stateFitScore`, `selectThreeOptions`, `suggestSubstitutions` (правила §12.4) |
+| `src/modules/recommendations/recommendation.schema.ts` | Zod `RecommendationRequestSchema` |
+| `src/modules/recommendations/recommendation.service.ts` | Оркестрация (DI: prisma + MealAiService) |
+| `src/modules/recommendations/recommendation.controller.ts` | HTTP handler |
+| `src/modules/recommendations/recommendation.routes.ts` | `POST /` под `requireAuth` |
+| `src/services/meal-ai.service.ts` | Claude API (Anthropic SDK) + rule-based fallback |
+
+**Скоринг (правила состояния):**
+- Низкая энергия (energy ≤ 2 / mood tired) → белок + сложные углеводы, штраф за сахар
+- Высокий стресс → простые сбалансированные блюда, штраф за тяжёлые (>650 ккал)
+- Плохой сон → лёгкие блюда (≤450 ккал), штраф за тяжёлые (>600)
+- Сильный голод → сытные (белок + калории)
+- 3 варианта **всегда разные рецепты**: healthiest (макс fit) → fastest (мин время) → cheapest (мин цена)
+
+**AI-слой (`MealAiService`):**
+- Если `ANTHROPIC_API_KEY` задан → один batched-вызов Claude (модель из `ANTHROPIC_MODEL`,
+  по умолчанию `claude-haiku-4-5`), система-промпт с правилами безопасности (НЕ медицинские советы, §12.5)
+- Если ключа нет (dev / CI / тесты) → **детерминированный rule-based fallback** → приложение и тесты
+  работают полностью офлайн, без сетевых вызовов и затрат
+- `aiPowered: boolean` в ответе показывает, какой путь сработал
+
+**Замены ингредиентов (Epic 4 «alternatives»):** при `useMyIngredients` к каждому варианту
+добавляются `matchScore`, `missingIngredients`, `substitutions` (например chicken → eggs/beans),
+причём замены отфильтрованы по ограничениям пользователя.
+
+**Новые env:** `ANTHROPIC_API_KEY` (опц.), `ANTHROPIC_MODEL` (по умолч. `claude-haiku-4-5`).
+
+**Новая зависимость:** `@anthropic-ai/sdk`.
+
+### Тесты
+
+| Файл | Кол-во | Что тестирует |
+|------|--------|-------------|
+| `tests/recommendation-scoring.test.ts` | 16 | Детекция состояния, fit-скоринг, выбор 3, замены |
+| `tests/recommendation.test.ts` | 8 | Пайплайн, диета (hard), время, кладовка, 404, без профиля |
+| `tests/meal-ai.test.ts` | 6 | Fallback без ключа, не-медицинский текст, формат |
+
+**Итого тестов: 171 (было 141, +30) — все зелёные.** Никаких сетевых вызовов в тестах.
+
+### Ручная проверка
+```powershell
+docker-compose up -d postgres
+npx --no-install ts-node prisma/seed.ts        # 10 рецептов
+npm run dev
+# POST http://localhost:3000/api/v1/recommendations  (Bearer <jwt>)
+# { "mood": "tired", "energyLevel": 2, "maxCookingTime": 20 }
+```
+
+---
+
+## Сессия 11 — 19 июня 2026 (Epic 2 по плану MoodFood: Mood-check + история)
+
+> Автор: Nurkhaidarov Beksultan | Модель: Claude Opus 4.8
+
+Закрыл недостающую backend-часть Epic 2 (по документу) — **сохранение чек-инов
+состояния в БД и история** (бэклог-пункт «Mood history»). Раньше состояние только
+принималось в `/recommendations`, но нигде не хранилось.
+
+**Новая модель `MoodCheck`** (миграция `add_mood_checks`):
+```
+id, userId, mood, energyLevel (1–5), stressLevel, sleepQuality, hungerLevel, createdAt
+@@index([userId, createdAt])
+```
+Поля состояния — nullable String/Int (валидация через Zod, как в `/recommendations`).
+
+**Новый модуль `src/modules/moodcheck/`:** schema / service / controller / routes.
+
+**Новые эндпоинты `/api/v1/mood-checks` (все JWT):**
+
+| Метод | Путь | Описание |
+|-------|------|---------|
+| `POST` | `/mood-checks` | Записать чек-ин (нужно ≥1 поле) |
+| `GET` | `/mood-checks` | История (пагинация, newest-first) |
+| `GET` | `/mood-checks/latest` | Последний чек-ин (или `null`) |
+
+**Тесты:** `tests/moodcheck.test.ts` — 5 (create с null-заполнением, история + пагинация, latest, пустой latest).
+
+**Итого тестов: 176 (было 171, +5) — все зелёные.**
+
+> Миграции в репозитории рассинхронены (для orders/wallet/subscription нет папок —
+> схема = источник правды). Для mood_checks **добавил готовую миграцию** вручную:
+> `prisma/migrations/20260619090000_add_mood_checks/migration.sql`. Применить:
+> `npx --no-install prisma migrate deploy` (или `prisma db push`) когда поднят Postgres.
+
+---
+
+---
+
+## Сессия 13 — 24 июня 2026 (OpenAI switch + PayPal fix + Postman)
+
+> Автор: Nurkhaidarov Beksultan | Модель: Claude Sonnet 4.6 | Ветка: `feature/epic2-epic4-ai-recommendations`
+
+### 1. Переключение с Anthropic на OpenAI (GPT-4o-mini)
+
+**Причина:** GPT-4o-mini в ~5-6 раз дешевле Claude Haiku для коротких объяснений блюд.
+
+**Изменения:**
+- Удалён пакет `@anthropic-ai/sdk`, установлен `openai`
+- `src/services/meal-ai.service.ts` переписан: `client.messages.create` → `client.chat.completions.create`
+- `src/config/env.ts`: `ANTHROPIC_API_KEY` / `ANTHROPIC_MODEL` → `OPENAI_API_KEY` / `OPENAI_MODEL`
+- `OPENAI_MODEL` по умолчанию: `gpt-4o-mini`
+- Rule-based fallback и логика `withFallback` — без изменений
+
+**На Render нужно добавить:**
+```
+OPENAI_API_KEY=sk-proj-...   (ключ из platform.openai.com, проект "Moodfood")
+```
+
+**166 тестов — все зелёные** (тесты работают офлайн через rule-based fallback, без вызова API).
+
+### 2. Фикс PayPal 500
+
+**Проблема:** `data.links.find(...)` падал с TypeError когда PayPal возвращал ответ об ошибке (нет учётных данных в Render) → 500 вместо понятного сообщения.
+
+**Фикс в `src/services/paypal.service.ts`:**
+- Добавлен `readPayPalError(res, context)` — читает тело ошибки PayPal, бросает `AppError(502, ...)`
+- Во всех 3 функциях: `if (!res.ok) await readPayPalError(res, ...)`
+- Guard `PAYPAL_NOT_CONFIGURED` — `AppError(500)` если нет CLIENT_ID/SECRET
+- `data.links?.find(...)` — null-safe
+
+**На Render нужны переменные:**
+```
+PAYPAL_CLIENT_ID=...
+PAYPAL_CLIENT_SECRET=...
+PAYPAL_BASE_URL=https://api-m.sandbox.paypal.com
+PAYPAL_RETURN_URL=https://moodfood-backend.onrender.com/api/v1/payment/paypal/success
+PAYPAL_CANCEL_URL=https://moodfood-backend.onrender.com/api/v1/payment/paypal/cancel
+```
+
+### 3. Полное обновление Postman-коллекции
+
+Файл: `Backend/moodfood.postman_collection.json`  
+`host` = `https://moodfood-backend.onrender.com`
+
+**Новые разделы:**
+- 💳 Payment (checkout, orders, refund, PayPal callbacks)
+- 👛 Wallet (баланс, пополнение, транзакции)
+- 📦 Subscriptions (планы, подписка, отмена)
+
+**Step-by-Step Test** расширен до **10 шагов** с автоматическими `pm.test` проверками:
+1. Register (saves token) / 1b. Login
+2. Fill Profile
+3. Add Pantry Ingredients
+4. Create Mood-Check
+5. Get Latest Mood-Check
+6. AI Recommendations (basic) — проверяет `options`, `category`, `fitScore`, `explanation`
+7. AI Recommendations (pantry + substitutions) — проверяет `matchScore`, `missingIngredients`
+8. Mood-Check History
+9. Get Subscription Plans
+10. Get Wallet Balance
+
+---
+
+## Следующий шаг
+
+- Добавить на Render env-переменные: `OPENAI_API_KEY`, все `PAYPAL_*`
+- Избранное / сохранённые рецепты (Epic 5)
+- Water tracking
+- Habit analytics / weekly tips
 - Сброс пароля
 - Rate limiting на login/register
 
 ---
 
-*Сессия 1: 30 мая 2026 — Epic 1 Backend (36 тестов)*  
-*Сессия 2: 2 июня 2026 — Apple/OTP/SQL/Git (55 тестов)*  
-*Сессия 3: 6 июня 2026 — Epic 2 Backend, рецепты (77 тестов)*  
-*Сессия 5: 11 июня 2026 — Infra (Docker/CI/CD) + Epic 3 Pantry (84 тестов)*  
-*Сессия 6: 13 июня 2026 — Render деплой + CD pipeline + скрипты под Render*  
+*Сессия 1: 30 мая 2026 — Epic 1 Backend (36 тестов)*
+*Сессия 2: 2 июня 2026 — Apple/OTP/SQL/Git (55 тестов)*
+*Сессия 3: 6 июня 2026 — Epic 2 Backend, рецепты (77 тестов)*
+*Сессия 5: 11 июня 2026 — Infra (Docker/CI/CD) + Epic 3 Pantry (84 тестов)*
+*Сессия 6: 13 июня 2026 — Render деплой + CD pipeline + скрипты под Render*
+*Сессия 7: 17 июня 2026 — Epic 4 Payment: PayPal + state machine (84+20 тестов)*
+*Сессия 8: 18 июня 2026 — Wallet: пополнение баланса + транзакции*
+*Сессия 9: 18 июня 2026 — Subscriptions: Monthly + Annual тарифы*
+*Сессия 10: 19 июня 2026 — Bereke удалён, PayPal only, credentials ✅, CI fix (131 тест)*
+*Сессия 11: 19 июня 2026 — Epic 4: AI-рекомендации по настроению (171 тест)*
+*Сессия 12: 19 июня 2026 — Epic 2: Mood-check + история чек-инов (176 тестов)*
+*Сессия 13: 24 июня 2026 — OpenAI switch (gpt-4o-mini) + PayPal fix + Postman полная (166 тестов)*
 

@@ -30,7 +30,7 @@ jobs:
         working-directory: Backend
         run: npx prisma generate
 
-      - name: Run tests (84 unit tests)
+      - name: Run tests
         working-directory: Backend
         env:
           DATABASE_URL: postgresql://mock:mock@localhost:5432/mock

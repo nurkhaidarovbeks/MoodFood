@@ -179,12 +179,213 @@ const recipes = [
       { name: 'cumin', category: 'spice', amount: '1', unit: 'tsp' },
     ],
   },
+
+  // ─── Added for Epic 4 testing — fast, cheap, varied state/diet coverage ──────
+  {
+    title: 'Tuna Rice Bowl',
+    cookingTimeMin: 10,
+    difficulty: 'easy',
+    estimatedCost: 3.5,
+    calories: 480,
+    proteinG: 38,
+    steps: 'Warm cooked rice, flake canned tuna on top, add corn and a drizzle of olive oil.',
+    moodTags: ['energetic', 'focused'],
+    ingredients: [
+      { name: 'canned tuna', category: 'fish', amount: '1', unit: 'can' },
+      { name: 'white rice', category: 'grain', amount: '120', unit: 'g' },
+      { name: 'sweet corn', category: 'vegetable', amount: '80', unit: 'g' },
+      { name: 'olive oil', category: 'oil', amount: '1', unit: 'tbsp' },
+    ],
+  },
+  {
+    title: 'Egg Fried Rice',
+    cookingTimeMin: 15,
+    difficulty: 'easy',
+    estimatedCost: 3.0,
+    calories: 420,
+    proteinG: 16,
+    steps: 'Fry day-old rice with beaten eggs, peas, carrot and a splash of soy sauce.',
+    moodTags: ['cozy', 'happy', 'energetic'],
+    ingredients: [
+      { name: 'white rice', category: 'grain', amount: '150', unit: 'g' },
+      { name: 'eggs', category: 'dairy', amount: '2', unit: 'pcs' },
+      { name: 'green peas', category: 'vegetable', amount: '60', unit: 'g' },
+      { name: 'carrot', category: 'vegetable', amount: '1', unit: 'pc' },
+      { name: 'soy sauce', category: 'condiment', amount: '2', unit: 'tbsp' },
+    ],
+  },
+  {
+    title: 'Black Bean Burrito',
+    cookingTimeMin: 15,
+    difficulty: 'easy',
+    estimatedCost: 3.0,
+    calories: 450,
+    proteinG: 18,
+    steps: 'Warm a tortilla, fill with spiced black beans, rice, corn and salsa, then roll.',
+    moodTags: ['happy', 'energetic', 'cozy'],
+    ingredients: [
+      { name: 'black beans', category: 'legume', amount: '200', unit: 'g' },
+      { name: 'flour tortilla', category: 'grain', amount: '1', unit: 'pc' },
+      { name: 'white rice', category: 'grain', amount: '80', unit: 'g' },
+      { name: 'sweet corn', category: 'vegetable', amount: '60', unit: 'g' },
+      { name: 'salsa', category: 'condiment', amount: '60', unit: 'g' },
+    ],
+  },
+  {
+    title: 'Peanut Butter Oatmeal',
+    cookingTimeMin: 7,
+    difficulty: 'easy',
+    estimatedCost: 2.0,
+    calories: 380,
+    proteinG: 14,
+    steps: 'Cook oats with milk, stir in peanut butter and top with banana slices.',
+    moodTags: ['cozy', 'calm', 'happy'],
+    ingredients: [
+      { name: 'rolled oats', category: 'grain', amount: '60', unit: 'g' },
+      { name: 'milk', category: 'dairy', amount: '200', unit: 'ml' },
+      { name: 'peanut butter', category: 'nuts', amount: '1', unit: 'tbsp' },
+      { name: 'banana', category: 'fruit', amount: '1', unit: 'pc' },
+    ],
+  },
+  {
+    title: 'Turkey Sweet Potato Bowl',
+    cookingTimeMin: 25,
+    difficulty: 'medium',
+    estimatedCost: 6.5,
+    calories: 500,
+    proteinG: 40,
+    steps: 'Brown ground turkey, roast sweet potato cubes, combine with spinach and olive oil.',
+    moodTags: ['energetic', 'focused'],
+    ingredients: [
+      { name: 'ground turkey', category: 'meat', amount: '200', unit: 'g' },
+      { name: 'sweet potato', category: 'vegetable', amount: '1', unit: 'pc' },
+      { name: 'spinach', category: 'vegetable', amount: '60', unit: 'g' },
+      { name: 'olive oil', category: 'oil', amount: '1', unit: 'tbsp' },
+    ],
+  },
+  {
+    title: 'Miso Vegetable Soup',
+    cookingTimeMin: 15,
+    difficulty: 'easy',
+    estimatedCost: 3.5,
+    calories: 180,
+    proteinG: 10,
+    steps: 'Simmer vegetable broth, whisk in miso paste, add tofu cubes, spring onion and seaweed.',
+    moodTags: ['calm', 'cozy'],
+    ingredients: [
+      { name: 'miso paste', category: 'soy', amount: '2', unit: 'tbsp' },
+      { name: 'tofu', category: 'soy', amount: '100', unit: 'g' },
+      { name: 'vegetable broth', category: 'liquid', amount: '500', unit: 'ml' },
+      { name: 'spring onion', category: 'vegetable', amount: '2', unit: 'pcs' },
+    ],
+  },
+  {
+    title: 'Cottage Cheese & Berry Bowl',
+    cookingTimeMin: 5,
+    difficulty: 'easy',
+    estimatedCost: 3.0,
+    calories: 240,
+    proteinG: 24,
+    steps: 'Spoon cottage cheese into a bowl, top with mixed berries and a few seeds.',
+    moodTags: ['calm', 'happy'],
+    ingredients: [
+      { name: 'cottage cheese', category: 'dairy', amount: '200', unit: 'g' },
+      { name: 'blueberries', category: 'fruit', amount: '60', unit: 'g' },
+      { name: 'strawberries', category: 'fruit', amount: '60', unit: 'g' },
+      { name: 'pumpkin seeds', category: 'seeds', amount: '1', unit: 'tbsp' },
+    ],
+  },
+  {
+    title: 'Pork Ramen',
+    cookingTimeMin: 35,
+    difficulty: 'medium',
+    estimatedCost: 7.0,
+    calories: 600,
+    proteinG: 32,
+    steps: 'Simmer pork belly in broth, cook ramen noodles, top with a soft-boiled egg and scallions.',
+    moodTags: ['cozy', 'happy'],
+    ingredients: [
+      { name: 'pork belly', category: 'meat', amount: '150', unit: 'g' },
+      { name: 'ramen noodles', category: 'grain', amount: '100', unit: 'g' },
+      { name: 'eggs', category: 'dairy', amount: '1', unit: 'pc' },
+      { name: 'spring onion', category: 'vegetable', amount: '2', unit: 'pcs' },
+      { name: 'soy sauce', category: 'condiment', amount: '2', unit: 'tbsp' },
+    ],
+  },
+  {
+    title: 'Spinach Mushroom Omelette',
+    cookingTimeMin: 10,
+    difficulty: 'easy',
+    estimatedCost: 3.0,
+    calories: 300,
+    proteinG: 20,
+    steps: 'Sauté mushrooms and spinach, pour over beaten eggs and fold the omelette.',
+    moodTags: ['energetic', 'focused', 'calm'],
+    ingredients: [
+      { name: 'eggs', category: 'dairy', amount: '3', unit: 'pcs' },
+      { name: 'mushrooms', category: 'vegetable', amount: '80', unit: 'g' },
+      { name: 'spinach', category: 'vegetable', amount: '50', unit: 'g' },
+      { name: 'olive oil', category: 'oil', amount: '1', unit: 'tbsp' },
+    ],
+  },
+  {
+    title: 'Hummus Veggie Wrap',
+    cookingTimeMin: 10,
+    difficulty: 'easy',
+    estimatedCost: 3.5,
+    calories: 360,
+    proteinG: 12,
+    steps: 'Spread hummus on a tortilla, add cucumber, bell pepper and greens, then roll.',
+    moodTags: ['calm', 'happy', 'energetic'],
+    ingredients: [
+      { name: 'hummus', category: 'legume', amount: '4', unit: 'tbsp' },
+      { name: 'flour tortilla', category: 'grain', amount: '1', unit: 'pc' },
+      { name: 'cucumber', category: 'vegetable', amount: '0.5', unit: 'pc' },
+      { name: 'bell pepper', category: 'vegetable', amount: '0.5', unit: 'pc' },
+      { name: 'mixed greens', category: 'vegetable', amount: '40', unit: 'g' },
+    ],
+  },
 ]
 
 async function main() {
-  console.log('Seeding recipes...')
+  // ─── Subscription plans ──────────────────────────────────────────────────
+  console.log('Seeding subscription plans...')
+
+  await prisma.subscriptionPlan.upsert({
+    where:  { type: 'monthly' },
+    create: { type: 'monthly', name: 'Monthly', priceKzt: 2990, priceUsd: 9.99, durationDays: 30,  description: 'Full access for 1 month' },
+    update: { name: 'Monthly', priceKzt: 2990, priceUsd: 9.99, durationDays: 30,  description: 'Full access for 1 month', isActive: true },
+  })
+
+  await prisma.subscriptionPlan.upsert({
+    where:  { type: 'annual' },
+    create: { type: 'annual', name: 'Annual', priceKzt: 24990, priceUsd: 79.99, durationDays: 365, description: 'Full access for 1 year — save 30%' },
+    update: { name: 'Annual', priceKzt: 24990, priceUsd: 79.99, durationDays: 365, description: 'Full access for 1 year — save 30%', isActive: true },
+  })
+
+  console.log('  ✓ Monthly (2,990 KZT / $9.99 / 30 days)')
+  console.log('  ✓ Annual  (24,990 KZT / $79.99 / 365 days)')
+
+  // ─── Recipes ─────────────────────────────────────────────────────────────
+  // Idempotent: recipes are matched by title, so re-running the seed (incl. on
+  // the production DB) does not create duplicates. Recipe.title has no unique
+  // constraint, so we guard with findFirst rather than upsert.
+  console.log('\nSeeding recipes...')
+
+  let created = 0
+  let skipped = 0
 
   for (const r of recipes) {
+    const existing = await prisma.recipe.findFirst({
+      where: { title: r.title },
+      select: { id: true },
+    })
+    if (existing) {
+      skipped++
+      console.log(`  • ${r.title} (already exists, skipped)`)
+      continue
+    }
+
     const recipe = await prisma.recipe.create({
       data: {
         title: r.title,
@@ -215,10 +416,11 @@ async function main() {
       })
     }
 
+    created++
     console.log(`  ✓ ${recipe.title}`)
   }
 
-  console.log(`\nDone — ${recipes.length} recipes seeded.`)
+  console.log(`\nDone — 2 plans + ${created} new recipes (${skipped} skipped, ${recipes.length} total).`)
 }
 
 main()
