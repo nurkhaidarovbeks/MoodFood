@@ -1372,6 +1372,187 @@
       ]
     },
     {
+      "name": "📷 Epic 4 — AI Photo Recognition",
+      "description": "Сфоткать холодильник/чек/список → AI извлекает ингредиенты → блюда.\n\nПеред запуском задай переменную коллекции {{imageBase64}} = base64 фото (JPEG/PNG/WebP, без префикса data:) ИЛИ вставь полный data:image/jpeg;base64,... прямо в imageBase64.\nHEIC с iPhone сконвертируй в JPEG. Нужен OPENAI_API_KEY на сервере.",
+      "item": [
+        {
+          "name": "4ph.1 Extract Ingredients (фото → ингредиенты)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}",
+                "type": "text"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/vision/ingredients",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "vision",
+                "ingredients"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"imageBase64\": \"{{imageBase64}}\",\n  \"mimeType\": \"image/jpeg\",\n  \"minConfidence\": 0.4\n}"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"200\", () => pm.response.to.have.status(200));",
+                  "const j = pm.response.json();",
+                  "pm.test(\"has detectedSource\", () => pm.expect(j).to.have.property(\"detectedSource\"));",
+                  "pm.test(\"has confident array\", () => pm.expect(j.confident).to.be.an(\"array\"));",
+                  "pm.test(\"has ingredients\", () => pm.expect(j.ingredients).to.be.an(\"array\"));"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        },
+        {
+          "name": "4ph.2 Photo → Recommendations (one-shot)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}",
+                "type": "text"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/vision/recommendations",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "vision",
+                "recommendations"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"imageBase64\": \"{{imageBase64}}\",\n  \"mimeType\": \"image/jpeg\",\n  \"minConfidence\": 0.4,\n  \"mood\": \"tired\",\n  \"energyLevel\": 2,\n  \"maxCookingTime\": 20\n}"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"200\", () => pm.response.to.have.status(200));",
+                  "const j = pm.response.json();",
+                  "pm.test(\"has vision block\", () => pm.expect(j.vision).to.have.property(\"confident\"));",
+                  "pm.test(\"has recommendation options\", () => pm.expect(j.recommendation.options).to.be.an(\"array\"));"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        },
+        {
+          "name": "4ph.3 Extract — No Token (expect 401)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/vision/ingredients",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "vision",
+                "ingredients"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"imageBase64\": \"{{imageBase64}}\",\n  \"mimeType\": \"image/jpeg\"\n}"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"401\", () => pm.response.to.have.status(401));"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        },
+        {
+          "name": "4ph.4 Extract — Bad Format HEIC (expect 400)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}",
+                "type": "text"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/vision/ingredients",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "vision",
+                "ingredients"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"imageBase64\": \"{{imageBase64}}\",\n  \"mimeType\": \"image/heic\"\n}"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"400\", () => pm.response.to.have.status(400));",
+                  "pm.test(\"UNSUPPORTED_IMAGE_FORMAT\", () => pm.expect(pm.response.json().error.code).to.eql(\"UNSUPPORTED_IMAGE_FORMAT\"));"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
       "name": "❤️ Epic 5 — Favorites",
       "item": [
         {
@@ -2685,6 +2866,11 @@
     {
       "key": "token",
       "value": ""
+    },
+    {
+      "key": "imageBase64",
+      "value": "",
+      "type": "string"
     }
   ]
 }

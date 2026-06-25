@@ -69,10 +69,19 @@ export function isVeryHungry(state: MoodState): boolean {
   return state.hungerLevel === 'high'
 }
 
+export function isBudgetConscious(state: MoodState): boolean {
+  return state.budgetLevel === 'low'
+}
+
 // ─── Fit scoring ──────────────────────────────────────────────────────────────
 
 const COMPLEX_CARB_CATEGORIES = ['grain', 'legume']
 const SWEETENER_CATEGORIES = ['sweetener']
+
+// Budget thresholds (estimatedCost, USD per serving). Student-friendly meals sit
+// at or below CHEAP; anything above PRICEY is penalised for low-budget users.
+const BUDGET_CHEAP = 4
+const BUDGET_PRICEY = 7
 
 /**
  * Returns a 0–1 score for how well a recipe fits the user's current state.
@@ -111,6 +120,16 @@ export function stateFitScore(recipe: ScorableRecipe, state: MoodState): number 
   if (isVeryHungry(state)) {
     if (calories >= 450) score += 0.12
     if (protein >= 20) score += 0.1
+  }
+
+  // Limited budget → reward cheap student-friendly meals, penalise pricey ones
+  // (Epic 4: "Budget-based recommendations — low-cost meals for students").
+  if (isBudgetConscious(state)) {
+    const cost = recipe.estimatedCost
+    if (cost !== null) {
+      if (cost <= BUDGET_CHEAP) score += 0.15
+      else if (cost > BUDGET_PRICEY) score -= 0.15
+    }
   }
 
   // Generic protein-density nudge so scores aren't all 0.5 with no state.

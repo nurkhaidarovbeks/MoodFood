@@ -14,6 +14,7 @@ import subscriptionRoutes from './modules/subscription/subscription.routes'
 import recommendationRoutes from './modules/recommendations/recommendation.routes'
 import moodCheckRoutes from './modules/moodcheck/moodcheck.routes'
 import favoritesRoutes from './modules/favorites/favorites.routes'
+import visionRoutes from './modules/vision/vision.routes'
 
 const app = express()
 
@@ -29,7 +30,13 @@ app.use(
 )
 
 // ─── Body parsing ─────────────────────────────────────────────────────────────
-app.use(express.json({ limit: '1mb' }))
+// Global 1mb limit for normal JSON. /vision handles large base64 photos and
+// mounts its own higher-limit parser, so we skip the global one for that path.
+const jsonParser = express.json({ limit: '1mb' })
+app.use((req, res, next) => {
+  if (req.path.startsWith('/api/v1/vision')) return next()
+  jsonParser(req, res, next)
+})
 
 // ─── Health check ────────────────────────────────────────────────────────────
 app.get('/health', async (_req, res) => {
@@ -52,6 +59,7 @@ app.use('/api/v1/subscriptions', subscriptionRoutes)
 app.use('/api/v1/recommendations', recommendationRoutes)
 app.use('/api/v1/mood-checks', moodCheckRoutes)
 app.use('/api/v1/favorites', favoritesRoutes)
+app.use('/api/v1/vision', visionRoutes)
 
 // ─── 404 handler ─────────────────────────────────────────────────────────────
 app.use((_req, res) => {

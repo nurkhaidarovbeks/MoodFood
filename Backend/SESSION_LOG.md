@@ -1077,6 +1077,73 @@ npx prisma migrate deploy
 npx prisma db push
 ```
 
+### Закрытие пробела Epic 4 — budget-based scoring
+Был недореализован пункт бэклога Epic 4 «Budget-based recommendations». `budgetLevel`
+принимался в запросе, но не влиял на `stateFitScore` (бюджет отражался только через
+опцию cheapest). Добавлено правило:
+- `recommendation.scoring.ts`: новый `isBudgetConscious()` + правило в `stateFitScore` —
+  при `budgetLevel='low'` дешёвым блюдам (≤$4) +0.15, дорогим (>$7) −0.15
+- Бюджет берётся из запроса, fallback — из профиля (`user.profile.budgetLevel`)
+- Тесты: +4 (детектор, 2 fit-теста, 1 пайплайн-тест) → **179 тестов, все зелёные**
+- Применён к Render: миграция `20260625100000_add_recipe_macros_favorites` (через
+  `prisma migrate resolve --applied 20260619090000_add_mood_checks` + `migrate deploy`)
+
+---
+
+## Сессия 17 — 25 июня 2026 (Epic 4: AI-распознавание фото + budget scoring)
+
+> Автор: Nurkhaidarov Beksultan | Модель: Claude Opus 4.8 | Ветка: `feature/epic2-epic4-ai-recommendations`
+
+### 1. Budget-based scoring (закрытие пробела Epic 4)
+- `recommendation.scoring.ts`: `isBudgetConscious()` + правило в `stateFitScore` —
+  при `budgetLevel='low'` дешёвым блюдам (≤$4) +0.15, дорогим (>$7) −0.15
+- +4 теста → промежуточно 179
+
+### 2. AI-распознавание фото (фото → ингредиенты → блюда)
+
+Фото холодильника / чека / списка продуктов → AI извлекает ингредиенты → рекомендации.
+
+**Новый сервис `src/services/vision-ai.service.ts`** (OpenAI Vision):
+- `VisionAiService.extractIngredients(image)` — vision-вызов GPT-4o-mini
+- Чистые экспортируемые хелперы (юнит-тестируемы): `buildDataUrl`, `parseVisionJson`,
+  `normalizeVisionResult`, `normalizeName`
+- Инъекция клиента (`opts.client`) → тесты полностью офлайн, без сети
+
+**Корректность (главный приоритет):**
+- Строгий system-prompt: только видимые/читаемые items, без выдумок, low confidence при сомнении
+- Чеки: игнор цен/итогов/магазина/не-еды; мультиязычность (рус/каз/eng) → `normalizedName` на англ.
+- `temperature: 0`, `response_format: json_object`, защитная Zod-валидация ответа модели
+- Защита от prompt-injection в тексте на фото (system-prompt: текст = данные, не инструкции)
+- Дедуп по нормализованному имени, кламп confidence 0..1, сортировка
+- Валидация фото ДО вызова сети: формат (JPEG/PNG/WebP, HEIC отклоняется), размер ≤10 МБ, base64
+
+**Новый модуль `src/modules/vision/`:** schema / service / controller / routes
+- `POST /api/v1/vision/ingredients` — extract-only (confidence, detectedSource, confident/lowConfidence)
+- `POST /api/v1/vision/recommendations` — one-shot: фото → 3 блюда
+
+**Интеграция с пайплайном рекомендаций:**
+- `recommendation.service.ts`: новый параметр `opts.availableIngredientNames` — матчинг
+  ингредиентов ПО ИМЕНИ (для фото), а не по pantryId. Единый пайплайн → диета остаётся
+  жёстким фильтром, замены фильтруются по ограничениям
+- pantry НЕ трогается (решение продукта): извлечённые ингредиенты только возвращаются
+
+**Инфраструктура:**
+- `app.ts`: глобальный json-парсер (1mb) пропускает `/vision`; роутер vision монтирует
+  свой парсер на 14mb (фото в base64 большие)
+- Rate limit: 20 запросов / 15 мин на пользователя (vision-вызовы платные)
+- `env.ts` / `.env.example`: `OPENAI_VISION_MODEL` (по умолч. `gpt-4o-mini`)
+
+**Тесты:** `tests/vision.test.ts` — 25 тестов (валидация фото, парсинг, нормализация,
+non-food/галлюцинации, extract-split, one-shot name-matching, 422/503/502 коды)
+
+**Итого тестов: 204 (было 179, +25) — все зелёные, офлайн. tsc build чистый.**
+
+### На Render нужно
+```
+OPENAI_API_KEY=sk-proj-...        # без него /vision → 503
+OPENAI_VISION_MODEL=gpt-4o-mini   # опционально, gpt-4o точнее
+```
+
 ---
 
 ## Следующий шаг
