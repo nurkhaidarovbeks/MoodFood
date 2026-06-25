@@ -218,6 +218,15 @@ describe('ingredientMatches', () => {
     expect(ingredientMatches('cheese', 'cherry tomatoes')).toBe(false)
   })
 
+  it('does not match a compound noun to its bare head (butter ≠ peanut butter)', () => {
+    expect(ingredientMatches('butter', 'peanut butter')).toBe(false)
+    expect(ingredientMatches('peanut butter', 'butter')).toBe(false)
+    expect(ingredientMatches('cream', 'ice cream')).toBe(false)
+    // but the same compound still matches itself
+    expect(ingredientMatches('peanut butter', 'peanut butter')).toBe(true)
+    expect(ingredientMatches('butter', 'butter')).toBe(true)
+  })
+
   it('isIngredientAvailable checks a list', () => {
     const fridge = ['egg', 'cheese', 'milk', 'bread']
     expect(isIngredientAvailable('eggs', fridge)).toBe(true)
