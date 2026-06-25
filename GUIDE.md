@@ -769,14 +769,19 @@ npm test
 
 | Epic | Статус | Что сделано |
 |------|--------|------------|
-| Epic 1 | ✅ Готов | Auth (email, Google, Apple, OTP), профиль, диетические ограничения |
+| Epic 1 Backend | ✅ Готов | Auth (email, Google, Apple, OTP), профиль, диетические ограничения |
+| Epic 1 Mobile | ✅ Готов | Login, Register, OTP, Welcome, Splash, Profile Setup (4 шага), Google Sign In |
 | Epic 2 Backend | ✅ Готов | CRUD рецептов + Mood-check: чек-ин состояния + история |
+| Epic 2 Mobile | ✅ Готов | MoodCheck экран → POST /mood-checks, Hunger Level слайдер, MoodHistory |
 | Epic 3 Backend | ✅ Готов | Кладовка (pantry), фильтрация рецептов по ингредиентам + matchScore |
-| Epic 4 Backend | ✅ Готов | Payment (PayPal), Wallet, Subscriptions (monthly/annual) |
-| Epic 4 (по документу) | ✅ Готов | AI-рекомендации по настроению (GPT-4o-mini + rule-based fallback) |
+| Epic 3 Mobile | ✅ Готов | Ingredients screen (24 ингредиента, match-count сортировка) |
+| Epic 4 Backend | ✅ Готов | Payment (PayPal WebView), Wallet, Subscriptions (monthly/annual) |
+| Epic 4 Mobile | ✅ Готов | AI Recommendations с реальными данными (fitScore, GPT объяснение, категории), Premium/PayPal flow |
+| Epic 4 (AI) Backend | ✅ Готов | AI-рекомендации по настроению (GPT-4o-mini + rule-based fallback) |
 | Infra | ✅ Готово | Docker, GitHub Actions CI/CD, Render деплой |
-| Epic 5+ | ⏳ Следующий | Избранные рецепты, water tracking, habit analytics, сброс пароля |
+| Epic 5+ | ⏳ Следующий | Saved recipes → sync с бэкендом, habit analytics, Apple Sign In, push-уведомления |
 
 ---
 
-*Backend: май–июнь 2026 · 166 тестов · Epics 1–4 Backend завершены · Деплой: Render · AI: OpenAI GPT-4o-mini*
+*Backend: май–июнь 2026 · 166 тестов · Epics 1–4 завершены · Деплой: Render · AI: OpenAI GPT-4o-mini*  
+*Mobile: июнь 2026 · Flutter 3.41.3 · iOS (Cherry🍒) · Ветка: feature/flutter-frontend-epic1*

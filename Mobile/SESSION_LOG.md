@@ -317,15 +317,181 @@ static const String baseUrl = 'https://moodfood-backend.onrender.com/api/v1';
 
 ---
 
-## Следующий шаг — Epic 2 / Доработка
+## Сессия 7 Mobile — 13–20 июня 2026 (Premium + PayPal + Profile + Recipes)
 
-- Подключить реальные данные в Tracker (GET /moods/history → graph)
-- Реализовать сохранение рецептов в избранное (POST /recipes/:id/save)
-- Подключить Notifications к реальным push-уведомлениям
-- Отдельный экран редактирования профиля (Profile Info)
+> Автор: Khamitbek Azhara | Модель: Claude Sonnet 4.6  
+> Ветка: `feature/flutter-frontend-epic1`
+
+### 1. Premium / Subscription — подключён к бэкенду
+
+**Новые файлы:**
+- `core/services/subscription_service.dart` — `getPlans()`, `subscribe()`, `getMySubscription()`, `cancel()`
+- `core/providers/subscription_provider.dart` — `load()` (SharedPreferences), `syncFromBackend()`, `upgradeToPremium()`, `cancelPremium()`
+
+**Изменения:**
+- `splash_screen.dart` — параллельный `Future.wait([auth.checkAuthStatus(), sub.load()])`, после логина `sub.syncFromBackend()`
+- Premium badge обновляется в реальном времени после оплаты
+- API constants: `subscriptionPlans`, `subscriptionSubscribe`, `subscriptionMe`, `subscriptionCancel`
+
+### 2. PayPal WebView flow
+
+**Новый файл:** `features/payment/screens/paypal_webview_screen.dart`
+- Открывает PayPal URL в WebView (`webview_flutter: ^4.10.0`)
+- Перехватывает `/payment/paypal/success` → ждёт 2 сек → `syncFromBackend()` → `/payment-success`
+- Перехватывает `/payment/paypal/cancel` → `pop()` + SnackBar
+- Forte Bank: `SnackBar("Coming soon")`
+
+`premium_screen.dart` обновлён:
+- `_pay()` вызывает `POST /subscriptions/subscribe` → получает `paymentUrl` → открывает `PayPalWebViewScreen`
+- Error banner над кнопкой Pay при ошибке API
+
+### 3. Рецепты — реальные фото
+
+`recipes_screen.dart`:
+- `_photos` map: 12 ключевых слов продуктов → Unsplash URL
+- 5 fallback фото (выбор по `recipe.id.hashCode`)
+- Case-insensitive поиск: `title.toLowerCase().contains(key)`
+- Фильтр bottom sheet: 5 опций (Mood / Dietary / Quick Meals / Budget / Pantry)
+
+### 4. Редактируемый профиль
+
+**Новый файл:** `features/profile/screens/edit_profile_screen.dart`
+- Редактирование имени + аватара (Camera / Gallery через `image_picker: ^1.1.2`)
+- Аватар сохраняется в SharedPreferences как base64
+
+### 5. Water tracking (интерактивный)
+
+`home_screen.dart` — `_StatsRow` → `_WaterCard`:
+- Кнопки +/− меняют счётчик (0–12 стаканов)
+- Сохранение: `SharedPreferences` ключ `water_glasses` → `"2026-06-13:5"` (сброс каждый день)
+
+### 6. Фиксы валидации
+
+| Проблема | Решение |
+|----------|---------|
+| Регистрация: "Validation failed" | Пароль мин. 8 символов (бэкенд Zod `min(8)`), было 6 |
+| Profile Setup Step 3: "Validation failed" | UI-лейблы маппятся в backend DIETARY_RESTRICTION_KEYS: `Dairy→lactose_free`, `Eggs→egg_allergy`, `Soy→soy_allergy`, `Peanuts/Tree Nuts→nut_allergy`, `Wheat→gluten_free`. Неизвестные (`Fish`, `Keto`, `Paleo`) → `customRestrictions` |
+
+### 7. Прочее
+
+- `recommendations_screen.dart` — "Explore More Recipes" → `/home` с `arguments: {'tab': 1}`
+- `home_screen.dart` — `didChangeDependencies()` читает tab-аргумент и переключает вкладку
+- Saved recipes count в профиле загружается из SharedPreferences `saved_recipes`
+
+**Коммиты:** `3a12c26`, `46ee561`, `f3afae7`, `11c36c9`, `aa0ee92`, `e3ec57a`
+
+---
+
+## Сессия 8 Mobile — 25 июня 2026 (Epic 4–5: AI Recommendations + Mood Backend)
+
+> Автор: Khamitbek Azhara | Модель: Claude Sonnet 4.6  
+> Ветка: `feature/flutter-frontend-epic1`
+
+### 1. MoodCheck → синхронизация с бэкендом
+
+**Изменения в модели `MoodEntry`:**
+- Добавлено поле `hungerLevel: String?` (`low` / `medium` / `high`)
+- `fromJson` / `toJson` обновлены (поле опциональное)
+
+**Новый слайдер в `mood_check_screen.dart`:**
+- "Hunger Level" между Stress и кнопкой Submit
+- Диапазон: Not Hungry → Very Hungry → маппится `_hungerCategory()` → `low/medium/high`
+
+**Новый сервис `core/services/mood_check_service.dart`:**
+- `create(MoodEntry)` — `POST /api/v1/mood-checks` (fire-and-forget, не блокирует UI)
+- `getLatest()` — `GET /api/v1/mood-checks/latest`
+
+**`mood_provider.dart`** — после локального сохранения вызывает `_service.create(entry)` без `await`
+
+### 2. AI Recommendations — реальные данные с бэкенда
+
+**Новый сервис `core/services/recommendation_service.dart`:**
+- `recommend(entry, useMyIngredients, maxCookingTime)` — `POST /api/v1/recommendations`
+- Отправляет: `mood`, `energyLevel`, `stressLevel`, `sleepQuality`, `hungerLevel`
+- Модели: `RecommendationResult`, `RecommendationOption`, `RecommendationRecipe`
+
+**`recommendations_screen.dart` полностью переписан** (StatelessWidget → StatefulWidget):
+
+| Элемент | Описание |
+|---------|---------|
+| Loading spinner | «Finding the perfect meals for you…» |
+| `_RecommendationCard` | Цветной header по категории, fitScore badge (зелёный), время/калории/сложность |
+| AI explanation | Блок с иконкой 🤖 и текстом от GPT-4o-mini |
+| AI badge | «AI» chip в заголовке когда `aiPowered=true` |
+| Missing ingredients | Оранжевые chips (pantry mode) |
+| `_ErrorCard` | «Couldn't reach the server» + кнопка Retry |
+| `_EmptyCard` | Для пустого ответа сервера |
+
+**Цвета категорий:**
+
+| Категория | Цвет |
+|-----------|------|
+| energizing | `#FFF3E0` (оранжевый) |
+| calming | `#E8F5E9` (зелёный) |
+| comforting | `#FCE4EC` (розовый) |
+| light | `#E3F2FD` (голубой) |
+| nourishing | `#F3E5F5` (фиолетовый) |
+
+### 3. API Constants — добавлены
+
+```dart
+static const String moodChecks = '/mood-checks';
+static const String moodChecksLatest = '/mood-checks/latest';
+static const String aiRecommendations = '/recommendations';
+```
+
+### 4. Установка как нативное приложение
+
+- Release build через Xcode (Product → Run) установлен на Cherry🍒
+- Приложение запускается с иконки без `flutter run` и кабеля USB
+
+### Обновлённая структура `core/services/`
+
+```
+core/services/
+├── auth_service.dart
+├── mood_check_service.dart        ← NEW
+├── profile_service.dart
+├── recipe_service.dart
+├── recommendation_service.dart    ← NEW
+└── subscription_service.dart
+```
+
+**Коммит:** `76aef51`
+
+---
+
+## Текущее состояние (25 июня 2026)
+
+| Фича | Статус | Детали |
+|------|--------|--------|
+| Auth (email + Google) | ✅ | Login, Register, OTP, Splash |
+| Onboarding (4 шага) | ✅ | Goals, Diet, Allergies → бэкенд |
+| Home (5 табов) | ✅ | Water +/−, Calories, Mood summary |
+| Mood Check | ✅ | Слайдеры + hungerLevel → бэкенд |
+| AI Recommendations | ✅ | Реальные данные, fitScore, GPT объяснение |
+| Recipes | ✅ | Фото, фильтры, сохранение (локально) |
+| Premium / PayPal | ✅ | WebView flow, syncFromBackend |
+| Editable Profile | ✅ | Имя + аватар (Camera/Gallery) |
+| Water tracking | ✅ | +/− кнопки, SharedPreferences |
+| Apple Sign In | ⏳ | Заглушка, нужен entitlement |
+| Saved recipes → бэкенд | ⏳ | Сейчас только SharedPreferences |
+| Habit analytics | ⏳ | Нет бэкенд эндпоинта |
+| Push-уведомления | ⏳ | UI есть, real push нет |
+
+---
+
+## Следующий шаг
+
+- Habit analytics / weekly tips (когда бэкенд добавит эндпоинт)
+- Saved recipes → sync с бэкендом
+- Apple Sign In (entitlement в Xcode)
+- Push-уведомления
 
 ---
 
 *Сессия 4: 9–11 июня 2026 — Flutter Frontend Epic 1, все экраны auth + onboarding, iOS деплой*  
 *Сессия 5: 13 июня 2026 — Google Sign In реализован, Apple заглушка, подключение к Render*  
-*Сессия 6: 19 июня 2026 — Полный редизайн всех экранов по Figma, все кнопки кликабельны, исправлены критические баги*
+*Сессия 6: 19 июня 2026 — Полный редизайн всех экранов по Figma, все кнопки кликабельны, исправлены критические баги*  
+*Сессия 7: 13–20 июня 2026 — Premium/PayPal WebView, recipe photos, editable profile, water tracking, validation fixes*  
+*Сессия 8: 25 июня 2026 — Epic 4-5: MoodCheck → backend, AI Recommendations реальные данные, hungerLevel*
