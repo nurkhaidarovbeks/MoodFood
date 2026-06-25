@@ -7,6 +7,8 @@
  * cheapest. No DB, no network — everything here is unit-tested in isolation.
  */
 
+import { canonicalizeIngredient } from '../../services/ingredient-knowledge'
+
 // ─── Types ──────────────────────────────────────────────────────────────────
 
 export type StressLevel = 'low' | 'medium' | 'high'
@@ -32,6 +34,8 @@ export interface ScorableRecipe {
   estimatedCost: number | null
   calories: number | null
   proteinG: number | null
+  fatG?: number | null
+  carbsG?: number | null
   moodTags: string[]
   categories: string[] // ingredient categories, lowercased
 }
@@ -187,8 +191,10 @@ function hasIncompatibleQualifier(aSet: Set<string>, bSet: Set<string>): boolean
 
 /** True when two ingredient names refer to the same thing (fuzzy, see above). */
 export function ingredientMatches(a: string, b: string): boolean {
-  const at = tokenize(a)
-  const bt = tokenize(b)
+  // Resolve synonyms/spellings/transliterations first (scallion→green onion,
+  // aubergine→eggplant, tvorog→cottage cheese), then compare by tokens.
+  const at = tokenize(canonicalizeIngredient(a))
+  const bt = tokenize(canonicalizeIngredient(b))
   if (at.length === 0 || bt.length === 0) return false
 
   const aSet = new Set(at)
@@ -333,4 +339,69 @@ export function suggestSubstitutions(
   }
 
   return result
+}
+
+// ─── Nutrition / health scoring ────────────────────────────────────────────────
+//
+// MoodFood is a healthy-eating app, so every recommendation should lean
+// nutritious. healthScore() rates a recipe 0–100 from its macros and ingredient
+// categories (protein, vegetables, legumes, fruit, whole grains are good; added
+// sugar, very high calories/fat, alcohol are penalised). isClearlyUnhealthy() is
+// a conservative guardrail that keeps obviously indulgent items (sugar bombs,
+// huge portions) out of recommendations entirely.
+
+const GOOD_CATEGORIES = new Set(['vegetable', 'legume', 'fruit'])
+
+export function healthScore(recipe: ScorableRecipe): number {
+  let score = 50
+
+  const protein = recipe.proteinG ?? 0
+  const calories = recipe.calories ?? 0
+  const fat = recipe.fatG ?? 0
+  const carbs = recipe.carbsG ?? 0
+  const cats = new Set(recipe.categories)
+
+  // Protein density — up to +20.
+  score += Math.min(protein * 0.5, 20)
+
+  // Whole-food categories — vegetables / legumes / fruit (+7 each, capped +18).
+  let plantBonus = 0
+  for (const c of GOOD_CATEGORIES) if (cats.has(c)) plantBonus += 7
+  score += Math.min(plantBonus, 18)
+
+  // Whole grains / seeds — modest fibre bonus.
+  if (cats.has('grain')) score += 4
+  if (cats.has('seeds')) score += 3
+
+  // Penalties.
+  if (cats.has('sweetener')) score -= 12 // added sugar
+  if (cats.has('alcohol')) score -= 12
+  if (calories > 700) score -= 15
+  else if (calories > 600) score -= 8
+  if (fat > 30) score -= 8
+  if (carbs > 90) score -= 6
+
+  return clamp(Math.round(score), 0, 100)
+}
+
+/**
+ * Conservative "this is not healthy food" gate. Excludes only clearly indulgent
+ * recipes so balanced meals are never wrongly dropped:
+ *  - very large portions (≥ 800 kcal), or
+ *  - sugary, low-protein, calorie-dense items (dessert-like), or
+ *  - a very low overall health score.
+ */
+export function isClearlyUnhealthy(recipe: ScorableRecipe): boolean {
+  const protein = recipe.proteinG ?? 0
+  const calories = recipe.calories ?? 0
+  const cats = new Set(recipe.categories)
+
+  if (calories >= 800) return true
+  if (cats.has('sweetener') && calories >= 450 && protein < 8) return true
+  if (healthScore(recipe) < 35) return true
+  return false
+}
+
+function clamp(n: number, lo: number, hi: number): number {
+  return Math.max(lo, Math.min(hi, n))
 }

@@ -2,6 +2,7 @@ import OpenAI from 'openai'
 import { z } from 'zod'
 import { env } from '../config/env'
 import { AppError } from '../middleware/errorHandler'
+import { canonicalizeIngredient } from './ingredient-knowledge'
 
 // ─── Public types ──────────────────────────────────────────────────────────────
 
@@ -299,7 +300,9 @@ export function normalizeVisionResult(raw: z.infer<typeof RawVisionSchema>): Vis
   const byName = new Map<string, ExtractedIngredient>()
 
   for (const item of raw.ingredients ?? []) {
-    const name = normalizeName(item.normalizedName || item.name)
+    // Normalise, then resolve to a canonical English name so the same product
+    // is recognised regardless of spelling/language the model returned.
+    const name = canonicalizeIngredient(normalizeName(item.normalizedName || item.name))
     if (!name) continue
 
     const confidence = clamp01(Number.isFinite(item.confidence) ? item.confidence : 0)

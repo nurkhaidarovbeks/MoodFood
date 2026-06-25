@@ -190,7 +190,7 @@ npm run dev          # запуск сервера с hot-reload (режим р�
 npm test             # все тесты (166 штук, ~8 сек)
 npm run build        # сборка TypeScript → JavaScript
 npx prisma studio    # визуальный просмотр БД (http://localhost:5555)
-npx ts-node prisma/seed.ts   # заполнить БД 20 тестовыми рецептами (идемпотентно)
+npx ts-node prisma/seed.ts   # заполнить БД 44 здоровыми рецептами (идемпотентно)
 ```
 
 **Два способа запустить окружение:**
@@ -829,5 +829,5 @@ npm test
 
 ---
 
-*Backend: май–июнь 2026 · 204 теста · Epics 1–5 завершены + AI-распознавание фото · Деплой: Render · AI: OpenAI GPT-4o-mini*  
+*Backend: май–июнь 2026 · 226 тестов · Epics 1–5 + AI-фото + здоровое питание (44 рецепта, health-score, словарь продуктов) · Деплой: Render · AI: OpenAI GPT-4o-mini*  
 *Mobile: июнь 2026 · Flutter 3.41.3 · iOS (Cherry🍒) · Ветка: feature/flutter-frontend-epic1*

@@ -1146,6 +1146,52 @@ OPENAI_VISION_MODEL=gpt-4o-mini   # опционально, gpt-4o точнее
 
 ---
 
+## Сессия 18 — 25 июня 2026 (Здоровое питание: рецепты, health-score, словарь продуктов)
+
+> Автор: Nurkhaidarov Beksultan | Модель: Claude Opus 4.8 | Ветка: `feature/epic2-epic4-ai-recommendations`
+
+Приложение про здоровое питание — усилил три вещи: больше полезных рецептов, надёжное
+понимание продуктов в любой форме, и отсечение явно вредного.
+
+### 1. Словарь продуктов `src/services/ingredient-knowledge.ts`
+- `canonicalizeIngredient(name)` — приводит ~90 синонимов к каноничному англ. имени:
+  британское/американское (aubergine→eggplant, courgette→zucchini, capsicum→bell pepper,
+  coriander→cilantro, rocket→arugula), транслит (tvorog→cottage cheese, smetana→sour cream,
+  grechka→buckwheat), варианты/сокращения (minced beef→ground beef, chick peas→chickpeas,
+  tinned tuna→canned tuna, oatmeal→rolled oats)
+- Интегрирован в `ingredientMatches` (обе стороны канонизируются) и в vision-нормализацию
+  (распознанное имя приводится к каноничному) → один продукт узнаётся в любой формулировке
+
+### 2. Health-scoring `recommendation.scoring.ts`
+- `healthScore(recipe)` 0–100: +белок, +овощи/бобовые/фрукты, +цельные злаки/семена;
+  −сахар, −алкоголь, −очень калорийное (>600/>700), −много жира/углеводов
+- `isClearlyUnhealthy(recipe)` — консервативный guardrail: отсекает только явно вредное
+  (≥800 ккал, сладкое-низкобелковое-калорийное, healthScore<35). Сбалансированные блюда
+  никогда не отсекаются
+- В пайплайне: вредное фильтруется ДО выбора 3 блюд (с фолбэком если осталось <3),
+  `healthScore` отдаётся в каждом варианте ответа `/recommendations`
+- `ScorableRecipe`/`RecipeRow` дополнены `fatG`/`carbsG`; `formatRecipe` в рекомендациях
+  теперь тоже отдаёт `fatG`/`carbsG`
+
+### 3. Рецепты `prisma/seed.ts`: 20 → 44
+- +24 здоровых, быстрых, студенческих рецепта вокруг частых продуктов (яйца, сыр, йогурт,
+  молоко, хлеб, болгарский перец, колбаса, овсянка, курица, тунец, бобовые, рис, овощи)
+- Все с полными макросами (calories/protein/fat/carbs), категориями, moodTags
+- Идемпотентно (skip по title) — повторный запуск не плодит дубли
+
+### Тесты
+- `tests/ingredient-knowledge.test.ts` — 7 (канонизация спеллингов/транслита/вариантов)
+- `recommendation-scoring.test.ts` — +синоним-матчинг, healthScore, isClearlyUnhealthy
+- **Итого: 226 тестов (было 212, +14) — все зелёные, офлайн. tsc build чистый.**
+
+### Применить на Render (чтобы новые рецепты появились в проде)
+```bash
+DATABASE_URL="<render-external-url>" npx ts-node prisma/seed.ts
+```
+Схема не менялась — миграция не нужна, только пере-seed для +24 рецептов.
+
+---
+
 ## Следующий шаг
 
 - Добавить на Render env-переменные: `OPENAI_API_KEY`, все `PAYPAL_*`

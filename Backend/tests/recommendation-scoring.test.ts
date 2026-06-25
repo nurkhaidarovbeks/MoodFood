@@ -12,6 +12,8 @@ import {
   suggestSubstitutions,
   ingredientMatches,
   isIngredientAvailable,
+  healthScore,
+  isClearlyUnhealthy,
   type ScorableRecipe,
   type MoodState,
 } from '../src/modules/recommendations/recommendation.scoring'
@@ -232,6 +234,63 @@ describe('ingredientMatches', () => {
     expect(isIngredientAvailable('eggs', fridge)).toBe(true)
     expect(isIngredientAvailable('cheddar cheese', fridge)).toBe(true)
     expect(isIngredientAvailable('canned tuna', fridge)).toBe(false)
+  })
+
+  it('matches across synonyms / spellings / transliterations', () => {
+    expect(ingredientMatches('aubergine', 'eggplant')).toBe(true)
+    expect(ingredientMatches('scallion', 'spring onion')).toBe(true) // both → green onion
+    expect(ingredientMatches('tvorog', 'cottage cheese')).toBe(true)
+    expect(ingredientMatches('minced beef', 'ground beef')).toBe(true)
+    expect(ingredientMatches('capsicum', 'red bell pepper')).toBe(true)
+  })
+})
+
+// ─── Nutrition / health scoring ─────────────────────────────────────────────────
+
+const healthyChicken: ScorableRecipe = {
+  id: 'h-chicken', title: 'Chicken Veggie Bowl', cookingTimeMin: 20, difficulty: 'easy',
+  estimatedCost: 5, calories: 470, proteinG: 40, fatG: 12, carbsG: 48,
+  moodTags: [], categories: ['meat', 'grain', 'vegetable'],
+}
+const sugaryDessert: ScorableRecipe = {
+  id: 'd-cake', title: 'Sugar Bomb', cookingTimeMin: 10, difficulty: 'easy',
+  estimatedCost: 3, calories: 520, proteinG: 5, fatG: 22, carbsG: 80,
+  moodTags: [], categories: ['sweetener', 'grain'],
+}
+const hugePortion: ScorableRecipe = {
+  ...healthyChicken, id: 'big', calories: 850,
+}
+
+describe('healthScore', () => {
+  it('rates a balanced high-protein veg meal higher than a sugary one', () => {
+    expect(healthScore(healthyChicken)).toBeGreaterThan(healthScore(sugaryDessert))
+  })
+
+  it('rewards protein and whole-food categories', () => {
+    const lean: ScorableRecipe = { ...healthyChicken, categories: ['legume', 'vegetable', 'fruit'] }
+    expect(healthScore(lean)).toBeGreaterThanOrEqual(70)
+  })
+
+  it('always returns 0..100', () => {
+    for (const r of [healthyChicken, sugaryDessert, hugePortion]) {
+      const s = healthScore(r)
+      expect(s).toBeGreaterThanOrEqual(0)
+      expect(s).toBeLessThanOrEqual(100)
+    }
+  })
+})
+
+describe('isClearlyUnhealthy', () => {
+  it('flags sugary low-protein calorie-dense items', () => {
+    expect(isClearlyUnhealthy(sugaryDessert)).toBe(true)
+  })
+
+  it('flags very large portions', () => {
+    expect(isClearlyUnhealthy(hugePortion)).toBe(true)
+  })
+
+  it('does not flag balanced meals', () => {
+    expect(isClearlyUnhealthy(healthyChicken)).toBe(false)
   })
 })
 

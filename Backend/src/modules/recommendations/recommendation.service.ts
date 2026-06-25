@@ -11,6 +11,8 @@ import {
   selectThreeOptions,
   suggestSubstitutions,
   isIngredientAvailable,
+  isClearlyUnhealthy,
+  healthScore,
   type MoodState,
   type ScorableRecipe,
 } from './recommendation.scoring'
@@ -25,6 +27,8 @@ type RecipeRow = {
   estimatedCost: number | null
   calories: number | null
   proteinG: number | null
+  fatG: number | null
+  carbsG: number | null
   steps: string | null
   moodTags: unknown
   recipeIngredients: Array<{
@@ -120,7 +124,13 @@ export class RecommendationService {
         ? isIngredientAvailable(ri.ingredient.name, photoNameList)
         : pantryIds.has(ri.ingredientId)
 
-    const scorables: ScorableRecipe[] = eligible.map(toScorable)
+    const allScorables: ScorableRecipe[] = eligible.map(toScorable)
+
+    // Healthy-eating guardrail: keep clearly indulgent items out of
+    // recommendations, but fall back to the full set if too few remain so we
+    // never return an empty list.
+    const healthy = allScorables.filter(s => !isClearlyUnhealthy(s))
+    const scorables = healthy.length >= 3 ? healthy : allScorables
 
     // When ingredients are known, prefer recipes the user can actually make:
     // selection draws each option from the cookable subset while any remain.
@@ -143,6 +153,7 @@ export class RecommendationService {
       const base = {
         category: opt.category,
         fitScore: opt.fitScore,
+        healthScore: healthScore(opt.recipe),
         recipe: formatRecipe(row),
       }
 
@@ -193,6 +204,8 @@ function toScorable(row: RecipeRow): ScorableRecipe {
     estimatedCost: row.estimatedCost,
     calories: row.calories,
     proteinG: row.proteinG,
+    fatG: row.fatG,
+    carbsG: row.carbsG,
     moodTags: (row.moodTags as string[]) ?? [],
     categories: row.recipeIngredients
       .map(ri => ri.ingredient.category?.toLowerCase())
@@ -209,6 +222,8 @@ function formatRecipe(row: RecipeRow) {
     estimatedCost: row.estimatedCost,
     calories: row.calories,
     proteinG: row.proteinG,
+    fatG: row.fatG,
+    carbsG: row.carbsG,
     steps: row.steps,
     moodTags: (row.moodTags as string[]) ?? [],
     ingredients: row.recipeIngredients.map(ri => ({
