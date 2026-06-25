@@ -25,6 +25,10 @@ class ApiConstants {
   // AI Recommendations
   static const String aiRecommendations = '/recommendations';
 
+  // Favorites (Epic 5)
+  static const String favorites = '/favorites';
+  static const String favoritesCheck = '/favorites/check';
+
   static const List<String> moodTags = [
     'happy',
     'energetic',

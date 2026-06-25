@@ -17,6 +17,8 @@ function formatRecipe(recipe: {
   estimatedCost: number | null
   calories: number | null
   proteinG: number | null
+  fatG: number | null
+  carbsG: number | null
   steps: string | null
   moodTags: unknown
   recipeIngredients: Array<{
@@ -34,6 +36,8 @@ function formatRecipe(recipe: {
     estimatedCost: recipe.estimatedCost,
     calories: recipe.calories,
     proteinG: recipe.proteinG,
+    fatG: recipe.fatG,
+    carbsG: recipe.carbsG,
     steps: recipe.steps,
     moodTags: (recipe.moodTags as string[]) ?? [],
     ingredients: recipe.recipeIngredients.map((ri) => ({
@@ -68,6 +72,8 @@ export class RecipeService {
         estimatedCost: input.estimatedCost ?? null,
         calories: input.calories ?? null,
         proteinG: input.proteinG ?? null,
+        fatG: input.fatG ?? null,
+        carbsG: input.carbsG ?? null,
         steps: input.steps ?? null,
         moodTags: input.moodTags,
         recipeIngredients: {
@@ -130,6 +136,8 @@ export class RecipeService {
         estimatedCost: input.estimatedCost ?? null,
         calories: input.calories ?? null,
         proteinG: input.proteinG ?? null,
+        fatG: input.fatG ?? null,
+        carbsG: input.carbsG ?? null,
         steps: input.steps ?? null,
         moodTags: input.moodTags,
         recipeIngredients: {
@@ -156,6 +164,8 @@ export class RecipeService {
     if ('estimatedCost' in input) updateData.estimatedCost = input.estimatedCost ?? null
     if ('calories' in input) updateData.calories = input.calories ?? null
     if ('proteinG' in input) updateData.proteinG = input.proteinG ?? null
+    if ('fatG' in input) updateData.fatG = input.fatG ?? null
+    if ('carbsG' in input) updateData.carbsG = input.carbsG ?? null
     if ('steps' in input) updateData.steps = input.steps ?? null
     if ('moodTags' in input && input.moodTags !== undefined) updateData.moodTags = input.moodTags
 

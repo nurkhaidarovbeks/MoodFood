@@ -298,6 +298,15 @@ Authorization: Bearer <jwt-токен>
 | `DELETE` | `/recipes/:id` | ✅ | Удалить рецепт |
 | `GET` | `/recipes/recommendations` | ✅ | Рекомендации (ограничения + опционально `useMyIngredients=true&minMatchScore=0.8`) |
 
+### Избранное (Epic 5)
+
+| Метод | Путь | Auth | Описание |
+|-------|------|------|---------|
+| `GET` | `/favorites` | ✅ | Список избранных рецептов (пагинация, newest-first) |
+| `POST` | `/favorites` | ✅ | Добавить рецепт `{ "recipeId": "uuid" }` |
+| `DELETE` | `/favorites/:id` | ✅ | Удалить из избранного по `favoriteId` |
+| `GET` | `/favorites/check/:recipeId` | ✅ | Проверить статус → `{ isFavorite, favoriteId }` |
+
 ### Mood-Check (Epic 2)
 
 | Метод | Путь | Auth | Описание |
@@ -778,10 +787,12 @@ npm test
 | Epic 4 Backend | ✅ Готов | Payment (PayPal WebView), Wallet, Subscriptions (monthly/annual) |
 | Epic 4 Mobile | ✅ Готов | AI Recommendations с реальными данными (fitScore, GPT объяснение, категории), Premium/PayPal flow |
 | Epic 4 (AI) Backend | ✅ Готов | AI-рекомендации по настроению (GPT-4o-mini + rule-based fallback) |
+| Epic 5 Backend | ✅ Готов | fatG/carbsG в Recipe, Favorites CRUD (`/api/v1/favorites`) |
 | Infra | ✅ Готово | Docker, GitHub Actions CI/CD, Render деплой |
-| Epic 5+ | ⏳ Следующий | Saved recipes → sync с бэкендом, habit analytics, Apple Sign In, push-уведомления |
+| Epic 5 Mobile | ⏳ Следующий | Показ cost/macros/difficulty в UI, экран Favorites, sync с бэкендом |
+| Epic 6+ | ⏳ Следующий | Habit analytics, Apple Sign In, push-уведомления |
 
 ---
 
-*Backend: май–июнь 2026 · 166 тестов · Epics 1–4 завершены · Деплой: Render · AI: OpenAI GPT-4o-mini*  
+*Backend: май–июнь 2026 · 175 тестов · Epics 1–5 завершены · Деплой: Render · AI: OpenAI GPT-4o-mini*  
 *Mobile: июнь 2026 · Flutter 3.41.3 · iOS (Cherry🍒) · Ветка: feature/flutter-frontend-epic1*
