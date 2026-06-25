@@ -18,6 +18,13 @@ class ApiConstants {
   static const String subscriptionMe = '/subscriptions/me';
   static const String subscriptionCancel = '/subscriptions/me';
 
+  // Mood checks
+  static const String moodChecks = '/mood-checks';
+  static const String moodChecksLatest = '/mood-checks/latest';
+
+  // AI Recommendations
+  static const String aiRecommendations = '/recommendations';
+
   static const List<String> moodTags = [
     'happy',
     'energetic',

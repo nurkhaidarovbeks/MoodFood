@@ -1,17 +1,50 @@
 import 'package:flutter/material.dart';
 import '../../../core/models/mood_entry_model.dart';
+import '../../../core/services/recommendation_service.dart';
 import '../../../core/theme/app_theme.dart';
 
-class RecommendationsScreen extends StatelessWidget {
+class RecommendationsScreen extends StatefulWidget {
   final MoodEntry? moodEntry;
 
   const RecommendationsScreen({super.key, this.moodEntry});
 
   @override
+  State<RecommendationsScreen> createState() => _RecommendationsScreenState();
+}
+
+class _RecommendationsScreenState extends State<RecommendationsScreen> {
+  final _service = RecommendationService();
+  RecommendationResult? _result;
+  bool _loading = true;
+  String? _error;
+
+  @override
+  void initState() {
+    super.initState();
+    _load();
+  }
+
+  Future<void> _load() async {
+    if (widget.moodEntry == null) {
+      setState(() => _loading = false);
+      return;
+    }
+    setState(() {
+      _loading = true;
+      _error = null;
+    });
+    final result = await _service.recommend(entry: widget.moodEntry!);
+    if (!mounted) return;
+    setState(() {
+      _result = result;
+      _loading = false;
+      if (result == null) _error = 'Could not load recommendations';
+    });
+  }
+
+  @override
   Widget build(BuildContext context) {
-    final mood = moodEntry?.mood ?? 'happy';
-    final energy = moodEntry?.energyLevel ?? 3;
-    final categories = _buildCategories(mood, energy);
+    final mood = widget.moodEntry?.mood ?? 'happy';
 
     return Scaffold(
       backgroundColor: AppTheme.background,
@@ -33,11 +66,7 @@ class RecommendationsScreen extends StatelessWidget {
                 ),
               ],
             ),
-            child: const Icon(
-              Icons.arrow_back,
-              size: 20,
-              color: AppTheme.textDark,
-            ),
+            child: const Icon(Icons.arrow_back, size: 20, color: AppTheme.textDark),
           ),
         ),
       ),
@@ -57,18 +86,15 @@ class RecommendationsScreen extends StatelessWidget {
                         color: AppTheme.primary.withValues(alpha: 0.1),
                         borderRadius: BorderRadius.circular(14),
                       ),
-                      child: const Icon(
-                        Icons.auto_awesome,
-                        color: AppTheme.primary,
-                        size: 22,
-                      ),
+                      child: const Icon(Icons.auto_awesome,
+                          color: AppTheme.primary, size: 22),
                     ),
                     const SizedBox(width: 14),
-                    const Expanded(
+                    Expanded(
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Text(
+                          const Text(
                             'Your\nRecommendations',
                             style: TextStyle(
                               fontSize: 26,
@@ -77,13 +103,36 @@ class RecommendationsScreen extends StatelessWidget {
                               height: 1.1,
                             ),
                           ),
-                          SizedBox(height: 4),
-                          Text(
-                            'Based on your current mood and energy',
-                            style: TextStyle(
-                              fontSize: 13,
-                              color: AppTheme.textSecondary,
-                            ),
+                          const SizedBox(height: 4),
+                          Row(
+                            children: [
+                              Text(
+                                'Based on your ${widget.moodEntry?.moodLabel ?? 'mood'} ${widget.moodEntry?.moodEmoji ?? ''}',
+                                style: const TextStyle(
+                                  fontSize: 13,
+                                  color: AppTheme.textSecondary,
+                                ),
+                              ),
+                              if (_result?.aiPowered == true) ...[
+                                const SizedBox(width: 6),
+                                Container(
+                                  padding: const EdgeInsets.symmetric(
+                                      horizontal: 6, vertical: 2),
+                                  decoration: BoxDecoration(
+                                    color: AppTheme.primary.withValues(alpha: 0.1),
+                                    borderRadius: BorderRadius.circular(6),
+                                  ),
+                                  child: const Text(
+                                    'AI',
+                                    style: TextStyle(
+                                      fontSize: 10,
+                                      fontWeight: FontWeight.w700,
+                                      color: AppTheme.primary,
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ],
                           ),
                         ],
                       ),
@@ -92,408 +141,426 @@ class RecommendationsScreen extends StatelessWidget {
                 ),
               ),
             ),
-            SliverPadding(
-              padding: const EdgeInsets.fromLTRB(16, 0, 16, 24),
-              sliver: SliverList(
-                delegate: SliverChildListDelegate([
-                  ...categories.map((cat) => _CategoryCard(category: cat)),
-                  const SizedBox(height: 16),
-                  _WhyCard(mood: mood, energy: energy),
-                  const SizedBox(height: 24),
-                  SizedBox(
-                    width: double.infinity,
-                    height: 56,
-                    child: ElevatedButton(
-                      onPressed: () {
-                        Navigator.pushNamedAndRemoveUntil(
-                          context,
-                          '/home',
-                          (_) => false,
-                          arguments: {'tab': 1},
-                        );
-                      },
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: AppTheme.primary,
-                        foregroundColor: Colors.white,
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(20),
-                        ),
-                        elevation: 0,
-                      ),
-                      child: const Row(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          Icon(Icons.menu_book_outlined, size: 18),
-                          SizedBox(width: 8),
-                          Text(
-                            'Explore More Recipes',
-                            style: TextStyle(
-                              fontSize: 16,
-                              fontWeight: FontWeight.w600,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ),
-                  const SizedBox(height: 12),
-                  Center(
-                    child: TextButton(
-                      onPressed: () => Navigator.popUntil(
-                        context,
-                        ModalRoute.withName('/home'),
-                      ),
-                      child: const Text(
-                        'Back to Home',
+            if (_loading)
+              const SliverFillRemaining(
+                child: Center(
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      CircularProgressIndicator(color: AppTheme.primary),
+                      SizedBox(height: 16),
+                      Text(
+                        'Finding the perfect meals for you…',
                         style: TextStyle(
-                          fontSize: 14,
                           color: AppTheme.textSecondary,
+                          fontSize: 14,
                         ),
                       ),
-                    ),
+                    ],
                   ),
-                ]),
+                ),
+              )
+            else if (_error != null)
+              SliverPadding(
+                padding: const EdgeInsets.fromLTRB(16, 0, 16, 24),
+                sliver: SliverList(
+                  delegate: SliverChildListDelegate([
+                    _ErrorCard(
+                      message: _error!,
+                      onRetry: _load,
+                      mood: mood,
+                    ),
+                    const SizedBox(height: 24),
+                    _BottomButtons(context: context),
+                  ]),
+                ),
+              )
+            else
+              SliverPadding(
+                padding: const EdgeInsets.fromLTRB(16, 0, 16, 24),
+                sliver: SliverList(
+                  delegate: SliverChildListDelegate([
+                    if (_result != null && _result!.options.isNotEmpty) ...[
+                      ..._result!.options.map(
+                        (opt) => _RecommendationCard(option: opt),
+                      ),
+                    ] else ...[
+                      _EmptyCard(mood: mood),
+                    ],
+                    const SizedBox(height: 24),
+                    _BottomButtons(context: context),
+                  ]),
+                ),
               ),
-            ),
           ],
         ),
       ),
     );
   }
-
-  List<_RecommendationCategory> _buildCategories(String mood, int energy) {
-    switch (mood) {
-      case 'tired':
-      case 'sad':
-        return [
-          _RecommendationCategory(
-            icon: Icons.bolt,
-            iconColor: const Color(0xFFFFA000),
-            bgColor: const Color(0xFFFFF8E1),
-            title: 'Boost Your Energy',
-            items: [
-              _FoodItem(name: 'Banana & Almond Butter', reason: 'Quick energy boost'),
-              _FoodItem(name: 'Greek Yogurt with Berries', reason: 'Sustained energy'),
-              _FoodItem(name: 'Oatmeal with Nuts', reason: 'Long-lasting fuel'),
-            ],
-          ),
-          _RecommendationCategory(
-            icon: Icons.favorite_outline,
-            iconColor: const Color(0xFF4CAF50),
-            bgColor: const Color(0xFFE8F5E9),
-            title: 'Mood Boosters',
-            items: [
-              _FoodItem(name: 'Dark Chocolate', reason: 'Serotonin boost'),
-              _FoodItem(name: 'Salmon', reason: 'Omega-3 for mood'),
-              _FoodItem(name: 'Walnuts', reason: 'Brain support'),
-            ],
-          ),
-          _RecommendationCategory(
-            icon: Icons.water_drop_outlined,
-            iconColor: const Color(0xFF2196F3),
-            bgColor: const Color(0xFFE3F2FD),
-            title: 'Hydration Reminder',
-            items: [
-              _FoodItem(name: 'Coconut Water', reason: 'Electrolytes'),
-              _FoodItem(name: 'Cucumber Slices', reason: 'Hydrating snack'),
-              _FoodItem(name: 'Herbal Tea', reason: 'Gentle hydration'),
-            ],
-          ),
-        ];
-
-      case 'stressed':
-        return [
-          _RecommendationCategory(
-            icon: Icons.spa_outlined,
-            iconColor: const Color(0xFF9C27B0),
-            bgColor: const Color(0xFFF3E5F5),
-            title: 'Reduce Stress',
-            items: [
-              _FoodItem(name: 'Dark Chocolate', reason: 'Mood enhancer'),
-              _FoodItem(name: 'Green Tea', reason: 'Calming effect'),
-              _FoodItem(name: 'Avocado Toast', reason: 'Healthy fats'),
-            ],
-          ),
-          _RecommendationCategory(
-            icon: Icons.bolt,
-            iconColor: const Color(0xFFFFA000),
-            bgColor: const Color(0xFFFFF8E1),
-            title: 'Boost Your Energy',
-            items: [
-              _FoodItem(name: 'Banana & Almond Butter', reason: 'Quick energy boost'),
-              _FoodItem(name: 'Greek Yogurt with Berries', reason: 'Sustained energy'),
-              _FoodItem(name: 'Oatmeal with Nuts', reason: 'Long-lasting fuel'),
-            ],
-          ),
-          _RecommendationCategory(
-            icon: Icons.water_drop_outlined,
-            iconColor: const Color(0xFF2196F3),
-            bgColor: const Color(0xFFE3F2FD),
-            title: 'Hydration Reminder',
-            items: [
-              _FoodItem(name: 'Coconut Water', reason: 'Electrolytes'),
-              _FoodItem(name: 'Cucumber Slices', reason: 'Hydrating snack'),
-              _FoodItem(name: 'Herbal Tea', reason: 'Gentle hydration'),
-            ],
-          ),
-        ];
-
-      case 'energetic':
-        return [
-          _RecommendationCategory(
-            icon: Icons.fitness_center_outlined,
-            iconColor: const Color(0xFF4CAF50),
-            bgColor: const Color(0xFFE8F5E9),
-            title: 'Sustain Your Energy',
-            items: [
-              _FoodItem(name: 'Chicken Quinoa Bowl', reason: 'Protein + complex carbs'),
-              _FoodItem(name: 'Mixed Nuts', reason: 'Healthy fats'),
-              _FoodItem(name: 'Fruit Salad', reason: 'Natural sugars'),
-            ],
-          ),
-          _RecommendationCategory(
-            icon: Icons.local_fire_department_outlined,
-            iconColor: const Color(0xFFFF5722),
-            bgColor: const Color(0xFFFBE9E7),
-            title: 'Performance Meals',
-            items: [
-              _FoodItem(name: 'Salmon with Greens', reason: 'Omega-3 for recovery'),
-              _FoodItem(name: 'Brown Rice Bowl', reason: 'Complex carbohydrates'),
-              _FoodItem(name: 'Protein Smoothie', reason: 'Muscle support'),
-            ],
-          ),
-          _RecommendationCategory(
-            icon: Icons.water_drop_outlined,
-            iconColor: const Color(0xFF2196F3),
-            bgColor: const Color(0xFFE3F2FD),
-            title: 'Hydration Reminder',
-            items: [
-              _FoodItem(name: 'Coconut Water', reason: 'Electrolytes'),
-              _FoodItem(name: 'Sports Drink', reason: 'Mineral replenishment'),
-              _FoodItem(name: 'Watermelon', reason: 'Natural hydration'),
-            ],
-          ),
-        ];
-
-      default: // happy, calm, focused, cozy
-        return [
-          _RecommendationCategory(
-            icon: Icons.bolt,
-            iconColor: const Color(0xFFFFA000),
-            bgColor: const Color(0xFFFFF8E1),
-            title: 'Boost Your Energy',
-            items: [
-              _FoodItem(name: 'Banana & Almond Butter', reason: 'Quick energy boost'),
-              _FoodItem(name: 'Greek Yogurt with Berries', reason: 'Sustained energy'),
-              _FoodItem(name: 'Oatmeal with Nuts', reason: 'Long-lasting fuel'),
-            ],
-          ),
-          _RecommendationCategory(
-            icon: Icons.spa_outlined,
-            iconColor: const Color(0xFF9C27B0),
-            bgColor: const Color(0xFFF3E5F5),
-            title: 'Reduce Stress',
-            items: [
-              _FoodItem(name: 'Dark Chocolate', reason: 'Mood enhancer'),
-              _FoodItem(name: 'Green Tea', reason: 'Calming effect'),
-              _FoodItem(name: 'Avocado Toast', reason: 'Healthy fats'),
-            ],
-          ),
-          _RecommendationCategory(
-            icon: Icons.water_drop_outlined,
-            iconColor: const Color(0xFF2196F3),
-            bgColor: const Color(0xFFE3F2FD),
-            title: 'Hydration Reminder',
-            items: [
-              _FoodItem(name: 'Coconut Water', reason: 'Electrolytes'),
-              _FoodItem(name: 'Cucumber Slices', reason: 'Hydrating snack'),
-              _FoodItem(name: 'Herbal Tea', reason: 'Gentle hydration'),
-            ],
-          ),
-        ];
-    }
-  }
 }
 
-class _RecommendationCategory {
-  final IconData icon;
-  final Color iconColor;
-  final Color bgColor;
-  final String title;
-  final List<_FoodItem> items;
+// ─── Recommendation Card ──────────────────────────────────────────────────────
 
-  const _RecommendationCategory({
-    required this.icon,
-    required this.iconColor,
-    required this.bgColor,
-    required this.title,
-    required this.items,
-  });
-}
+class _RecommendationCard extends StatelessWidget {
+  final RecommendationOption option;
 
-class _FoodItem {
-  final String name;
-  final String reason;
-  const _FoodItem({required this.name, required this.reason});
-}
+  const _RecommendationCard({required this.option});
 
-class _CategoryCard extends StatelessWidget {
-  final _RecommendationCategory category;
-  const _CategoryCard({required this.category});
+  static const _categoryColors = {
+    'energizing': Color(0xFFFFF3E0),
+    'calming': Color(0xFFE8F5E9),
+    'comforting': Color(0xFFFCE4EC),
+    'light': Color(0xFFE3F2FD),
+    'nourishing': Color(0xFFF3E5F5),
+  };
+
+  static const _categoryIcons = {
+    'energizing': '⚡',
+    'calming': '🌿',
+    'comforting': '🍲',
+    'light': '🥗',
+    'nourishing': '💪',
+  };
+
+  Color get _cardColor =>
+      _categoryColors[option.category] ?? const Color(0xFFF5F5F5);
+  String get _icon => _categoryIcons[option.category] ?? '🍽️';
 
   @override
   Widget build(BuildContext context) {
     return Container(
       margin: const EdgeInsets.only(bottom: 14),
       decoration: BoxDecoration(
-        color: category.bgColor,
-        borderRadius: BorderRadius.circular(18),
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(20),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.05),
+            blurRadius: 10,
+            offset: const Offset(0, 3),
+          ),
+        ],
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Padding(
-            padding: const EdgeInsets.fromLTRB(16, 14, 16, 10),
+          // Header with category colour
+          Container(
+            width: double.infinity,
+            padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 14),
+            decoration: BoxDecoration(
+              color: _cardColor,
+              borderRadius:
+                  const BorderRadius.vertical(top: Radius.circular(20)),
+            ),
             child: Row(
               children: [
-                Icon(
-                  category.icon,
-                  size: 20,
-                  color: category.iconColor,
+                Text(_icon, style: const TextStyle(fontSize: 28)),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        option.recipe.title,
+                        style: const TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.w700,
+                          color: AppTheme.textDark,
+                        ),
+                      ),
+                      const SizedBox(height: 2),
+                      Text(
+                        option.category[0].toUpperCase() +
+                            option.category.substring(1),
+                        style: const TextStyle(
+                          fontSize: 12,
+                          color: AppTheme.textSecondary,
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
-                const SizedBox(width: 8),
-                Text(
-                  category.title,
-                  style: TextStyle(
-                    fontSize: 15,
-                    fontWeight: FontWeight.w700,
-                    color: category.iconColor,
+                // Fit score badge
+                Container(
+                  padding: const EdgeInsets.symmetric(
+                      horizontal: 10, vertical: 5),
+                  decoration: BoxDecoration(
+                    color: AppTheme.primary,
+                    borderRadius: BorderRadius.circular(20),
+                  ),
+                  child: Text(
+                    '${option.fitScore}%',
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 12,
+                      fontWeight: FontWeight.w700,
+                    ),
                   ),
                 ),
               ],
             ),
           ),
-          ...category.items.map(
-            (item) => Container(
-              margin: const EdgeInsets.fromLTRB(12, 0, 12, 8),
-              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-              decoration: BoxDecoration(
-                color: Colors.white.withValues(alpha: 0.7),
-                borderRadius: BorderRadius.circular(12),
-              ),
-              child: Row(
-                children: [
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          item.name,
-                          style: const TextStyle(
-                            fontSize: 13,
-                            fontWeight: FontWeight.w600,
-                            color: AppTheme.textDark,
-                          ),
-                        ),
-                        const SizedBox(height: 2),
-                        Text(
-                          item.reason,
-                          style: const TextStyle(
-                            fontSize: 11,
-                            color: AppTheme.textSecondary,
-                          ),
-                        ),
-                      ],
-                    ),
+          // Info row
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 10),
+            child: Row(
+              children: [
+                if (option.recipe.cookingTimeMin != null) ...[
+                  const Icon(Icons.timer_outlined,
+                      size: 14, color: AppTheme.textSecondary),
+                  const SizedBox(width: 4),
+                  Text(
+                    '${option.recipe.cookingTimeMin} min',
+                    style: const TextStyle(
+                        fontSize: 12, color: AppTheme.textSecondary),
                   ),
-                  const Icon(
-                    Icons.chevron_right,
-                    size: 16,
-                    color: AppTheme.textSecondary,
+                  const SizedBox(width: 14),
+                ],
+                if (option.recipe.calories != null) ...[
+                  const Icon(Icons.local_fire_department_outlined,
+                      size: 14, color: AppTheme.textSecondary),
+                  const SizedBox(width: 4),
+                  Text(
+                    '${option.recipe.calories} kcal',
+                    style: const TextStyle(
+                        fontSize: 12, color: AppTheme.textSecondary),
+                  ),
+                  const SizedBox(width: 14),
+                ],
+                if (option.recipe.difficulty != null) ...[
+                  const Icon(Icons.signal_cellular_alt,
+                      size: 14, color: AppTheme.textSecondary),
+                  const SizedBox(width: 4),
+                  Text(
+                    option.recipe.difficulty!,
+                    style: const TextStyle(
+                        fontSize: 12, color: AppTheme.textSecondary),
+                  ),
+                ],
+              ],
+            ),
+          ),
+          // AI explanation
+          if (option.explanation.isNotEmpty)
+            Padding(
+              padding: const EdgeInsets.fromLTRB(18, 0, 18, 16),
+              child: Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: const Color(0xFFF9F9F9),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text('🤖', style: TextStyle(fontSize: 14)),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Text(
+                        option.explanation,
+                        style: const TextStyle(
+                          fontSize: 13,
+                          color: AppTheme.textSecondary,
+                          height: 1.4,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          // Missing ingredients (pantry mode)
+          if (option.missingIngredients.isNotEmpty)
+            Padding(
+              padding: const EdgeInsets.fromLTRB(18, 0, 18, 14),
+              child: Wrap(
+                spacing: 6,
+                runSpacing: 6,
+                children: [
+                  const Text(
+                    'Missing: ',
+                    style: TextStyle(
+                        fontSize: 12,
+                        color: AppTheme.textSecondary,
+                        fontWeight: FontWeight.w600),
+                  ),
+                  ...option.missingIngredients.map(
+                    (i) => Container(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 8, vertical: 3),
+                      decoration: BoxDecoration(
+                        color: Colors.orange.withValues(alpha: 0.1),
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: Text(
+                        i,
+                        style: const TextStyle(
+                            fontSize: 11, color: Colors.deepOrange),
+                      ),
+                    ),
                   ),
                 ],
               ),
             ),
-          ),
-          const SizedBox(height: 4),
         ],
       ),
     );
   }
 }
 
-class _WhyCard extends StatelessWidget {
+// ─── Error Card ───────────────────────────────────────────────────────────────
+
+class _ErrorCard extends StatelessWidget {
+  final String message;
+  final VoidCallback onRetry;
   final String mood;
-  final int energy;
-  const _WhyCard({required this.mood, required this.energy});
+
+  const _ErrorCard({
+    required this.message,
+    required this.onRetry,
+    required this.mood,
+  });
 
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
-        color: const Color(0xFFF1F8E9),
-        borderRadius: BorderRadius.circular(18),
-        border: Border.all(color: AppTheme.primary.withValues(alpha: 0.2)),
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: const Color(0xFFFFEEEE)),
       ),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
+      child: Column(
         children: [
-          Container(
-            width: 36,
-            height: 36,
-            decoration: BoxDecoration(
-              color: AppTheme.primary.withValues(alpha: 0.1),
-              borderRadius: BorderRadius.circular(10),
-            ),
-            child: const Icon(
-              Icons.bolt,
-              size: 18,
-              color: AppTheme.primary,
+          const Text('😕', style: TextStyle(fontSize: 40)),
+          const SizedBox(height: 12),
+          const Text(
+            'Couldn\'t reach the server',
+            style: TextStyle(
+              fontSize: 16,
+              fontWeight: FontWeight.w700,
+              color: AppTheme.textDark,
             ),
           ),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                const Text(
-                  'Why these recommendations?',
-                  style: TextStyle(
-                    fontSize: 13,
-                    fontWeight: FontWeight.w700,
-                    color: AppTheme.textDark,
-                  ),
-                ),
-                const SizedBox(height: 6),
-                Text(
-                  _explanation(mood, energy),
-                  style: const TextStyle(
-                    fontSize: 12,
-                    color: AppTheme.textSecondary,
-                    height: 1.5,
-                  ),
-                ),
-              ],
+          const SizedBox(height: 6),
+          Text(
+            message,
+            textAlign: TextAlign.center,
+            style: const TextStyle(fontSize: 13, color: AppTheme.textSecondary),
+          ),
+          const SizedBox(height: 16),
+          ElevatedButton.icon(
+            onPressed: onRetry,
+            icon: const Icon(Icons.refresh, size: 16),
+            label: const Text('Try again'),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: AppTheme.primary,
+              foregroundColor: Colors.white,
+              shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12)),
+              elevation: 0,
             ),
           ),
         ],
       ),
     );
   }
+}
 
-  static String _explanation(String mood, int energy) {
-    switch (mood) {
-      case 'tired':
-        return 'Our AI analyzed your mood, energy level, and sleep quality. These foods contain nutrients that can help restore your energy and improve focus naturally.';
-      case 'stressed':
-        return 'Our AI detected elevated stress. These foods contain magnesium, vitamin B, and antioxidants that can help calm your nervous system naturally.';
-      case 'sad':
-        return 'Our AI found foods rich in omega-3, serotonin precursors, and mood-supporting vitamins to help lift your spirits naturally.';
-      case 'energetic':
-        return 'Great energy today! Our AI selected foods to sustain your performance and keep your metabolism optimal throughout the day.';
-      default:
-        return 'Our AI analyzed your mood, energy level, and sleep quality. These foods contain nutrients that can help boost your energy and reduce stress naturally.';
-    }
+// ─── Empty state ─────────────────────────────────────────────────────────────
+
+class _EmptyCard extends StatelessWidget {
+  final String mood;
+  const _EmptyCard({required this.mood});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(28),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(20),
+      ),
+      child: const Column(
+        children: [
+          Text('🍽️', style: TextStyle(fontSize: 48)),
+          SizedBox(height: 16),
+          Text(
+            'No recipes found',
+            style: TextStyle(
+              fontSize: 17,
+              fontWeight: FontWeight.w700,
+              color: AppTheme.textDark,
+            ),
+          ),
+          SizedBox(height: 8),
+          Text(
+            'The database may be empty. Try again later.',
+            textAlign: TextAlign.center,
+            style: TextStyle(fontSize: 13, color: AppTheme.textSecondary),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+// ─── Bottom Buttons ───────────────────────────────────────────────────────────
+
+class _BottomButtons extends StatelessWidget {
+  final BuildContext context;
+  const _BottomButtons({required this.context});
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      children: [
+        SizedBox(
+          width: double.infinity,
+          height: 56,
+          child: ElevatedButton(
+            onPressed: () => Navigator.pushNamedAndRemoveUntil(
+              context,
+              '/home',
+              (_) => false,
+              arguments: {'tab': 1},
+            ),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: AppTheme.primary,
+              foregroundColor: Colors.white,
+              shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(20)),
+              elevation: 0,
+            ),
+            child: const Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Icon(Icons.menu_book_outlined, size: 18),
+                SizedBox(width: 8),
+                Text(
+                  'Explore More Recipes',
+                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
+                ),
+              ],
+            ),
+          ),
+        ),
+        const SizedBox(height: 12),
+        Center(
+          child: TextButton(
+            onPressed: () => Navigator.popUntil(
+              context,
+              ModalRoute.withName('/home'),
+            ),
+            child: const Text(
+              'Back to Home',
+              style: TextStyle(fontSize: 14, color: AppTheme.textSecondary),
+            ),
+          ),
+        ),
+      ],
+    );
   }
 }

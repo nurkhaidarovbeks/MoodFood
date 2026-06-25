@@ -2,10 +2,13 @@ import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../models/mood_entry_model.dart';
+import '../services/mood_check_service.dart';
 
 class MoodProvider extends ChangeNotifier {
   List<MoodEntry> _entries = [];
   static const _storageKey = 'moodfood_mood_entries';
+
+  final _service = MoodCheckService();
 
   List<MoodEntry> get entries => _entries;
 
@@ -57,5 +60,8 @@ class MoodProvider extends ChangeNotifier {
       jsonEncode(_entries.map((e) => e.toJson()).toList()),
     );
     notifyListeners();
+
+    // Fire-and-forget sync to backend — local save is always the source of truth
+    _service.create(entry);
   }
 }

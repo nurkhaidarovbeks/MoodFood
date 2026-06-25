@@ -5,6 +5,7 @@ class MoodEntry {
   final int energyLevel;
   final String stressLevel;
   final String sleepQuality;
+  final String? hungerLevel;
 
   const MoodEntry({
     required this.id,
@@ -13,6 +14,7 @@ class MoodEntry {
     required this.energyLevel,
     required this.stressLevel,
     required this.sleepQuality,
+    this.hungerLevel,
   });
 
   factory MoodEntry.fromJson(Map<String, dynamic> json) => MoodEntry(
@@ -22,6 +24,7 @@ class MoodEntry {
         energyLevel: json['energyLevel'] as int,
         stressLevel: json['stressLevel'] as String,
         sleepQuality: json['sleepQuality'] as String,
+        hungerLevel: json['hungerLevel'] as String?,
       );
 
   Map<String, dynamic> toJson() => {
@@ -31,6 +34,7 @@ class MoodEntry {
         'energyLevel': energyLevel,
         'stressLevel': stressLevel,
         'sleepQuality': sleepQuality,
+        if (hungerLevel != null) 'hungerLevel': hungerLevel,
       };
 
   static const Map<String, String> moodEmojis = {
