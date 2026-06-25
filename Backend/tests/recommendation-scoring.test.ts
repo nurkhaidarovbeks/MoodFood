@@ -6,6 +6,7 @@ import {
   isStressed,
   isPoorSleep,
   isVeryHungry,
+  isBudgetConscious,
   stateFitScore,
   selectThreeOptions,
   suggestSubstitutions,
@@ -85,6 +86,13 @@ describe('state detection helpers', () => {
     expect(isVeryHungry({ hungerLevel: 'high' })).toBe(true)
     expect(isVeryHungry({ hungerLevel: 'low' })).toBe(false)
   })
+
+  it('detects budget-conscious state only for low budget', () => {
+    expect(isBudgetConscious({ budgetLevel: 'low' })).toBe(true)
+    expect(isBudgetConscious({ budgetLevel: 'medium' })).toBe(false)
+    expect(isBudgetConscious({ budgetLevel: 'high' })).toBe(false)
+    expect(isBudgetConscious({})).toBe(false)
+  })
 })
 
 // ─── Fit scoring ──────────────────────────────────────────────────────────────
@@ -113,9 +121,27 @@ describe('stateFitScore', () => {
     expect(stateFitScore(smoothie, state)).toBeGreaterThan(stateFitScore(salmon, state))
   })
 
+  it('rewards cheap meals and penalises pricey ones for low-budget users', () => {
+    const state: MoodState = { budgetLevel: 'low' }
+    // smoothie ($2.50) and lentil ($3) are cheap → boosted above baseline
+    expect(stateFitScore(smoothie, state)).toBeGreaterThan(0.5)
+    expect(stateFitScore(lentil, state)).toBeGreaterThan(0.5)
+    // salmon ($9) is pricey → penalised below baseline
+    expect(stateFitScore(salmon, state)).toBeLessThan(0.5)
+    // cheap lentil should rank above pricey salmon for a budget student
+    expect(stateFitScore(lentil, state)).toBeGreaterThan(stateFitScore(salmon, state))
+  })
+
+  it('does not apply the budget rule for medium/high budget', () => {
+    // chicken ($6) sits between thresholds — unaffected even at low budget,
+    // and pricey salmon is only penalised when budget is explicitly low.
+    expect(stateFitScore(salmon, { budgetLevel: 'high' })).toBeCloseTo(stateFitScore(salmon, {}))
+    expect(stateFitScore(smoothie, { budgetLevel: 'medium' })).toBeCloseTo(stateFitScore(smoothie, {}))
+  })
+
   it('never returns a value outside 0..1', () => {
     for (const r of ALL) {
-      const s = stateFitScore(r, { energyLevel: 1, hungerLevel: 'high', sleepQuality: 'poor' })
+      const s = stateFitScore(r, { energyLevel: 1, hungerLevel: 'high', sleepQuality: 'poor', budgetLevel: 'low' })
       expect(s).toBeGreaterThanOrEqual(0)
       expect(s).toBeLessThanOrEqual(1)
     }

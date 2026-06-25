@@ -44,7 +44,11 @@ export class RecommendationService {
     private ai: MealAiService,
   ) {}
 
-  async recommend(userId: string, input: RecommendationRequestInput) {
+  async recommend(
+    userId: string,
+    input: RecommendationRequestInput,
+    opts: { availableIngredientNames?: string[] } = {},
+  ) {
     const user = await this.prisma.user.findUnique({
       where: { id: userId },
       include: { profile: true },
@@ -86,15 +90,32 @@ export class RecommendationService {
       candidates as unknown as RecipeForFiltering[],
     ) as unknown as RecipeRow[]
 
-    // Pantry matching (optional).
+    // Ingredient-availability source:
+    //  - photo flow passes explicit ingredient names → matched BY NAME
+    //  - otherwise useMyIngredients reads the saved pantry → matched BY ID
+    const photoNames = opts.availableIngredientNames
+    const usePhoto = Array.isArray(photoNames)
+    const enrich = usePhoto || input.useMyIngredients
+
     let pantryIds = new Set<string>()
-    if (input.useMyIngredients) {
+    if (input.useMyIngredients && !usePhoto) {
       const pantry = await this.prisma.userIngredient.findMany({
         where: { userId },
         select: { ingredientId: true },
       })
       pantryIds = new Set(pantry.map(p => p.ingredientId))
     }
+    const nameSet = usePhoto
+      ? new Set(photoNames!.map(n => n.toLowerCase().trim()).filter(Boolean))
+      : null
+
+    const hasIngredient = (ri: {
+      ingredientId: string
+      ingredient: { name: string }
+    }): boolean =>
+      usePhoto
+        ? nameSet!.has(ri.ingredient.name.toLowerCase().trim())
+        : pantryIds.has(ri.ingredientId)
 
     const scorables: ScorableRecipe[] = eligible.map(toScorable)
     const selected = selectThreeOptions(scorables, state)
@@ -111,12 +132,12 @@ export class RecommendationService {
         recipe: formatRecipe(row),
       }
 
-      if (!input.useMyIngredients) return base
+      if (!enrich) return base
 
       const total = row.recipeIngredients.length
-      const matched = row.recipeIngredients.filter(ri => pantryIds.has(ri.ingredientId)).length
+      const matched = row.recipeIngredients.filter(hasIngredient).length
       const missing = row.recipeIngredients
-        .filter(ri => !pantryIds.has(ri.ingredientId))
+        .filter(ri => !hasIngredient(ri))
         .map(ri => ri.ingredient.name)
 
       return {

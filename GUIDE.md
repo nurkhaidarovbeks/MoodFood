@@ -342,6 +342,34 @@ Authorization: Bearer <jwt-токен>
 
 Ответ содержит `"aiPowered": true/false` — показывает, использовался ли OpenAI или rule-based fallback.
 
+### AI-распознавание фото (Epic 4 — фото ингредиентов)
+
+Сфоткать холодильник, чек или список продуктов → AI извлекает ингредиенты → рекомендации.
+
+| Метод | Путь | Auth | Описание |
+|-------|------|------|---------|
+| `POST` | `/vision/ingredients` | ✅ | Фото → список ингредиентов (confidence + detectedSource) |
+| `POST` | `/vision/recommendations` | ✅ | Фото → сразу 3 блюда (one-shot) |
+
+Тело запроса:
+```json
+{
+  "imageBase64": "<base64 или data:image/jpeg;base64,...>",
+  "mimeType": "image/jpeg",
+  "minConfidence": 0.4
+}
+```
+Для `/vision/recommendations` можно добавить `mood`, `energyLevel`, `budgetLevel`, `maxCookingTime` и т.д.
+
+**Важно:**
+- Поддерживаемые форматы: JPEG, PNG, WebP. HEIC (iPhone) конвертировать на устройстве.
+- Лимит фото: 10 МБ. Лимит запросов: 20 / 15 мин на пользователя.
+- `detectedSource`: `fridge` | `receipt` | `shopping_list` | `unknown` (авто-определение).
+- Без `OPENAI_API_KEY` → 503 `VISION_NOT_CONFIGURED` (офлайн-фолбэка для фото нет).
+- Извлечённые ингредиенты в pantry НЕ сохраняются — фронт сам решает добавить через `POST /pantry`.
+- Диетические ограничения остаются жёстким фильтром и для фото-рекомендаций.
+- На Render нужен `OPENAI_API_KEY`; опционально `OPENAI_VISION_MODEL` (по умолч. `gpt-4o-mini`, `gpt-4o` точнее).
+
 ### Платежи
 
 | Метод | Путь | Auth | Описание |
@@ -616,6 +644,13 @@ Authorization: Bearer eyJ...
 | `OTP_MAX_ATTEMPTS` | 429 | Превышено количество попыток OTP (3) |
 | `PANTRY_ITEM_NOT_FOUND` | 404 | Ингредиент не найден в кладовке пользователя |
 | `RATE_LIMITED` | 429 | Слишком много запросов |
+| `VISION_NOT_CONFIGURED` | 503 | Нет OPENAI_API_KEY — распознавание фото недоступно |
+| `UNSUPPORTED_IMAGE_FORMAT` | 400 | Формат фото не JPEG/PNG/WebP (например HEIC) |
+| `IMAGE_TOO_LARGE` | 413 | Фото больше 10 МБ |
+| `INVALID_IMAGE_DATA` | 400 | imageBase64 не валидный base64 |
+| `NO_INGREDIENTS_DETECTED` | 422 | На фото не распознано еды (нечёткое/не еда) |
+| `VISION_PARSE_ERROR` | 502 | Модель вернула неразборчивый ответ |
+| `VISION_UPSTREAM_ERROR` | 502 | Сбой сервиса распознавания |
 | `UNAUTHORIZED` | 401 | JWT токен отсутствует или недействителен |
 | `NOT_FOUND` | 404 | Маршрут не найден |
 
@@ -794,5 +829,5 @@ npm test
 
 ---
 
-*Backend: май–июнь 2026 · 175 тестов · Epics 1–5 завершены · Деплой: Render · AI: OpenAI GPT-4o-mini*  
+*Backend: май–июнь 2026 · 204 теста · Epics 1–5 завершены + AI-распознавание фото · Деплой: Render · AI: OpenAI GPT-4o-mini*  
 *Mobile: июнь 2026 · Flutter 3.41.3 · iOS (Cherry🍒) · Ветка: feature/flutter-frontend-epic1*

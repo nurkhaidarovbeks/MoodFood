@@ -43,4 +43,8 @@ export const env = {
   // gpt-4o-mini — cheap & fast, ideal for short high-frequency blurbs.
   // Override with gpt-4o for higher-quality prose.
   OPENAI_MODEL: optional('OPENAI_MODEL', 'gpt-4o-mini'),
+  // Vision model for photo ingredient recognition (fridge / receipt / list).
+  // gpt-4o-mini supports vision and is cheap; gpt-4o is more accurate on hard
+  // photos (blurry shelves, dense receipts) at higher cost.
+  OPENAI_VISION_MODEL: optional('OPENAI_VISION_MODEL', 'gpt-4o-mini'),
 }

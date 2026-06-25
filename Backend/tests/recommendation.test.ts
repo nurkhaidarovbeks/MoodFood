@@ -132,7 +132,9 @@ describe('recommend — happy path', () => {
     prismaMock.user.findUnique.mockResolvedValueOnce(userNoRestrictions as any)
     prismaMock.recipe.findMany.mockResolvedValueOnce(ALL_ROWS as any)
 
-    const result = await service.recommend('user-1', { energyLevel: 1, useMyIngredients: false })
+    // budgetLevel:'high' neutralises the profile's 'low' budget so this test
+    // isolates the low-energy → high-protein rule (salmon) from the budget rule.
+    const result = await service.recommend('user-1', { energyLevel: 1, budgetLevel: 'high', useMyIngredients: false })
 
     const healthiest = result.options.find(o => o.category === 'healthiest')!
     expect(healthiest.recipe.id).toBe('r-salmon')
@@ -172,6 +174,24 @@ describe('recommend — maxCookingTime', () => {
   })
 })
 
+// ─── Budget-based recommendation ──────────────────────────────────────────────
+
+describe('recommend — budget', () => {
+  it('favours cheaper meals as healthiest for a low-budget profile', async () => {
+    // userNoRestrictions has budgetLevel:'low'. At low energy, pricey salmon ($9)
+    // is penalised so the cheap, protein-decent lentil ($3) wins as healthiest.
+    prismaMock.user.findUnique.mockResolvedValueOnce(userNoRestrictions as any)
+    prismaMock.recipe.findMany.mockResolvedValueOnce(ALL_ROWS as any)
+
+    const result = await service.recommend('user-1', { energyLevel: 1, useMyIngredients: false })
+
+    const healthiest = result.options.find(o => o.category === 'healthiest')!
+    expect(healthiest.recipe.id).toBe('r-lentil')
+    // The pricey salmon should not be the healthiest pick on a tight budget.
+    expect(healthiest.recipe.id).not.toBe('r-salmon')
+  })
+})
+
 // ─── Pantry matching + substitutions ──────────────────────────────────────────
 
 describe('recommend — useMyIngredients', () => {
@@ -180,7 +200,9 @@ describe('recommend — useMyIngredients', () => {
     prismaMock.recipe.findMany.mockResolvedValueOnce(ALL_ROWS as any)
     prismaMock.userIngredient.findMany.mockResolvedValueOnce([]) // empty pantry
 
-    const result = await service.recommend('user-1', { energyLevel: 1, useMyIngredients: true })
+    // budgetLevel:'high' keeps pricey salmon in the running as healthiest so we
+    // can assert its substitutions (the profile's 'low' budget would drop it).
+    const result = await service.recommend('user-1', { energyLevel: 1, budgetLevel: 'high', useMyIngredients: true })
 
     for (const opt of result.options as any[]) {
       expect(typeof opt.matchScore).toBe('number')
