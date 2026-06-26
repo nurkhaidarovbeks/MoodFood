@@ -15,9 +15,12 @@ class FavoriteItem {
   });
 
   factory FavoriteItem.fromJson(Map<String, dynamic> j) => FavoriteItem(
-        favoriteId: j['id'] as String,
+        // Backend sends `favoriteId` + `savedAt` (fallback to id/createdAt for safety)
+        favoriteId: (j['favoriteId'] ?? j['id']) as String,
         recipe: Recipe.fromJson(Map<String, dynamic>.from(j['recipe'] as Map)),
-        createdAt: DateTime.parse(j['createdAt'] as String),
+        createdAt: DateTime.parse(
+            (j['savedAt'] ?? j['createdAt'] ?? DateTime.now().toIso8601String())
+                as String),
       );
 }
 
@@ -30,11 +33,16 @@ class FavoritesService {
         ApiConstants.favorites,
         queryParameters: {'limit': limit, 'offset': offset},
       );
-      final list = res.data as List<dynamic>;
+      // Backend returns { favorites: [...], total, limit, offset }.
+      // Tolerate a bare list too, in case the shape changes.
+      final data = res.data;
+      final list = data is Map
+          ? (data['favorites'] as List<dynamic>? ?? [])
+          : (data as List<dynamic>);
       return list
           .map((e) => FavoriteItem.fromJson(Map<String, dynamic>.from(e as Map)))
           .toList();
-    } on DioException {
+    } catch (_) {
       return [];
     }
   }
@@ -46,8 +54,9 @@ class FavoritesService {
         ApiConstants.favorites,
         data: {'recipeId': recipeId},
       );
-      return res.data['id'] as String?;
-    } on DioException {
+      // Backend returns { favoriteId, savedAt, recipe }
+      return (res.data['favoriteId'] ?? res.data['id']) as String?;
+    } catch (_) {
       return null;
     }
   }
@@ -70,7 +79,7 @@ class FavoritesService {
       final isFav = data['isFavorite'] as bool? ?? false;
       final favId = data['favoriteId'] as String?;
       return (isFav, favId);
-    } on DioException {
+    } catch (_) {
       return (false, null);
     }
   }

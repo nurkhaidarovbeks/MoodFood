@@ -31,12 +31,16 @@ class SubscriptionService {
     }
   }
 
-  /// Returns null if no subscription, otherwise { status, expiresAt, plan }
+  /// Returns null if no subscription, otherwise { status, expiresAt, plan }.
+  /// Backend wraps it as { subscription: {...} | null } — unwrap here.
   Future<Map<String, dynamic>?> getMySubscription() async {
     try {
       final res = await _api.dio.get(ApiConstants.subscriptionMe);
       if (res.data == null) return null;
-      return Map<String, dynamic>.from(res.data as Map);
+      final body = Map<String, dynamic>.from(res.data as Map);
+      final sub = body['subscription'];
+      if (sub == null) return null;
+      return Map<String, dynamic>.from(sub as Map);
     } on DioException catch (e) {
       if (e.response?.statusCode == 404) return null;
       throw _api.handleError(e);
