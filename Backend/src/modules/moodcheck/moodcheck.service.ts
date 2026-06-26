@@ -1,5 +1,6 @@
 import { PrismaClient } from '@prisma/client'
 import type { CreateMoodCheckInput, MoodCheckHistoryQuery } from './moodcheck.schema'
+import { moodChecksTotal } from '../../services/metrics.service'
 
 /**
  * MoodCheckService — Epic 2. Persists the user's daily state check-ins and
@@ -10,7 +11,7 @@ export class MoodCheckService {
   constructor(private prisma: PrismaClient) {}
 
   async create(userId: string, input: CreateMoodCheckInput) {
-    return this.prisma.moodCheck.create({
+    const check = await this.prisma.moodCheck.create({
       data: {
         userId,
         mood: input.mood ?? null,
@@ -20,6 +21,8 @@ export class MoodCheckService {
         hungerLevel: input.hungerLevel ?? null,
       },
     })
+    moodChecksTotal.inc({ mood: input.mood ?? 'unknown' })
+    return check
   }
 
   async history(userId: string, query: MoodCheckHistoryQuery) {

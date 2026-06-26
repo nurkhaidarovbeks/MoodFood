@@ -1,6 +1,7 @@
 import { PrismaClient } from '@prisma/client'
 import { AppError } from '../../middleware/errorHandler'
 import type { FavoriteAddInput, FavoritesQueryInput } from './favorites.schema'
+import { favoritesTotal } from '../../services/metrics.service'
 
 const RECIPE_INCLUDE = {
   recipeIngredients: {
@@ -47,6 +48,7 @@ export class FavoritesService {
     })
     if (existing) throw new AppError(409, 'Recipe already in favorites', 'ALREADY_FAVORITED')
 
+    favoritesTotal.inc({ action: 'add' })
     const favorite = await this.prisma.userFavorite.create({
       data: { userId, recipeId: input.recipeId },
       include: { recipe: { include: RECIPE_INCLUDE } },
@@ -66,6 +68,7 @@ export class FavoritesService {
     if (!item) throw new AppError(404, 'Favorite not found', 'FAVORITE_NOT_FOUND')
 
     await this.prisma.userFavorite.delete({ where: { id: favoriteId } })
+    favoritesTotal.inc({ action: 'remove' })
     return { message: 'Recipe removed from favorites' }
   }
 

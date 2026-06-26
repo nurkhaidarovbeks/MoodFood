@@ -1,5 +1,10 @@
 import { AppError } from '../../middleware/errorHandler'
 import {
+  visionRequestsTotal,
+  visionSourceTotal,
+  visionIngredientsExtracted,
+} from '../../services/metrics.service'
+import {
   VisionAiService,
   type VisionResult,
   type ExtractedIngredient,
@@ -24,7 +29,10 @@ export class VisionService {
 
   /** Photo → structured ingredient list (no recommendation, no DB writes). */
   async extract(input: VisionExtractInput): Promise<ExtractResponse> {
+    visionRequestsTotal.inc({ endpoint: 'ingredients' })
     const result = await this.vision.extractIngredients(toImageInput(input))
+    visionSourceTotal.inc({ source: result.detectedSource })
+    visionIngredientsExtracted.observe(result.ingredients.length)
     return this.split(result, input.minConfidence)
   }
 
@@ -34,7 +42,10 @@ export class VisionService {
    * hard constraint and substitutions are filtered to what the user can eat.
    */
   async recommendFromPhoto(userId: string, input: VisionRecommendInput) {
+    visionRequestsTotal.inc({ endpoint: 'recommendations' })
     const visionResult = await this.vision.extractIngredients(toImageInput(input))
+    visionSourceTotal.inc({ source: visionResult.detectedSource })
+    visionIngredientsExtracted.observe(visionResult.ingredients.length)
     const split = this.split(visionResult, input.minConfidence)
 
     if (split.confident.length === 0) {

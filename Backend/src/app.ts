@@ -4,6 +4,12 @@ import helmet from 'helmet'
 import { env } from './config/env'
 import { errorHandler } from './middleware/errorHandler'
 import prisma from './config/database'
+import {
+  registry,
+  httpRequestsTotal,
+  httpRequestDurationSeconds,
+  normalizeRoute,
+} from './services/metrics.service'
 import authRoutes from './modules/auth/auth.routes'
 import profileRoutes from './modules/profile/profile.routes'
 import recipeRoutes from './modules/recipes/recipe.routes'
@@ -28,6 +34,29 @@ app.use(
     credentials: true,
   }),
 )
+
+// ─── Prometheus metrics endpoint ─────────────────────────────────────────────
+app.get('/metrics', async (_req, res) => {
+  res.set('Content-Type', registry.contentType)
+  res.end(await registry.metrics())
+})
+
+// ─── HTTP request metrics middleware ─────────────────────────────────────────
+app.use((req, res, next) => {
+  const start = process.hrtime.bigint()
+  res.on('finish', () => {
+    const route = normalizeRoute(req.path)
+    const labels = {
+      method: req.method,
+      route,
+      status_code: String(res.statusCode),
+    }
+    httpRequestsTotal.inc(labels)
+    const durationMs = Number(process.hrtime.bigint() - start) / 1e9
+    httpRequestDurationSeconds.observe(labels, durationMs)
+  })
+  next()
+})
 
 // ─── Body parsing ─────────────────────────────────────────────────────────────
 // Global 1mb limit for normal JSON. /vision handles large base64 photos and

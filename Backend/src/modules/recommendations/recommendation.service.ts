@@ -16,6 +16,7 @@ import {
   type MoodState,
   type ScorableRecipe,
 } from './recommendation.scoring'
+import { recommendationsTotal } from '../../services/metrics.service'
 import type { RecommendationRequestInput } from './recommendation.schema'
 
 // Prisma row shape we fetch (recipe + ingredients).
@@ -185,11 +186,16 @@ export class RecommendationService {
     }))
     const explanations = await this.ai.explainMeals(mealsToExplain, state)
 
-    return {
+    const result = {
       state,
       aiPowered: this.ai.aiEnabled,
       options: options.map(o => ({ ...o, explanation: explanations[o.recipe.id] ?? '' })),
     }
+    recommendationsTotal.inc({
+      ai_powered: String(this.ai.aiEnabled),
+      via_photo: String(usePhoto),
+    })
+    return result
   }
 }
 
