@@ -1,7 +1,7 @@
 # MoodFood — Руководство команды
 
 > Репозиторий: https://github.com/nurkhaidarovbeks/MoodFood  
-> Последнее обновление: 24 июня 2026
+> Последнее обновление: 26 июня 2026
 
 ---
 
@@ -695,17 +695,20 @@ Mobile/lib/
 ├── core/
 │   ├── api/          ← Dio HTTP клиент, JWT интерцептор
 │   ├── constants/    ← API URLs
-│   ├── models/       ← User, Profile, MoodEntry
-│   ├── providers/    ← AuthProvider, ProfileProvider, MoodProvider
-│   ├── services/     ← AuthService, ProfileService
+│   ├── models/       ← User, Profile, MoodEntry, Recipe (fatG/carbsG)
+│   ├── providers/    ← AuthProvider, ProfileProvider, MoodProvider, FavoritesProvider
+│   ├── services/     ← AuthService, ProfileService, FavoritesService, VisionService
 │   ├── storage/      ← TokenStorage (SecureStorage)
 │   └── theme/        ← AppTheme с дизайн-токенами
 ├── features/
 │   ├── auth/         ← Login, Register, OTP, Welcome, Splash
-│   ├── home/         ← Home (3 таба)
+│   ├── favorites/    ← FavoritesScreen (список, P/F/C badges, pull-to-refresh)
+│   ├── home/         ← Home (5 табов), AI Chat с Vision AI
 │   ├── mood/         ← MoodCheck, MoodHistory
-│   └── onboarding/   ← ProfileSetup (4 шага)
-└── router/           ← AppRouter
+│   ├── onboarding/   ← ProfileSetup (4 шага)
+│   ├── recipes/      ← RecipesScreen (grid, detail sheet с macros/cost)
+│   └── recommendations/ ← RecommendationsScreen (mood + Vision AI preloaded)
+└── router/           ← AppRouter (/favorites маршрут добавлен)
 ```
 
 ### Дизайн-токены (Figma)
@@ -732,14 +735,19 @@ const baseUrl = 'http://10.0.2.2:3000/api/v1';
 
 ### Текущее состояние Flutter
 
-- Экраны auth (Login, Register, OTP, Splash, Welcome) — готовы
-- Онбординг (ProfileSetup, 4 шага) — готов
-- Home с тремя табами — готов
-- Google Sign In — реализован (google_sign_in: ^6.2.2, serverClientId настроен)
-- Apple Sign In — заглушка (показывает SnackBar "coming soon")
-- Mood модуль — данные в SharedPreferences (не в бэкенде)
-- Pantry экран — не реализован (API готов)
-- Recipes экран — не реализован (API готов)
+- Экраны auth (Login, Register, OTP, Splash, Welcome) — ✅ готовы
+- Онбординг (ProfileSetup, 4 шага) — ✅ готов
+- Home (5 табов) — ✅ готов (Water, Calories, Mood, AI Chat, Tracker, Profile)
+- Google Sign In — ✅ реализован (serverClientId настроен)
+- Mood Check → POST /mood-checks — ✅ бэкенд
+- AI Recommendations → POST /recommendations — ✅ fitScore + GPT объяснение
+- Recipes экран — ✅ фото Unsplash, фильтры, detail sheet с P/F/C + cost + difficulty
+- Favorites экран — ✅ backend sync (GET/POST/DELETE /favorites), optimistic toggle
+- Vision AI — ✅ Camera/Gallery → POST /vision/recommendations → RecommendationsScreen
+- Profile: "Recipes Saved" счётчик + "View all" → /favorites — ✅
+- Premium / PayPal WebView — ✅ готов
+- Pantry экран — ✅ 24 ингредиента, match-count сортировка
+- Apple Sign In — ⏳ заглушка (нужен iOS entitlement)
 - Bundle ID: `com.banb.moodfood`
 
 ---
@@ -822,12 +830,12 @@ npm test
 | Epic 4 Backend | ✅ Готов | Payment (PayPal WebView), Wallet, Subscriptions (monthly/annual) |
 | Epic 4 Mobile | ✅ Готов | AI Recommendations с реальными данными (fitScore, GPT объяснение, категории), Premium/PayPal flow |
 | Epic 4 (AI) Backend | ✅ Готов | AI-рекомендации по настроению (GPT-4o-mini + rule-based fallback) |
-| Epic 5 Backend | ✅ Готов | fatG/carbsG в Recipe, Favorites CRUD (`/api/v1/favorites`) |
+| Epic 5 Backend | ✅ Готов | fatG/carbsG в Recipe, Favorites CRUD (`/api/v1/favorites`), Vision AI |
+| Epic 5 Mobile | ✅ Готов | Favorites sync с бэкендом, Vision AI (фото → рецепты), macros/cost/difficulty в UI |
 | Infra | ✅ Готово | Docker, GitHub Actions CI/CD, Render деплой |
-| Epic 5 Mobile | ⏳ Следующий | Показ cost/macros/difficulty в UI, экран Favorites, sync с бэкендом |
-| Epic 6+ | ⏳ Следующий | Habit analytics, Apple Sign In, push-уведомления |
+| Epic 6+ | ⏳ Следующий | Habit analytics, Apple Sign In, push-уведомления, тёмная тема |
 
 ---
 
 *Backend: май–июнь 2026 · 226 тестов · Epics 1–5 + AI-фото + здоровое питание (44 рецепта, health-score, словарь продуктов) · Деплой: Render · AI: OpenAI GPT-4o-mini*  
-*Mobile: июнь 2026 · Flutter 3.41.3 · iOS (Cherry🍒) · Ветка: feature/flutter-frontend-epic1*
+*Mobile: июнь 2026 · Flutter 3.41.3 · iOS (Cherry🍒) · Epics 1–5 полностью готовы · Ветка: feature/flutter-frontend-epic1*
