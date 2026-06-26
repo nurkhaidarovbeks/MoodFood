@@ -1,0 +1,208 @@
+{
+  "title": "MoodFood — Backend Overview",
+  "uid": "moodfood-main",
+  "schemaVersion": 38,
+  "version": 1,
+  "refresh": "10s",
+  "time": { "from": "now-1h", "to": "now" },
+  "panels": [
+    {
+      "id": 1,
+      "title": "Request Rate (req/s)",
+      "type": "timeseries",
+      "gridPos": { "x": 0, "y": 0, "w": 8, "h": 8 },
+      "targets": [
+        {
+          "expr": "sum(rate(moodfood_http_requests_total[1m]))",
+          "legendFormat": "req/s"
+        }
+      ],
+      "fieldConfig": { "defaults": { "unit": "reqps" } }
+    },
+    {
+      "id": 2,
+      "title": "HTTP Latency p50 / p95 / p99",
+      "type": "timeseries",
+      "gridPos": { "x": 8, "y": 0, "w": 8, "h": 8 },
+      "targets": [
+        {
+          "expr": "histogram_quantile(0.50, sum(rate(moodfood_http_request_duration_seconds_bucket[1m])) by (le))",
+          "legendFormat": "p50"
+        },
+        {
+          "expr": "histogram_quantile(0.95, sum(rate(moodfood_http_request_duration_seconds_bucket[1m])) by (le))",
+          "legendFormat": "p95"
+        },
+        {
+          "expr": "histogram_quantile(0.99, sum(rate(moodfood_http_request_duration_seconds_bucket[1m])) by (le))",
+          "legendFormat": "p99"
+        }
+      ],
+      "fieldConfig": { "defaults": { "unit": "s" } }
+    },
+    {
+      "id": 3,
+      "title": "Error Rate (4xx + 5xx / min)",
+      "type": "timeseries",
+      "gridPos": { "x": 16, "y": 0, "w": 8, "h": 8 },
+      "targets": [
+        {
+          "expr": "sum(rate(moodfood_http_requests_total{status_code=~\"4..\"}[1m]))",
+          "legendFormat": "4xx"
+        },
+        {
+          "expr": "sum(rate(moodfood_http_requests_total{status_code=~\"5..\"}[1m]))",
+          "legendFormat": "5xx"
+        }
+      ],
+      "fieldConfig": { "defaults": { "unit": "reqps" } }
+    },
+    {
+      "id": 4,
+      "title": "Top Endpoints by Request Count",
+      "type": "bargauge",
+      "gridPos": { "x": 0, "y": 8, "w": 12, "h": 8 },
+      "targets": [
+        {
+          "expr": "topk(10, sum by (route, method) (rate(moodfood_http_requests_total[5m])))",
+          "legendFormat": "{{method}} {{route}}"
+        }
+      ],
+      "fieldConfig": { "defaults": { "unit": "reqps" } }
+    },
+    {
+      "id": 5,
+      "title": "Top Endpoints by Latency (p95)",
+      "type": "bargauge",
+      "gridPos": { "x": 12, "y": 8, "w": 12, "h": 8 },
+      "targets": [
+        {
+          "expr": "topk(10, histogram_quantile(0.95, sum by (route, method, le) (rate(moodfood_http_request_duration_seconds_bucket[5m]))))",
+          "legendFormat": "{{method}} {{route}}"
+        }
+      ],
+      "fieldConfig": { "defaults": { "unit": "s" } }
+    },
+    {
+      "id": 6,
+      "title": "AI Calls / min",
+      "type": "timeseries",
+      "gridPos": { "x": 0, "y": 16, "w": 8, "h": 8 },
+      "targets": [
+        {
+          "expr": "sum by (type, powered) (rate(moodfood_ai_calls_total[1m]))",
+          "legendFormat": "{{type}} ai={{powered}}"
+        }
+      ],
+      "fieldConfig": { "defaults": { "unit": "ops" } }
+    },
+    {
+      "id": 7,
+      "title": "AI Call Latency p95",
+      "type": "timeseries",
+      "gridPos": { "x": 8, "y": 16, "w": 8, "h": 8 },
+      "targets": [
+        {
+          "expr": "histogram_quantile(0.95, sum by (type, le) (rate(moodfood_ai_call_duration_seconds_bucket[5m])))",
+          "legendFormat": "{{type}} p95"
+        }
+      ],
+      "fieldConfig": { "defaults": { "unit": "s" } }
+    },
+    {
+      "id": 8,
+      "title": "Vision Requests & Source",
+      "type": "timeseries",
+      "gridPos": { "x": 16, "y": 16, "w": 8, "h": 8 },
+      "targets": [
+        {
+          "expr": "sum by (source) (rate(moodfood_vision_source_total[5m]))",
+          "legendFormat": "{{source}}"
+        }
+      ],
+      "fieldConfig": { "defaults": { "unit": "ops" } }
+    },
+    {
+      "id": 9,
+      "title": "Business: Mood Checks / min",
+      "type": "timeseries",
+      "gridPos": { "x": 0, "y": 24, "w": 8, "h": 7 },
+      "targets": [
+        {
+          "expr": "sum by (mood) (rate(moodfood_mood_checks_total[1m]))",
+          "legendFormat": "{{mood}}"
+        }
+      ],
+      "fieldConfig": { "defaults": { "unit": "ops" } }
+    },
+    {
+      "id": 10,
+      "title": "Business: Recommendations / min",
+      "type": "timeseries",
+      "gridPos": { "x": 8, "y": 24, "w": 8, "h": 7 },
+      "targets": [
+        {
+          "expr": "sum by (ai_powered, via_photo) (rate(moodfood_recommendations_total[1m]))",
+          "legendFormat": "ai={{ai_powered}} photo={{via_photo}}"
+        }
+      ],
+      "fieldConfig": { "defaults": { "unit": "ops" } }
+    },
+    {
+      "id": 11,
+      "title": "Business: Favorites Add / Remove",
+      "type": "timeseries",
+      "gridPos": { "x": 16, "y": 24, "w": 8, "h": 7 },
+      "targets": [
+        {
+          "expr": "sum by (action) (rate(moodfood_favorites_total[1m]))",
+          "legendFormat": "{{action}}"
+        }
+      ],
+      "fieldConfig": { "defaults": { "unit": "ops" } }
+    },
+    {
+      "id": 12,
+      "title": "Node.js Heap Used",
+      "type": "timeseries",
+      "gridPos": { "x": 0, "y": 31, "w": 8, "h": 7 },
+      "targets": [
+        {
+          "expr": "moodfood_node_nodejs_heap_size_used_bytes",
+          "legendFormat": "heap used"
+        },
+        {
+          "expr": "moodfood_node_nodejs_heap_size_total_bytes",
+          "legendFormat": "heap total"
+        }
+      ],
+      "fieldConfig": { "defaults": { "unit": "bytes" } }
+    },
+    {
+      "id": 13,
+      "title": "Node.js Event Loop Lag",
+      "type": "timeseries",
+      "gridPos": { "x": 8, "y": 31, "w": 8, "h": 7 },
+      "targets": [
+        {
+          "expr": "rate(moodfood_node_nodejs_eventloop_lag_seconds_sum[1m]) / rate(moodfood_node_nodejs_eventloop_lag_seconds_count[1m])",
+          "legendFormat": "event loop lag"
+        }
+      ],
+      "fieldConfig": { "defaults": { "unit": "s" } }
+    },
+    {
+      "id": 14,
+      "title": "Node.js Process RSS",
+      "type": "timeseries",
+      "gridPos": { "x": 16, "y": 31, "w": 8, "h": 7 },
+      "targets": [
+        {
+          "expr": "moodfood_node_process_resident_memory_bytes",
+          "legendFormat": "RSS"
+        }
+      ],
+      "fieldConfig": { "defaults": { "unit": "bytes" } }
+    }
+  ]
+}
