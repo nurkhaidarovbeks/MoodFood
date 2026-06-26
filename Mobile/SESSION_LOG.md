@@ -337,7 +337,116 @@ static const String favoritesCheck = '/favorites/check';
 
 ---
 
-## Текущее состояние (25 июня 2026)
+## Сессия 10 Mobile — 26 июня 2026 (Epic 5 Frontend)
+
+> Автор: Azhara Khamitbek | Модель: Claude Sonnet 4.6  
+> Ветка: `feature/flutter-frontend-epic1`  
+> Коммиты: `7c15421`, `1b63b92`
+
+### Что сделано
+
+#### Favorites — полная реализация
+
+**`lib/core/services/favorites_service.dart`** — новый файл:
+- `FavoriteItem` модель: `favoriteId`, `recipe`, `createdAt`
+- `getFavorites()` → `GET /favorites`
+- `addFavorite(recipeId)` → `POST /favorites { recipeId }` → возвращает `favoriteId`
+- `removeFavorite(favoriteId)` → `DELETE /favorites/:id`
+- `checkFavorite(recipeId)` → `GET /favorites/check/:recipeId`
+
+**`lib/core/providers/favorites_provider.dart`** — новый файл:
+- `Map<String, String> _favoriteIds` — `recipeId → favoriteId` для O(1) lookup
+- `isFavorite(recipeId)` — мгновенная проверка
+- `toggle(recipeId)` — оптимистичное обновление (UI меняется мгновенно, API вызов идёт фоном)
+- `load()` — загружает список с бэкенда
+
+**`lib/features/favorites/screens/favorites_screen.dart`** — новый файл:
+- `_FavoriteCard` — фото (Unsplash по ключевому слову), название, chips (время/калории/сложность), P/F/C macro badges
+- Кнопка ♥ → `FavoritesProvider.toggle()` для удаления из избранного
+- `RefreshIndicator` для pull-to-refresh
+- Empty state с кнопкой "Browse Recipes" → `/home` tab 1
+
+**`lib/main.dart`** — добавлен `ChangeNotifierProvider(create: (_) => FavoritesProvider())`
+
+**`lib/router/app_router.dart`** — добавлен маршрут `/favorites`
+
+**`lib/features/recipes/screens/recipes_screen.dart`** — обновлён:
+- Кнопка ♥ на карточке рецепта теперь использует `FavoritesProvider.toggle()` вместо `SharedPreferences`
+- `context.watch<FavoritesProvider>().isFavorite(id)` — сердечко синхронизировано с бэкендом
+
+#### Recipe detail — macros + cost + difficulty
+
+В `_RecipeDetailSheet`:
+- Difficulty chip добавлен в мета-строку (рядом с временем и калориями)
+- Новый ряд P/F/C macro badges (синий/оранжевый/зелёный) + стоимость `~$X` (фиолетовый)
+- Данные берутся из модели `Recipe` (поля `fatG`, `carbsG`, `proteinG`, `estimatedCost` от бэкенда)
+
+#### Vision AI — AI Chat подключён к бэкенду
+
+**`lib/core/services/vision_service.dart`** — новый файл:
+- `extractIngredients(XFile)` → `POST /vision/ingredients` → список названий ингредиентов
+- `recommendFromPhoto({photo, moodEntry, maxCookingTime})` → `POST /vision/recommendations` → `RecommendationResult`
+- Конвертация: `XFile` → `base64` + `mimeType` → JSON тело
+
+**`lib/features/home/screens/home_screen.dart`** — `_pickImage()` обновлён:
+- Показывает "🔍 Analyzing your photo with AI..." пока идёт запрос
+- Вызывает `VisionService().recommendFromPhoto(photo, moodEntry: todayEntry)`
+- При успехе → навигация на `/recommendations` с preloaded результатом
+- При ошибке → fallback-сообщение
+
+**`lib/features/recommendations/screens/recommendations_screen.dart`** — добавлен параметр `RecommendationResult? preloaded`:
+- Если передан — не делает лишний API запрос, сразу показывает результат Vision AI
+- Обратная совместимость сохранена (Mood → Recommendations работает как раньше)
+
+#### Profile tab — Favorites интеграция
+
+- "Recipes Saved" счётчик читает `FavoritesProvider.items.length` (вместо SharedPreferences)
+- "View all" → `Navigator.pushNamed(context, '/favorites')`
+- `_ProfileTab.initState()` → вызывает `FavoritesProvider.load()` при открытии таба
+
+#### Исправления фото и графика
+
+**Фото в recipe detail sheet:**
+- Заменён хардкодный `🥑` emoji на `Image.network` с тем же URL что и в grid карточке
+- `_RecipeDetailSheet` получает `photoUrl` параметр, высота изображения 220px
+
+**Алгоритм подбора фото для карточек:**
+- Ключевые слова теперь сортируются по длине (дольше = специфичнее) перед поиском
+- "Banana Oat Smoothie" → `smoothie` (7 букв) > `banana` (6 букв) → фото смузи
+- Расширена таблица `_photos` с более высоким качеством (w=600, q=80) и лучшими ссылками
+
+**Mood & Energy Trends график:**
+- `CustomPaint` без явного размера получал `width=0` → все точки кластеризовались у левого края
+- Исправлено: `SizedBox.expand()` внутри + `width: double.infinity` на родительском `SizedBox`
+
+### Файлы изменены
+
+| Файл | Изменение |
+|------|-----------|
+| `lib/core/models/recipe_model.dart` | `fatG`, `carbsG` поля добавлены |
+| `lib/core/services/favorites_service.dart` | **НОВЫЙ** |
+| `lib/core/services/vision_service.dart` | **НОВЫЙ** |
+| `lib/core/providers/favorites_provider.dart` | **НОВЫЙ** |
+| `lib/features/favorites/screens/favorites_screen.dart` | **НОВЫЙ** |
+| `lib/features/recipes/screens/recipes_screen.dart` | Favorites интеграция, detail фото, macros, лучшие фото |
+| `lib/features/home/screens/home_screen.dart` | Vision AI, chart fix, Favorites count, "View all" |
+| `lib/features/recommendations/screens/recommendations_screen.dart` | `preloaded` параметр |
+| `lib/main.dart` | `FavoritesProvider` в MultiProvider |
+| `lib/router/app_router.dart` | `/favorites` маршрут |
+
+### Проблемы и решения
+
+| Проблема | Решение |
+|----------|---------|
+| `latestEntry` не существует в `MoodProvider` | Заменён на `todayEntry` |
+| `_isSaved` в `_RecipeGridCardState` конфликтовал с FavoritesProvider | Удалён local state, `isSaved` вычисляется из `context.watch<FavoritesProvider>()` |
+| `CustomPaint` давал `width=0` без child | `SizedBox.expand()` + `width: double.infinity` на родителе |
+| Detail sheet показывал 🥑 для всех рецептов | Передаётся `photoUrl` параметр из grid card в `_RecipeDetailSheet` |
+| "Banana Oat Smoothie" показывало фото банана | Ключевые слова сортируются по убыванию длины перед проверкой |
+
+---
+
+## Текущее состояние (26 июня 2026)
 
 | Фича | Статус | Детали |
 |------|--------|--------|
@@ -346,30 +455,32 @@ static const String favoritesCheck = '/favorites/check';
 | Home (5 табов) | ✅ | Water +/−, Calories, Mood summary |
 | Mood Check | ✅ | Слайдеры + hungerLevel → бэкенд |
 | AI Recommendations | ✅ | Реальные данные, fitScore, GPT объяснение |
-| Recipes | ✅ | Фото, фильтры, сохранение (локально) |
+| Recipes | ✅ | Фото по ключевым словам, фильтры, detail sheet |
+| Favorites | ✅ | Backend sync, optimistic toggle, экран, P/F/C badges |
+| Recipe macros/cost | ✅ | P/F/C + ~$X в detail sheet, данные от бэкенда |
+| Vision AI (фото → рецепты) | ✅ | Camera/Gallery → `/vision/recommendations` → RecommendationsScreen |
+| Mood & Energy Chart | ✅ | CustomPaint теперь на полную ширину карточки |
 | Premium / PayPal | ✅ | WebView flow, syncFromBackend |
 | Editable Profile | ✅ | Имя + аватар (Camera/Gallery) |
 | Water tracking | ✅ | +/− кнопки, SharedPreferences |
-| Favorites constants | ✅ | ApiConstants.favorites + favoritesCheck добавлены |
-| Favorites экран | ⏳ | API готово, нужен UI экран + сервис |
-| Recipe detail cost/macros | ⏳ | estimatedCost/fatG/carbsG в API есть, не отображаются |
 | Apple Sign In | ⏳ | Заглушка, нужен entitlement |
-| Saved recipes → бэкенд | ⏳ | Сейчас только SharedPreferences |
 | Habit analytics | ⏳ | Нет бэкенд эндпоинта |
 | Push-уведомления | ⏳ | UI есть, real push нет |
+| Тёмная тема | ⏳ | Тоггл в Settings есть, ThemeMode не меняется |
 
 ---
 
 ## Следующий шаг
 
-- Реализовать FavoritesService + FavoritesProvider + экран Favorites
-- Показать estimatedCost (`~ $2.50`) и macro-box (P/F/C) в детальном листе рецепта
-- Difficulty badge в детальном листе
-- Habit analytics / weekly tips (когда бэкенд добавит эндпоинт)
 - Apple Sign In (entitlement в Xcode)
+- Habit analytics / weekly tips (когда бэкенд добавит эндпоинт)
+- Push-уведомления
+- Тёмная тема
 
 ---
 
 *Сессия 4: 9–11 июня 2026 — Flutter Frontend Epic 1, все экраны auth + onboarding, iOS деплой*
 *Сессия 5: 13 июня 2026 — Google Sign In реализован, Apple заглушка, подключение к Render*  
 *Сессия 6: 19 июня 2026 — Полный редизайн всех экранов по Figma, все кнопки кликабельны, исправлены критические баги*
+*Сессия 9: 25 июня 2026 — API constants для Favorites добавлены*
+*Сессия 10: 26 июня 2026 — Epic 5 полностью: Favorites sync, Vision AI, macros UI, chart fix, photo matching*
