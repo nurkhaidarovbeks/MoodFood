@@ -47,4 +47,9 @@ export const env = {
   // gpt-4o-mini supports vision and is cheap; gpt-4o is more accurate on hard
   // photos (blurry shelves, dense receipts) at higher cost.
   OPENAI_VISION_MODEL: optional('OPENAI_VISION_MODEL', 'gpt-4o-mini'),
+
+  // Grafana Cloud remote_write (optional — only needed for production push)
+  GRAFANA_REMOTE_WRITE_URL: optional('GRAFANA_REMOTE_WRITE_URL', ''),
+  GRAFANA_REMOTE_WRITE_USER: optional('GRAFANA_REMOTE_WRITE_USER', ''),
+  GRAFANA_REMOTE_WRITE_PASSWORD: optional('GRAFANA_REMOTE_WRITE_PASSWORD', ''),
 }

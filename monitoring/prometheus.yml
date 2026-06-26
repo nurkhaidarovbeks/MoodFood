@@ -3,9 +3,17 @@ global:
   evaluation_interval: 10s
 
 scrape_configs:
-  - job_name: moodfood-backend
+  # Локальная разработка — backend на хосте (npm run dev)
+  - job_name: moodfood-local
     static_configs:
       - targets:
-          # Dev mode: backend runs on host (npm run dev)
           - host.docker.internal:3000
     metrics_path: /metrics
+
+  # Продакшн на Render — скрейпим тот же /metrics эндпоинт
+  - job_name: moodfood-render
+    static_configs:
+      - targets:
+          - moodfood-backend.onrender.com
+    metrics_path: /metrics
+    scheme: https
