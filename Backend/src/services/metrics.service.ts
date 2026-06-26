@@ -1,3 +1,4 @@
+import https from 'https'
 import {
   collectDefaultMetrics,
   Counter,
@@ -102,6 +103,56 @@ export const activeUsersGauge = new Gauge({
   help: 'Approximate active sessions based on recent auth activity (last 60 s)',
   registers: [registry],
 })
+
+// ─── Grafana Cloud remote_write push (production) ────────────────────────────
+//
+// Pushes Prometheus text-format metrics to Grafana Cloud every 15 seconds.
+// Uses the simple text-format push (not Snappy/protobuf) which Grafana Cloud
+// accepts as a Pushgateway-compatible endpoint.
+// Activated only when GRAFANA_REMOTE_WRITE_URL is set in the environment.
+
+export function startGrafanaCloudPush(
+  url: string,
+  user: string,
+  password: string,
+  intervalMs = 15_000,
+): void {
+  if (!url || !user || !password) return
+
+  const parsed = new URL(url)
+  const auth = Buffer.from(`${user}:${password}`).toString('base64')
+
+  const push = async () => {
+    try {
+      const body = await registry.metrics()
+      const req = https.request(
+        {
+          hostname: parsed.hostname,
+          path: parsed.pathname,
+          method: 'POST',
+          headers: {
+            'Content-Type': registry.contentType,
+            Authorization: `Basic ${auth}`,
+            'Content-Length': Buffer.byteLength(body),
+          },
+        },
+        (res) => {
+          if (res.statusCode && res.statusCode >= 400) {
+            console.error(`[metrics] Grafana Cloud push failed: HTTP ${res.statusCode}`)
+          }
+        },
+      )
+      req.on('error', (err) => console.error('[metrics] Grafana Cloud push error:', err.message))
+      req.write(body)
+      req.end()
+    } catch (err) {
+      console.error('[metrics] Failed to collect metrics for push:', err)
+    }
+  }
+
+  setInterval(push, intervalMs)
+  console.log(`[metrics] Pushing to Grafana Cloud every ${intervalMs / 1000}s`)
+}
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
