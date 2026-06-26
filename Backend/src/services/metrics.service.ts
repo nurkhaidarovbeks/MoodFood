@@ -169,17 +169,21 @@ function buildWriteRequest(
     }
     allLabels.sort((a, b) => (a[0] < b[0] ? -1 : a[0] > b[0] ? 1 : 0))
 
+    // Each Label is its OWN message wrapped in a repeated field-1 entry.
+    // (Concatenating all name/value pairs into one field-1 entry would make
+    //  Mimir see a single merged label → err-mimir-missing-metric-name.)
     const labelBufs: Buffer[] = []
     for (const [k, v] of allLabels) {
-      labelBufs.push(pbString(1, k), pbString(2, v))
+      const labelMsg = Buffer.concat([pbString(1, k), pbString(2, v)])
+      labelBufs.push(pbLenDelim(1, labelMsg))
     }
+    const labelsEncoded = Buffer.concat(labelBufs)
 
-    const labelPayload = Buffer.concat(labelBufs)
     const samplePayload = Buffer.concat([pbDouble(1, s.value), pbInt64(2, s.timestamp)])
 
     const tsPayload = Buffer.concat([
-      pbLenDelim(1, labelPayload),
-      pbLenDelim(2, samplePayload),
+      labelsEncoded,                  // already-wrapped repeated Label messages
+      pbLenDelim(2, samplePayload),   // samples = field 2
     ])
     tsBufs.push(pbLenDelim(1, tsPayload))
   }
