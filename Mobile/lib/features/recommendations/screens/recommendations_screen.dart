@@ -5,8 +5,9 @@ import '../../../core/theme/app_theme.dart';
 
 class RecommendationsScreen extends StatefulWidget {
   final MoodEntry? moodEntry;
+  final RecommendationResult? preloaded;
 
-  const RecommendationsScreen({super.key, this.moodEntry});
+  const RecommendationsScreen({super.key, this.moodEntry, this.preloaded});
 
   @override
   State<RecommendationsScreen> createState() => _RecommendationsScreenState();
@@ -21,7 +22,12 @@ class _RecommendationsScreenState extends State<RecommendationsScreen> {
   @override
   void initState() {
     super.initState();
-    _load();
+    if (widget.preloaded != null) {
+      _result = widget.preloaded;
+      _loading = false;
+    } else {
+      _load();
+    }
   }
 
   Future<void> _load() async {
