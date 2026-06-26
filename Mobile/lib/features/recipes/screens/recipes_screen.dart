@@ -512,39 +512,40 @@ class _RecipeGridCard extends StatefulWidget {
 class _RecipeGridCardState extends State<_RecipeGridCard> {
   // Food photo URLs from Unsplash keyed by keyword (matched case-insensitively)
   static const _photos = {
-    'egg': 'https://images.unsplash.com/photo-1482049016688-2d3e1b311543?w=400&q=70&fit=crop',
-    'omelette': 'https://images.unsplash.com/photo-1482049016688-2d3e1b311543?w=400&q=70&fit=crop',
-    'chicken': 'https://images.unsplash.com/photo-1598515214211-89d3c73ae83b?w=400&q=70&fit=crop',
-    'turkey': 'https://images.unsplash.com/photo-1598515214211-89d3c73ae83b?w=400&q=70&fit=crop',
-    'banana': 'https://images.unsplash.com/photo-1571771894821-ce9b6c11b08e?w=400&q=70&fit=crop',
-    'pasta': 'https://images.unsplash.com/photo-1555949258-eb67b1ef0ceb?w=400&q=70&fit=crop',
-    'noodle': 'https://images.unsplash.com/photo-1555949258-eb67b1ef0ceb?w=400&q=70&fit=crop',
-    'yogurt': 'https://images.unsplash.com/photo-1488477181946-6428a0291777?w=400&q=70&fit=crop',
-    'tuna': 'https://images.unsplash.com/photo-1519708227418-c8fd9a32b7a2?w=400&q=70&fit=crop',
-    'salmon': 'https://images.unsplash.com/photo-1519708227418-c8fd9a32b7a2?w=400&q=70&fit=crop',
-    'fish': 'https://images.unsplash.com/photo-1519708227418-c8fd9a32b7a2?w=400&q=70&fit=crop',
-    'avocado': 'https://images.unsplash.com/photo-1523049673857-eb18f1d7b578?w=400&q=70&fit=crop',
-    'quinoa': 'https://images.unsplash.com/photo-1546069901-ba9599a7e63c?w=400&q=70&fit=crop',
-    'berry': 'https://images.unsplash.com/photo-1498557850523-fd3d118b962e?w=400&q=70&fit=crop',
-    'strawberry': 'https://images.unsplash.com/photo-1498557850523-fd3d118b962e?w=400&q=70&fit=crop',
-    'blueberry': 'https://images.unsplash.com/photo-1498557850523-fd3d118b962e?w=400&q=70&fit=crop',
-    'stir': 'https://images.unsplash.com/photo-1512058564366-18510be2db19?w=400&q=70&fit=crop',
-    'lentil': 'https://images.unsplash.com/photo-1547592180-85f173990554?w=400&q=70&fit=crop',
-    'bean': 'https://images.unsplash.com/photo-1547592180-85f173990554?w=400&q=70&fit=crop',
-    'soup': 'https://images.unsplash.com/photo-1547592180-85f173990554?w=400&q=70&fit=crop',
-    'smoothie': 'https://images.unsplash.com/photo-1638176066959-7cf4f8cef945?w=400&q=70&fit=crop',
-    'salad': 'https://images.unsplash.com/photo-1512621776951-a57141f2eefd?w=400&q=70&fit=crop',
-    'rice': 'https://images.unsplash.com/photo-1536304993881-ff6e9eefa2a6?w=400&q=70&fit=crop',
-    'oat': 'https://images.unsplash.com/photo-1517673132405-a56a62b18caf?w=400&q=70&fit=crop',
-    'porridge': 'https://images.unsplash.com/photo-1517673132405-a56a62b18caf?w=400&q=70&fit=crop',
-    'toast': 'https://images.unsplash.com/photo-1484723091739-30a097e8f929?w=400&q=70&fit=crop',
-    'bread': 'https://images.unsplash.com/photo-1484723091739-30a097e8f929?w=400&q=70&fit=crop',
-    'beef': 'https://images.unsplash.com/photo-1432139509613-5c4255815697?w=400&q=70&fit=crop',
-    'steak': 'https://images.unsplash.com/photo-1432139509613-5c4255815697?w=400&q=70&fit=crop',
-    'tofu': 'https://images.unsplash.com/photo-1547592180-85f173990554?w=400&q=70&fit=crop',
-    'wrap': 'https://images.unsplash.com/photo-1552332386-f8dd00dc2f85?w=400&q=70&fit=crop',
-    'bowl': 'https://images.unsplash.com/photo-1512621776951-a57141f2eefd?w=400&q=70&fit=crop',
-    'protein': 'https://images.unsplash.com/photo-1598515214211-89d3c73ae83b?w=400&q=70&fit=crop',
+    // Long / specific keywords first (sorting is done at runtime, but good docs order)
+    'smoothie': 'https://images.unsplash.com/photo-1638176066959-7cf4f8cef945?w=600&q=80&fit=crop',
+    'omelette': 'https://images.unsplash.com/photo-1482049016688-2d3e1b311543?w=600&q=80&fit=crop',
+    'porridge': 'https://images.unsplash.com/photo-1517673132405-a56a62b18caf?w=600&q=80&fit=crop',
+    'blueberry': 'https://images.unsplash.com/photo-1498557850523-fd3d118b962e?w=600&q=80&fit=crop',
+    'strawberry': 'https://images.unsplash.com/photo-1464965911861-746a04b4bca6?w=600&q=80&fit=crop',
+    'avocado': 'https://images.unsplash.com/photo-1523049673857-eb18f1d7b578?w=600&q=80&fit=crop',
+    'quinoa': 'https://images.unsplash.com/photo-1646842762133-0e9e2c0038a0?w=600&q=80&fit=crop',
+    'chicken': 'https://images.unsplash.com/photo-1604908176997-125f25cc6f3d?w=600&q=80&fit=crop',
+    'salmon': 'https://images.unsplash.com/photo-1519708227418-c8fd9a32b7a2?w=600&q=80&fit=crop',
+    'lentil': 'https://images.unsplash.com/photo-1547592180-85f173990554?w=600&q=80&fit=crop',
+    'noodle': 'https://images.unsplash.com/photo-1569718212165-3a8278d5f624?w=600&q=80&fit=crop',
+    'yogurt': 'https://images.unsplash.com/photo-1488477181946-6428a0291777?w=600&q=80&fit=crop',
+    'turkey': 'https://images.unsplash.com/photo-1574672280600-4accfa5b6f98?w=600&q=80&fit=crop',
+    'steak': 'https://images.unsplash.com/photo-1546964124-0cce460f38ef?w=600&q=80&fit=crop',
+    'pasta': 'https://images.unsplash.com/photo-1555949258-eb67b1ef0ceb?w=600&q=80&fit=crop',
+    'salad': 'https://images.unsplash.com/photo-1512621776951-a57141f2eefd?w=600&q=80&fit=crop',
+    'toast': 'https://images.unsplash.com/photo-1484723091739-30a097e8f929?w=600&q=80&fit=crop',
+    'stir': 'https://images.unsplash.com/photo-1512058564366-18510be2db19?w=600&q=80&fit=crop',
+    'tuna': 'https://images.unsplash.com/photo-1567188040759-fb8a883dc6d8?w=600&q=80&fit=crop',
+    'wrap': 'https://images.unsplash.com/photo-1552332386-f8dd00dc2f85?w=600&q=80&fit=crop',
+    'soup': 'https://images.unsplash.com/photo-1547592180-85f173990554?w=600&q=80&fit=crop',
+    'rice': 'https://images.unsplash.com/photo-1536304993881-ff6e9eefa2a6?w=600&q=80&fit=crop',
+    'beef': 'https://images.unsplash.com/photo-1432139509613-5c4255815697?w=600&q=80&fit=crop',
+    'tofu': 'https://images.unsplash.com/photo-1546069901-ba9599a7e63c?w=600&q=80&fit=crop',
+    'bean': 'https://images.unsplash.com/photo-1515543904379-3d757afe72e4?w=600&q=80&fit=crop',
+    'fish': 'https://images.unsplash.com/photo-1519708227418-c8fd9a32b7a2?w=600&q=80&fit=crop',
+    'bowl': 'https://images.unsplash.com/photo-1512621776951-a57141f2eefd?w=600&q=80&fit=crop',
+    'oat': 'https://images.unsplash.com/photo-1517673132405-a56a62b18caf?w=600&q=80&fit=crop',
+    'egg': 'https://images.unsplash.com/photo-1482049016688-2d3e1b311543?w=600&q=80&fit=crop',
+    'bread': 'https://images.unsplash.com/photo-1504982998983-a6c6a876cc97?w=600&q=80&fit=crop',
+    'berry': 'https://images.unsplash.com/photo-1498557850523-fd3d118b962e?w=600&q=80&fit=crop',
+    'banana': 'https://images.unsplash.com/photo-1587132137056-bfbf0166836e?w=600&q=80&fit=crop',
+    'protein': 'https://images.unsplash.com/photo-1604908176997-125f25cc6f3d?w=600&q=80&fit=crop',
   };
 
   // Varied fallbacks so "no match" recipes don't all look the same
@@ -558,10 +559,12 @@ class _RecipeGridCardState extends State<_RecipeGridCard> {
 
   String get _photoUrl {
     final title = widget.recipe.title.toLowerCase();
-    for (final entry in _photos.entries) {
+    // Check longer keywords first — more specific match wins
+    final sorted = _photos.entries.toList()
+      ..sort((a, b) => b.key.length.compareTo(a.key.length));
+    for (final entry in sorted) {
       if (title.contains(entry.key)) return entry.value;
     }
-    // Use recipe id hash for consistent but varied fallback per recipe
     final idx = widget.recipe.id.hashCode.abs() % _fallbacks.length;
     return _fallbacks[idx];
   }
@@ -762,8 +765,11 @@ class _RecipeGridCardState extends State<_RecipeGridCard> {
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
-      builder: (_) =>
-          _RecipeDetailSheet(recipe: widget.recipe, pantry: widget.pantry),
+      builder: (_) => _RecipeDetailSheet(
+            recipe: widget.recipe,
+            pantry: widget.pantry,
+            photoUrl: _photoUrl,
+          ),
     );
   }
 }
@@ -771,8 +777,13 @@ class _RecipeGridCardState extends State<_RecipeGridCard> {
 class _RecipeDetailSheet extends StatefulWidget {
   final Recipe recipe;
   final List<String> pantry;
+  final String photoUrl;
 
-  const _RecipeDetailSheet({required this.recipe, required this.pantry});
+  const _RecipeDetailSheet({
+    required this.recipe,
+    required this.pantry,
+    required this.photoUrl,
+  });
 
   @override
   State<_RecipeDetailSheet> createState() => _RecipeDetailSheetState();
@@ -813,14 +824,38 @@ class _RecipeDetailSheetState extends State<_RecipeDetailSheet> {
                 padding: EdgeInsets.zero,
                 children: [
                   // Food image area
-                  Container(
-                    height: 180,
-                    color: AppTheme.background,
+                  SizedBox(
+                    height: 220,
                     child: Stack(
+                      fit: StackFit.expand,
                       children: [
-                        const Center(
-                          child: Text('🥑',
-                              style: TextStyle(fontSize: 80)),
+                        ClipRRect(
+                          borderRadius: const BorderRadius.vertical(
+                            top: Radius.circular(24),
+                          ),
+                          child: Image.network(
+                            widget.photoUrl,
+                            fit: BoxFit.cover,
+                            loadingBuilder: (_, child, progress) {
+                              if (progress == null) return child;
+                              return Container(
+                                color: AppTheme.background,
+                                child: const Center(
+                                  child: CircularProgressIndicator(
+                                    strokeWidth: 2,
+                                    color: AppTheme.primary,
+                                  ),
+                                ),
+                              );
+                            },
+                            errorBuilder: (_, __, ___) => Container(
+                              color: AppTheme.background,
+                              child: const Center(
+                                child: Text('🍽️',
+                                    style: TextStyle(fontSize: 64)),
+                              ),
+                            ),
+                          ),
                         ),
                         Positioned(
                           top: 12,

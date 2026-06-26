@@ -1617,6 +1617,7 @@ class _MoodTrendCard extends StatelessWidget {
           const SizedBox(height: 16),
           SizedBox(
             height: 120,
+            width: double.infinity,
             child: _MiniLineChart(entries: entries),
           ),
           const SizedBox(height: 12),
@@ -1713,11 +1714,13 @@ class _MiniLineChart extends StatelessWidget {
       }
     }
 
-    return CustomPaint(
-      painter: _LineChartPainter(
-        moodData: moodData,
-        energyData: energyData,
-        labels: labels,
+    return SizedBox.expand(
+      child: CustomPaint(
+        painter: _LineChartPainter(
+          moodData: moodData,
+          energyData: energyData,
+          labels: labels,
+        ),
       ),
     );
   }
