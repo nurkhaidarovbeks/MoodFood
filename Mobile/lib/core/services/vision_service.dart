@@ -57,16 +57,20 @@ class VisionService {
           if (maxCookingTime != null) 'maxCookingTime': maxCookingTime,
         },
       );
+      // Backend returns { vision: {...}, recommendation: { state, aiPowered, options } }
       final data = res.data as Map;
-      final options = (data['options'] as List<dynamic>)
+      final rec = (data['recommendation'] ?? data) as Map;
+      final rawOptions = rec['options'] as List<dynamic>? ?? [];
+      final options = rawOptions
           .map((o) => RecommendationOption.fromJson(
               Map<String, dynamic>.from(o as Map)))
           .toList();
+      if (options.isEmpty) return null;
       return RecommendationResult(
         options: options,
-        aiPowered: data['aiPowered'] as bool? ?? true,
+        aiPowered: rec['aiPowered'] as bool? ?? true,
       );
-    } on DioException {
+    } catch (_) {
       return null;
     }
   }
