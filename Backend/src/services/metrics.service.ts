@@ -152,7 +152,7 @@ function buildWriteRequest(samples: Array<{ name: string; labels: Record<string,
   for (const s of samples) {
     const labelBytes: number[] = [
       ...pbString(1, '__name__'), ...pbString(2, s.name),
-      ...Object.entries(s.labels).flatMap(([k, v]) => [...pbString(1, k), ...pbString(2, v)]),
+      ...Object.entries(s.labels).flatMap(([k, v]) => [...pbString(1, String(k)), ...pbString(2, String(v))]),
     ]
     const sampleBytes: number[] = [...pbDouble(1, s.value), ...pbInt64(2, s.timestamp)]
     const ts: number[] = [...pbEmbed(1, labelBytes), ...pbEmbed(2, sampleBytes)]
