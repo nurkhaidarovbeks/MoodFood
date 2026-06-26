@@ -1,0 +1,51 @@
+NODE_ENV=development
+PORT=3000
+APP_VERSION=1.0.0
+
+# Database — PostgreSQL via Docker on port 5434
+DATABASE_URL="postgresql://moodfood:moodfood_dev@localhost:5434/moodfood?schema=public"
+
+# JWT
+JWT_SECRET=moodfood-dev-secret-change-in-production-minimum-32-chars
+JWT_EXPIRES_IN=30d
+
+# Email verification
+REQUIRE_EMAIL_VERIFICATION=false
+
+# SMTP — пусто = письма в консоль (dev stub)
+SMTP_HOST=
+SMTP_PORT=587
+SMTP_USER=
+SMTP_PASS=
+SMTP_FROM=noreply@moodfood.app
+
+# App URLs
+APP_URL=http://localhost:3000
+FRONTEND_URL=http://localhost:5173
+
+# Google OAuth
+GOOGLE_CLIENT_ID=
+
+# Apple Sign In
+APPLE_CLIENT_ID=
+
+# ─── PayPal ───────────────────────────────────────────────────────────────────
+PAYPAL_CLIENT_ID=AYpqVJocG-pjHrKPD6ZZBtgV_GtxHBN4_LSDzgHRaH16qlYlH_2rZ5QzvSFNl3k8rbGCKiqbbh0jW3n_
+PAYPAL_CLIENT_SECRET=EL9O9EabbApkA_H1lU50ZwTeprZJSgy4ZPpZEwW6FztXwv0LDHTQ3AUekVYikRz8V7okMB4_U8SprWka
+PAYPAL_BASE_URL=https://api-m.sandbox.paypal.com
+PAYPAL_RETURN_URL=http://localhost:3000/api/v1/payment/paypal/success
+PAYPAL_CANCEL_URL=http://localhost:3000/api/v1/payment/paypal/cancel
+
+# ─── Wallet ───────────────────────────────────────────────────────────────────
+WALLET_CLIENT_ID=AYpqVJocG-pjHrKPD6ZZBtgV_GtxHBN4_LSDzgHRaH16qlYlH_2rZ5QzvSFNl3k8rbGCKiqbbh0jW3n_
+WALLET_CLIENT_SECRET=EL9O9EabbApkA_H1lU50ZwTeprZJSgy4ZPpZEwW6FztXwv0LDHTQ3AUekVYikRz8V7okMB4_U8SprWka
+WALLET_BASE_URL=https://api-m.sandbox.paypal.com
+WALLET_RETURN_URL=http://localhost:3000/api/v1/payment/wallet/success
+WALLET_CANCEL_URL=http://localhost:3000/api/v1/payment/wallet/cancel
+
+# ─── Subscription ──────────────────────────────────────────────────────────────
+SUBSCRIPTION_CLIENT_ID=AYpqVJocG-pjHrKPD6ZZBtgV_GtxHBN4_LSDzgHRaH16qlYlH_2rZ5QzvSFNl3k8rbGCKiqbbh0jW3n_
+SUBSCRIPTION_CLIENT_SECRET=EL9O9EabbApkA_H1lU50ZwTeprZJSgy4ZPpZEwW6FztXwv0LDHTQ3AUekVYikRz8V7okMB4_U8SprWka
+SUBSCRIPTION_BASE_URL=https://api-m.sandbox.paypal.com
+SUBSCRIPTION_RETURN_URL=http://localhost:3000/api/v1/payment/subscription/success
+SUBSCRIPTION_CANCEL_URL=http://localhost:3000/api/v1/payment/subscription/cancel
