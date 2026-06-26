@@ -160,13 +160,18 @@ function buildWriteRequest(
   const tsBufs: Buffer[] = []
 
   for (const s of samples) {
-    // Labels: __name__ first, then any extra labels
-    const labelBufs: Buffer[] = [
-      pbString(1, '__name__'),
-      pbString(2, s.name),
-    ]
+    // Build the full label set (incl. __name__), drop empty values, then sort
+    // lexicographically by name — Mimir/Prometheus remote_write REQUIRES this.
+    const allLabels: Array<[string, string]> = [['__name__', s.name]]
     for (const [k, v] of Object.entries(s.labels)) {
-      labelBufs.push(pbString(1, String(k)), pbString(2, String(v)))
+      const value = String(v)
+      if (value.length > 0) allLabels.push([String(k), value])
+    }
+    allLabels.sort((a, b) => (a[0] < b[0] ? -1 : a[0] > b[0] ? 1 : 0))
+
+    const labelBufs: Buffer[] = []
+    for (const [k, v] of allLabels) {
+      labelBufs.push(pbString(1, k), pbString(2, v))
     }
 
     const labelPayload = Buffer.concat(labelBufs)
@@ -227,8 +232,13 @@ export function startGrafanaCloudPush(
         },
         (res) => {
           if (res.statusCode && res.statusCode >= 400) {
+            let errBody = ''
+            res.on('data', (chunk) => { if (errBody.length < 500) errBody += chunk })
+            res.on('end', () =>
+              console.error(`[metrics] Grafana Cloud push failed: HTTP ${res.statusCode} — ${errBody.trim()}`),
+            )
+          } else {
             res.resume()
-            console.error(`[metrics] Grafana Cloud push failed: HTTP ${res.statusCode}`)
           }
         },
       )
