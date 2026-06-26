@@ -112,53 +112,74 @@ export const activeUsersGauge = new Gauge({
 // Mimir/Prometheus expects at /api/prom/push.
 // Activated only when GRAFANA_REMOTE_WRITE_URL is set in the environment.
 
-// ── Minimal protobuf encoder for Prometheus WriteRequest ──────────────────────
+// ── Protobuf encoder for Prometheus WriteRequest ───────────────────────────────
 // WriteRequest { repeated TimeSeries timeseries = 1 }
 // TimeSeries  { repeated Label labels = 1; repeated Sample samples = 2 }
 // Label       { string name = 1; string value = 2 }
 // Sample      { double value = 1; int64 timestamp = 2 }
+//
+// Key: use % / Math.floor instead of bitwise & / >>> for large numbers
+// because JS bitwise ops cast to Int32, breaking timestamps (> 2^31 ms).
 
-function pbVarint(n: number): number[] {
-  const out: number[] = []
-  while (n > 0x7f) { out.push((n & 0x7f) | 0x80); n >>>= 7 }
-  out.push(n & 0x7f)
-  return out
-}
-function pbTag(field: number, wire: number) { return pbVarint((field << 3) | wire) }
-function pbString(field: number, s: string): number[] {
-  const b = Array.from(Buffer.from(s, 'utf8'))
-  return [...pbTag(field, 2), ...pbVarint(b.length), ...b]
-}
-function pbDouble(field: number, v: number): number[] {
-  const buf = Buffer.allocUnsafe(8); buf.writeDoubleBE(v, 0)
-  // wire type 1 = 64-bit, little-endian on the wire
-  const le = Buffer.allocUnsafe(8); buf.copy(le); le.reverse()
-  return [...pbTag(field, 1), ...le]
-}
-function pbInt64(field: number, v: number): number[] {
-  // Encode as varint (works for positive timestamps up to ~2^53)
-  const out: number[] = [...pbTag(field, 0)]
-  let n = v
-  while (n > 0x7f) { out.push((n & 0x7f) | 0x80); n = Math.floor(n / 128) }
-  out.push(n & 0x7f)
-  return out
-}
-function pbEmbed(field: number, bytes: number[]): number[] {
-  return [...pbTag(field, 2), ...pbVarint(bytes.length), ...bytes]
-}
-
-function buildWriteRequest(samples: Array<{ name: string; labels: Record<string, string>; value: number; timestamp: number }>): Buffer {
-  const tsList: number[] = []
-  for (const s of samples) {
-    const labelBytes: number[] = [
-      ...pbString(1, '__name__'), ...pbString(2, s.name),
-      ...Object.entries(s.labels).flatMap(([k, v]) => [...pbString(1, String(k)), ...pbString(2, String(v))]),
-    ]
-    const sampleBytes: number[] = [...pbDouble(1, s.value), ...pbInt64(2, s.timestamp)]
-    const ts: number[] = [...pbEmbed(1, labelBytes), ...pbEmbed(2, sampleBytes)]
-    tsList.push(...pbEmbed(1, ts))
+function pbVarint(n: number): Buffer {
+  const bytes: number[] = []
+  while (n > 127) {
+    bytes.push((n % 128) | 0x80)   // % avoids Int32 truncation
+    n = Math.floor(n / 128)
   }
-  return Buffer.from(tsList)
+  bytes.push(n % 128)
+  return Buffer.from(bytes)
+}
+
+function pbTag(field: number, wire: number): Buffer {
+  return pbVarint(field * 8 + wire) // avoid << which also uses Int32
+}
+
+function pbLenDelim(field: number, payload: Buffer): Buffer {
+  return Buffer.concat([pbTag(field, 2), pbVarint(payload.length), payload])
+}
+
+function pbString(field: number, s: string): Buffer {
+  return pbLenDelim(field, Buffer.from(s, 'utf8'))
+}
+
+function pbDouble(field: number, v: number): Buffer {
+  const tag = pbTag(field, 1)           // wire type 1 = 64-bit
+  const data = Buffer.allocUnsafe(8)
+  data.writeDoubleLE(v, 0)              // protobuf stores doubles little-endian
+  return Buffer.concat([tag, data])
+}
+
+function pbInt64(field: number, v: number): Buffer {
+  return Buffer.concat([pbTag(field, 0), pbVarint(v)])  // wire type 0 = varint
+}
+
+function buildWriteRequest(
+  samples: Array<{ name: string; labels: Record<string, string>; value: number; timestamp: number }>,
+): Buffer {
+  const tsBufs: Buffer[] = []
+
+  for (const s of samples) {
+    // Labels: __name__ first, then any extra labels
+    const labelBufs: Buffer[] = [
+      pbString(1, '__name__'),
+      pbString(2, s.name),
+    ]
+    for (const [k, v] of Object.entries(s.labels)) {
+      labelBufs.push(pbString(1, String(k)), pbString(2, String(v)))
+    }
+
+    const labelPayload = Buffer.concat(labelBufs)
+    const samplePayload = Buffer.concat([pbDouble(1, s.value), pbInt64(2, s.timestamp)])
+
+    const tsPayload = Buffer.concat([
+      pbLenDelim(1, labelPayload),
+      pbLenDelim(2, samplePayload),
+    ])
+    tsBufs.push(pbLenDelim(1, tsPayload))
+  }
+
+  return Buffer.concat(tsBufs)
 }
 
 export function startGrafanaCloudPush(
@@ -199,7 +220,6 @@ export function startGrafanaCloudPush(
           method: 'POST',
           headers: {
             'Content-Type': 'application/x-protobuf',
-            'Content-Encoding': 'snappy',
             'X-Prometheus-Remote-Write-Version': '0.1.0',
             Authorization: `Basic ${auth}`,
             'Content-Length': body.length,
