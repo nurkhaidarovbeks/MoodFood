@@ -32,6 +32,8 @@ class Recipe {
   final double? estimatedCost;
   final double? calories;
   final double? proteinG;
+  final double? fatG;
+  final double? carbsG;
   final String? steps;
   final List<String> moodTags;
   final List<RecipeIngredient> ingredients;
@@ -44,6 +46,8 @@ class Recipe {
     this.estimatedCost,
     this.calories,
     this.proteinG,
+    this.fatG,
+    this.carbsG,
     this.steps,
     required this.moodTags,
     required this.ingredients,
@@ -58,6 +62,8 @@ class Recipe {
       estimatedCost: (json['estimatedCost'] as num?)?.toDouble(),
       calories: (json['calories'] as num?)?.toDouble(),
       proteinG: (json['proteinG'] as num?)?.toDouble(),
+      fatG: (json['fatG'] as num?)?.toDouble(),
+      carbsG: (json['carbsG'] as num?)?.toDouble(),
       steps: json['steps'] as String?,
       moodTags: (json['moodTags'] as List<dynamic>?)
               ?.map((e) => e as String)
@@ -71,7 +77,7 @@ class Recipe {
   }
 
   String get difficultyLabel {
-    switch (difficulty) {
+    switch (difficulty?.toLowerCase()) {
       case 'easy':
         return 'Easy';
       case 'medium':

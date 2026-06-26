@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../core/models/mood_entry_model.dart';
+import '../core/services/recommendation_service.dart';
 import '../features/auth/screens/splash_screen.dart';
 import '../features/auth/screens/welcome_screen.dart';
 import '../features/auth/screens/login_screen.dart';
@@ -19,6 +20,7 @@ import '../features/notifications/screens/notifications_screen.dart';
 import '../features/premium/screens/payment_success_screen.dart';
 import '../features/profile/screens/edit_profile_screen.dart';
 import '../features/payment/screens/paypal_webview_screen.dart';
+import '../features/favorites/screens/favorites_screen.dart';
 
 class AppRouter {
   static Route<dynamic> onGenerateRoute(RouteSettings settings) {
@@ -56,9 +58,12 @@ class AppRouter {
       case '/recipes':
         return MaterialPageRoute(builder: (_) => const RecipesScreen());
       case '/recommendations':
-        final entry = settings.arguments as MoodEntry?;
+        final args = settings.arguments;
+        final entry = args is MoodEntry ? args : null;
+        final preloaded = args is RecommendationResult ? args : null;
         return MaterialPageRoute(
-          builder: (_) => RecommendationsScreen(moodEntry: entry),
+          builder: (_) => RecommendationsScreen(
+              moodEntry: entry, preloaded: preloaded),
           fullscreenDialog: true,
         );
       case '/settings':
@@ -71,6 +76,8 @@ class AppRouter {
         return _slide(const PaymentSuccessScreen());
       case '/edit-profile':
         return MaterialPageRoute(builder: (_) => const EditProfileScreen());
+      case '/favorites':
+        return MaterialPageRoute(builder: (_) => const FavoritesScreen());
       case '/paypal-webview':
         final args = settings.arguments as Map<String, String>?;
         return MaterialPageRoute(

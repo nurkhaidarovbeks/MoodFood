@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 import '../../../core/models/recipe_model.dart';
+import '../../../core/providers/favorites_provider.dart';
 import '../../../core/providers/ingredients_provider.dart';
 import '../../../core/providers/recipe_provider.dart';
 import '../../../core/theme/app_theme.dart';
@@ -510,9 +510,6 @@ class _RecipeGridCard extends StatefulWidget {
 }
 
 class _RecipeGridCardState extends State<_RecipeGridCard> {
-  static const _savedKey = 'saved_recipes';
-  bool _isSaved = false;
-
   // Food photo URLs from Unsplash keyed by keyword (matched case-insensitively)
   static const _photos = {
     'egg': 'https://images.unsplash.com/photo-1482049016688-2d3e1b311543?w=400&q=70&fit=crop',
@@ -591,35 +588,17 @@ class _RecipeGridCardState extends State<_RecipeGridCard> {
     }
   }
 
-  @override
-  void initState() {
-    super.initState();
-    _loadSaved();
-  }
-
-  Future<void> _loadSaved() async {
-    final prefs = await SharedPreferences.getInstance();
-    final saved = prefs.getStringList(_savedKey) ?? [];
-    if (mounted) setState(() => _isSaved = saved.contains(widget.recipe.id));
-  }
-
-  Future<void> _toggleSave() async {
-    final prefs = await SharedPreferences.getInstance();
-    final saved = (prefs.getStringList(_savedKey) ?? []).toList();
-    if (_isSaved) {
-      saved.remove(widget.recipe.id);
-    } else {
-      saved.add(widget.recipe.id);
-    }
-    await prefs.setStringList(_savedKey, saved);
-    setState(() => _isSaved = !_isSaved);
+  void _toggleSave() {
+    final fav = context.read<FavoritesProvider>();
+    final wasFav = fav.isFavorite(widget.recipe.id);
+    fav.toggle(widget.recipe.id);
     if (mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text(_isSaved ? '❤️ Recipe saved!' : 'Recipe removed'),
+          content: Text(wasFav ? 'Recipe removed' : '❤️ Recipe saved!'),
           behavior: SnackBarBehavior.floating,
           duration: const Duration(seconds: 1),
-          backgroundColor: _isSaved ? AppTheme.primary : AppTheme.textSecondary,
+          backgroundColor: wasFav ? AppTheme.textSecondary : AppTheme.primary,
         ),
       );
     }
@@ -627,6 +606,7 @@ class _RecipeGridCardState extends State<_RecipeGridCard> {
 
   @override
   Widget build(BuildContext context) {
+    final isSaved = context.watch<FavoritesProvider>().isFavorite(widget.recipe.id);
     return GestureDetector(
       onTap: () => _showDetail(context),
       child: Container(
@@ -692,9 +672,9 @@ class _RecipeGridCardState extends State<_RecipeGridCard> {
                         shape: BoxShape.circle,
                       ),
                       child: Icon(
-                        _isSaved ? Icons.favorite : Icons.favorite_border,
+                        isSaved ? Icons.favorite : Icons.favorite_border,
                         size: 16,
-                        color: _isSaved
+                        color: isSaved
                             ? const Color(0xFFE53935)
                             : AppTheme.textSecondary,
                       ),
@@ -881,13 +861,44 @@ class _RecipeDetailSheetState extends State<_RecipeDetailSheet> {
                               Icons.local_fire_department_outlined,
                               '${widget.recipe.calories?.toInt() ?? 320} cal',
                             ),
-                            const SizedBox(width: 16),
-                            const _MetaItem(
-                              Icons.people_outlined,
-                              '2 servings',
-                            ),
+                            if (widget.recipe.difficulty != null &&
+                                widget.recipe.difficulty!.isNotEmpty) ...[
+                              const SizedBox(width: 16),
+                              _MetaItem(
+                                Icons.signal_cellular_alt,
+                                widget.recipe.difficultyLabel,
+                              ),
+                            ],
                           ],
                         ),
+                        if (widget.recipe.proteinG != null ||
+                            widget.recipe.fatG != null ||
+                            widget.recipe.carbsG != null ||
+                            widget.recipe.estimatedCost != null) ...[
+                          const SizedBox(height: 10),
+                          Wrap(
+                            spacing: 8,
+                            runSpacing: 6,
+                            children: [
+                              if (widget.recipe.proteinG != null)
+                                _MacroBadge(
+                                    'P ${widget.recipe.proteinG!.toInt()}g',
+                                    const Color(0xFF1565C0)),
+                              if (widget.recipe.fatG != null)
+                                _MacroBadge(
+                                    'F ${widget.recipe.fatG!.toInt()}g',
+                                    const Color(0xFFE65100)),
+                              if (widget.recipe.carbsG != null)
+                                _MacroBadge(
+                                    'C ${widget.recipe.carbsG!.toInt()}g',
+                                    const Color(0xFF2E7D32)),
+                              if (widget.recipe.estimatedCost != null)
+                                _MacroBadge(
+                                    '~\$${widget.recipe.estimatedCost!.toStringAsFixed(0)}',
+                                    const Color(0xFF6A1B9A)),
+                            ],
+                          ),
+                        ],
                         const SizedBox(height: 12),
                         const Text(
                           'A nutritious and delicious meal packed with healthy fats and energy-boosting ingredients.',
@@ -1263,6 +1274,28 @@ class _ErrorState extends StatelessWidget {
             ),
           ],
         ),
+      ),
+    );
+  }
+}
+
+class _MacroBadge extends StatelessWidget {
+  final String label;
+  final Color color;
+  const _MacroBadge(this.label, this.color);
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.1),
+        borderRadius: BorderRadius.circular(8),
+      ),
+      child: Text(
+        label,
+        style: TextStyle(
+            fontSize: 11, fontWeight: FontWeight.w600, color: color),
       ),
     );
   }

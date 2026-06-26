@@ -7,8 +7,10 @@ import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../../../core/models/mood_entry_model.dart';
 import '../../../core/providers/auth_provider.dart';
+import '../../../core/providers/favorites_provider.dart';
 import '../../../core/providers/mood_provider.dart';
 import '../../../core/providers/subscription_provider.dart';
+import '../../../core/services/vision_service.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../recipes/screens/recipes_screen.dart';
 
@@ -858,31 +860,63 @@ class _AIChatTabState extends State<_AIChatTab> {
           time: timeStr,
           imagePath: picked.path,
         ));
+        _messages.add(_ChatMsg(
+          text: '🔍 Analyzing your photo with AI...',
+          isUser: false,
+          time: timeStr,
+        ));
       });
-      await Future<void>.delayed(const Duration(milliseconds: 1200));
+      _scrollToBottom();
+
+      final moodEntry = context.read<MoodProvider>().todayEntry;
+      final result = await VisionService().recommendFromPhoto(
+        photo: picked,
+        moodEntry: moodEntry,
+      );
+
       if (!mounted) return;
       final replyTime =
           '${now.hour % 12 == 0 ? 12 : now.hour % 12}:${now.minute.toString().padLeft(2, '0')} ${now.hour < 12 ? 'AM' : 'PM'}';
-      setState(() {
-        _messages.add(_ChatMsg(
-          text:
-              '📸 I can see your food photo! Based on what I can tell, this looks like a nutritious meal. For accurate calorie and macro tracking, try describing the specific ingredients. I can give you detailed nutritional insights and mood-boosting recommendations!',
-          isUser: false,
-          time: replyTime,
-        ));
-      });
-      Future.delayed(const Duration(milliseconds: 100), () {
-        if (_scrollCtrl.hasClients) {
-          _scrollCtrl.animateTo(
-            _scrollCtrl.position.maxScrollExtent,
-            duration: const Duration(milliseconds: 300),
-            curve: Curves.easeOut,
-          );
-        }
-      });
+
+      if (result != null && result.options.isNotEmpty) {
+        setState(() {
+          _messages.add(_ChatMsg(
+            text:
+                '✅ Found ${result.options.length} recipe ideas based on your photo! Opening recommendations...',
+            isUser: false,
+            time: replyTime,
+          ));
+        });
+        _scrollToBottom();
+        await Future<void>.delayed(const Duration(milliseconds: 800));
+        if (!mounted) return;
+        Navigator.pushNamed(context, '/recommendations', arguments: result);
+      } else {
+        setState(() {
+          _messages.add(_ChatMsg(
+            text:
+                '📸 I can see your food photo! For best results, make sure the food is clearly visible and well-lit. Try describing what you see and I\'ll suggest mood-boosting recipes!',
+            isUser: false,
+            time: replyTime,
+          ));
+        });
+        _scrollToBottom();
+      }
     } catch (_) {
       // Permission denied or cancelled
     }
+  }
+
+  void _scrollToBottom() {
+    Future.delayed(const Duration(milliseconds: 100), () {
+      if (mounted && _scrollCtrl.hasClients) {
+        _scrollCtrl.animateTo(
+          _scrollCtrl.position.maxScrollExtent,
+          duration: const Duration(milliseconds: 300),
+          curve: Curves.easeOut,
+        );
+      }
+    });
   }
 
   String _getResponse(String input) {
@@ -1948,28 +1982,23 @@ class _ProfileTab extends StatefulWidget {
 
 class _ProfileTabState extends State<_ProfileTab> {
   static const _avatarKey = 'avatar_path';
-  static const _savedKey = 'saved_recipes';
   String? _avatarPath;
-  int _savedCount = 0;
 
   @override
   void initState() {
     super.initState();
-    _loadData();
+    _loadAvatar();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      context.read<FavoritesProvider>().load();
+    });
   }
 
-  Future<void> _loadData() async {
+  Future<void> _loadAvatar() async {
     final prefs = await SharedPreferences.getInstance();
     final path = prefs.getString(_avatarKey);
     if (path != null && File(path).existsSync()) {
       if (mounted) setState(() => _avatarPath = path);
     }
-    final saved = prefs.getStringList(_savedKey) ?? [];
-    if (mounted) setState(() => _savedCount = saved.length);
-  }
-
-  Future<void> _loadAvatar() async {
-    await _loadData();
   }
 
   @override
@@ -1979,6 +2008,7 @@ class _ProfileTabState extends State<_ProfileTab> {
     final entries = context.watch<MoodProvider>().entries;
     final streak = math.min(entries.length, 7);
     final isPremium = context.watch<SubscriptionProvider>().isPremium;
+    final savedCount = context.watch<FavoritesProvider>().items.length;
 
     return Scaffold(
       backgroundColor: AppTheme.background,
@@ -2146,7 +2176,7 @@ class _ProfileTabState extends State<_ProfileTab> {
                               Expanded(
                                 child: _ProfileStat(
                                   emoji: '♥',
-                                  value: '$_savedCount',
+                                  value: '$savedCount',
                                   label: 'Recipes Saved',
                                 ),
                               ),
@@ -2414,12 +2444,15 @@ class _SavedRecipesSection extends StatelessWidget {
                   color: AppTheme.textDark,
                 ),
               ),
-              const Text(
-                'View all',
-                style: TextStyle(
-                  fontSize: 12,
-                  color: AppTheme.primary,
-                  fontWeight: FontWeight.w600,
+              GestureDetector(
+                onTap: () => Navigator.pushNamed(context, '/favorites'),
+                child: const Text(
+                  'View all',
+                  style: TextStyle(
+                    fontSize: 12,
+                    color: AppTheme.primary,
+                    fontWeight: FontWeight.w600,
+                  ),
                 ),
               ),
             ],
