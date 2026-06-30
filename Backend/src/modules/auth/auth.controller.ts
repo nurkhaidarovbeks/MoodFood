@@ -54,6 +54,24 @@ export class AuthController {
     }
   }
 
+  async forgotPassword(req: Request, res: Response, next: NextFunction): Promise<void> {
+    try {
+      const result = await this.authService.forgotPassword(req.body.email)
+      res.status(200).json(result)
+    } catch (err) {
+      next(err)
+    }
+  }
+
+  async resetPassword(req: Request, res: Response, next: NextFunction): Promise<void> {
+    try {
+      const result = await this.authService.resetPassword(req.body.token, req.body.password)
+      res.status(200).json(result)
+    } catch (err) {
+      next(err)
+    }
+  }
+
   async appleAuth(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
       const result = await this.authService.appleAuth(req.body)

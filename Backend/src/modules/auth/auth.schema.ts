@@ -56,6 +56,20 @@ export const OtpVerifySchema = z.object({
     .regex(/^\d{6}$/, 'OTP must contain only digits'),
 })
 
+export const ForgotPasswordSchema = z.object({
+  email: z.string().email('Invalid email address').toLowerCase().trim(),
+})
+
+export const ResetPasswordSchema = z.object({
+  token: z.string({ required_error: 'Reset token is required' }).min(1),
+  password: z
+    .string({ required_error: 'Password is required' })
+    .min(8, 'Password must be at least 8 characters')
+    .max(128, 'Password must be at most 128 characters'),
+})
+
+export type ForgotPasswordInput = z.infer<typeof ForgotPasswordSchema>
+export type ResetPasswordInput = z.infer<typeof ResetPasswordSchema>
 export type RegisterInput = z.infer<typeof RegisterSchema>
 export type LoginInput = z.infer<typeof LoginSchema>
 export type GoogleAuthInput = z.infer<typeof GoogleAuthSchema>

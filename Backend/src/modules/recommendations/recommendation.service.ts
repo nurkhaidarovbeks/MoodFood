@@ -10,11 +10,12 @@ import { MealAiService, type MealToExplain } from '../../services/meal-ai.servic
 import {
   selectThreeOptions,
   suggestSubstitutions,
-  isIngredientAvailable,
+  recipeMatchScore,
   isClearlyUnhealthy,
   healthScore,
   type MoodState,
   type ScorableRecipe,
+  type RecipeMatch,
 } from './recommendation.scoring'
 import { recommendationsTotal } from '../../services/metrics.service'
 import type { RecommendationRequestInput } from './recommendation.schema'
@@ -96,34 +97,25 @@ export class RecommendationService {
       candidates as unknown as RecipeForFiltering[],
     ) as unknown as RecipeRow[]
 
-    // Ingredient-availability source:
-    //  - photo flow passes explicit ingredient names → matched BY NAME
-    //  - otherwise useMyIngredients reads the saved pantry → matched BY ID
+    // Ingredient-availability source — unified to name-based matching:
+    //  - photo flow passes explicit ingredient names
+    //  - useMyIngredients reads the saved pantry and uses its ingredient names
+    // Both are then scored the same way (fuzzy, staple-aware) so a recipe is
+    // only "cookable" when most of its real ingredients are on hand.
     const photoNames = opts.availableIngredientNames
     const usePhoto = Array.isArray(photoNames)
     const enrich = usePhoto || input.useMyIngredients
 
-    let pantryIds = new Set<string>()
-    if (input.useMyIngredients && !usePhoto) {
+    let availableNames: string[] = []
+    if (usePhoto) {
+      availableNames = photoNames!.map(n => n.toLowerCase().trim()).filter(Boolean)
+    } else if (input.useMyIngredients) {
       const pantry = await this.prisma.userIngredient.findMany({
         where: { userId },
-        select: { ingredientId: true },
+        include: { ingredient: { select: { name: true } } },
       })
-      pantryIds = new Set(pantry.map(p => p.ingredientId))
+      availableNames = pantry.map(p => p.ingredient.name)
     }
-    const photoNameList = usePhoto
-      ? photoNames!.map(n => n.toLowerCase().trim()).filter(Boolean)
-      : []
-
-    // Photo names match fuzzily (singular/plural + substring); saved pantry
-    // matches exactly by ingredient id (those rows are already canonical).
-    const hasIngredient = (ri: {
-      ingredientId: string
-      ingredient: { name: string }
-    }): boolean =>
-      usePhoto
-        ? isIngredientAvailable(ri.ingredient.name, photoNameList)
-        : pantryIds.has(ri.ingredientId)
 
     const allScorables: ScorableRecipe[] = eligible.map(toScorable)
 
@@ -133,18 +125,50 @@ export class RecommendationService {
     const healthy = allScorables.filter(s => !isClearlyUnhealthy(s))
     const scorables = healthy.length >= 3 ? healthy : allScorables
 
-    // When ingredients are known, prefer recipes the user can actually make:
-    // selection draws each option from the cookable subset while any remain.
+    // Score every eligible recipe for how much of it the user can actually make.
     const byId = new Map(eligible.map(r => [r.id, r]))
-    const cookableIds = new Set<string>()
+    const matchById = new Map<string, RecipeMatch>()
     if (enrich) {
       for (const row of eligible) {
-        if (row.recipeIngredients.some(hasIngredient)) cookableIds.add(row.id)
+        matchById.set(
+          row.id,
+          recipeMatchScore(
+            row.recipeIngredients.map(ri => ({
+              name: ri.ingredient.name,
+              category: ri.ingredient.category,
+            })),
+            availableNames,
+          ),
+        )
+      }
+    }
+
+    // "Cookable" = you have at least 60% of the real (non-staple) ingredients
+    // and at least one real match. If fewer than three recipes clear that bar,
+    // backfill with the best-matching recipes so we always surface the closest
+    // dishes to what was detected — never random ones.
+    const MATCH_THRESHOLD = 0.6
+    const cookableIds = new Set<string>()
+    if (enrich) {
+      for (const [id, m] of matchById) {
+        if (m.score >= MATCH_THRESHOLD && m.matched >= 1) cookableIds.add(id)
+      }
+      if (cookableIds.size < 3) {
+        const ranked = [...matchById.entries()]
+          .filter(([, m]) => m.matched >= 1)
+          .sort((a, b) => b[1].score - a[1].score)
+        for (const [id] of ranked) {
+          cookableIds.add(id)
+          if (cookableIds.size >= 3) break
+        }
       }
     }
     const isCookable = enrich ? (s: ScorableRecipe) => cookableIds.has(s.id) : undefined
+    const matchScoreOf = enrich
+      ? (s: ScorableRecipe) => matchById.get(s.id)?.score ?? 0
+      : undefined
 
-    const selected = selectThreeOptions(scorables, state, isCookable)
+    const selected = selectThreeOptions(scorables, state, isCookable, matchScoreOf)
 
     const excludedTerms = getExcludedTermsForUser(userContext)
 
@@ -160,17 +184,12 @@ export class RecommendationService {
 
       if (!enrich) return base
 
-      const total = row.recipeIngredients.length
-      const matched = row.recipeIngredients.filter(hasIngredient).length
-      const missing = row.recipeIngredients
-        .filter(ri => !hasIngredient(ri))
-        .map(ri => ri.ingredient.name)
-
+      const m = matchById.get(opt.recipe.id) ?? recipeMatchScore([], availableNames)
       return {
         ...base,
-        matchScore: total === 0 ? 1 : Math.round((matched / total) * 100) / 100,
-        missingIngredients: missing,
-        substitutions: suggestSubstitutions(missing, excludedTerms),
+        matchScore: m.score,
+        missingIngredients: m.missing,
+        substitutions: suggestSubstitutions(m.missing, excludedTerms),
       }
     })
 

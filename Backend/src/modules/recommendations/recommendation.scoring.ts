@@ -216,6 +216,57 @@ export function isIngredientAvailable(recipeIngredientName: string, available: s
   return available.some(a => ingredientMatches(a, recipeIngredientName))
 }
 
+// ─── Recipe-level match scoring (staple-aware) ────────────────────────────────
+//
+// The old "cookable = shares ≥1 ingredient" rule surfaced recipes where only 1
+// of 8 ingredients was on hand. Instead we score how much of a recipe the user
+// can actually make: matched non-staple ingredients ÷ total non-staple
+// ingredients. Pantry staples (salt, oil, common spices/condiments) are assumed
+// to be on hand and never count against a recipe — nobody photographs the salt.
+
+const STAPLE_CATEGORIES = new Set(['spice', 'oil', 'condiment'])
+const STAPLE_NAMES = new Set(['salt', 'pepper', 'black pepper', 'water'])
+
+/** Pantry staple → assumed always available, excluded from match denominator. */
+export function isStaple(name: string, category?: string | null): boolean {
+  if (category && STAPLE_CATEGORIES.has(category.toLowerCase())) return true
+  return STAPLE_NAMES.has(canonicalizeIngredient(name))
+}
+
+export interface RecipeMatch {
+  /** Non-staple ingredients the user has. */
+  matched: number
+  /** Non-staple ingredients total (the denominator). */
+  countable: number
+  /** matched / countable, 0–1, rounded to 2dp. 1.0 when a recipe is all staples. */
+  score: number
+  /** Non-staple ingredient names the user is missing. */
+  missing: string[]
+}
+
+/**
+ * Scores how cookable a recipe is given the available ingredient names.
+ * Staples are skipped (assumed on hand); everything else must be matched.
+ */
+export function recipeMatchScore(
+  ingredients: Array<{ name: string; category?: string | null }>,
+  available: string[],
+): RecipeMatch {
+  let matched = 0
+  let countable = 0
+  const missing: string[] = []
+
+  for (const ing of ingredients) {
+    if (isStaple(ing.name, ing.category)) continue
+    countable++
+    if (isIngredientAvailable(ing.name, available)) matched++
+    else missing.push(ing.name)
+  }
+
+  const score = countable === 0 ? 1 : matched / countable
+  return { matched, countable, score: Math.round(score * 100) / 100, missing }
+}
+
 // ─── Selection ────────────────────────────────────────────────────────────────
 
 /**
@@ -233,11 +284,15 @@ export function selectThreeOptions(
   recipes: ScorableRecipe[],
   state: MoodState,
   isCookable?: (recipe: ScorableRecipe) => boolean,
+  matchScore?: (recipe: ScorableRecipe) => number,
 ): SelectedOption[] {
   if (recipes.length === 0) return []
 
   const remaining = [...recipes]
   const options: SelectedOption[] = []
+  // Match score is a tie-breaker so the best-matching cookable recipe wins
+  // within each category (0 when ingredients are unknown — no effect).
+  const ms = matchScore ?? (() => 0)
 
   const take = (category: OptionCategory, picker: (rs: ScorableRecipe[]) => ScorableRecipe) => {
     if (remaining.length === 0) return
@@ -252,29 +307,32 @@ export function selectThreeOptions(
     remaining.splice(remaining.indexOf(chosen), 1)
   }
 
-  // Healthiest = best fit; tie-break by protein desc.
+  // Healthiest = best fit; tie-break by match, then protein desc.
   take('healthiest', rs =>
     [...rs].sort(
       (a, b) =>
         stateFitScore(b, state) - stateFitScore(a, state) ||
+        ms(b) - ms(a) ||
         (b.proteinG ?? 0) - (a.proteinG ?? 0),
     )[0]!,
   )
 
-  // Fastest = lowest cooking time (unknown time sorts last); tie-break by fit.
+  // Fastest = lowest cooking time (unknown time sorts last); tie-break by match, then fit.
   take('fastest', rs =>
     [...rs].sort(
       (a, b) =>
         timeOrInfinity(a) - timeOrInfinity(b) ||
+        ms(b) - ms(a) ||
         stateFitScore(b, state) - stateFitScore(a, state),
     )[0]!,
   )
 
-  // Cheapest = lowest estimated cost (unknown cost sorts last); tie-break by fit.
+  // Cheapest = lowest estimated cost (unknown cost sorts last); tie-break by match, then fit.
   take('cheapest', rs =>
     [...rs].sort(
       (a, b) =>
         costOrInfinity(a) - costOrInfinity(b) ||
+        ms(b) - ms(a) ||
         stateFitScore(b, state) - stateFitScore(a, state),
     )[0]!,
   )

@@ -22,6 +22,10 @@ Mobile/android/local.properties
 backups/
 *.sql.gz
 
+# ─── Local test fixtures (sample photos for Vision testing) ───────────────────
+Pictures/
+*.base64.txt
+
 # ─── OS ───────────────────────────────────────────────────────────────────────
 .DS_Store
 Thumbs.db
