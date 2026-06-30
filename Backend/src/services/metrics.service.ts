@@ -105,6 +105,19 @@ export const activeUsersGauge = new Gauge({
   registers: [registry],
 })
 
+export const waterLogsTotal = new Counter({
+  name: 'moodfood_water_logs_total',
+  help: 'Water intakes logged (Epic 6)',
+  registers: [registry],
+})
+
+export const pushSentTotal = new Counter({
+  name: 'moodfood_push_sent_total',
+  help: 'Push notifications sent by type and outcome',
+  labelNames: ['type', 'outcome'], // type: water|meal|test, outcome: sent|skipped|failed
+  registers: [registry],
+})
+
 // ─── Grafana Cloud remote_write push (production) ────────────────────────────
 //
 // Pushes metrics to Grafana Cloud every 15 seconds using the Prometheus

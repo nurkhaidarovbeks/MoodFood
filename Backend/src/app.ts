@@ -21,6 +21,9 @@ import recommendationRoutes from './modules/recommendations/recommendation.route
 import moodCheckRoutes from './modules/moodcheck/moodcheck.routes'
 import favoritesRoutes from './modules/favorites/favorites.routes'
 import visionRoutes from './modules/vision/vision.routes'
+import waterRoutes from './modules/water/water.routes'
+import notificationRoutes from './modules/notifications/notification.routes'
+import insightsRoutes from './modules/insights/insights.routes'
 
 const app = express()
 
@@ -89,6 +92,9 @@ app.use('/api/v1/recommendations', recommendationRoutes)
 app.use('/api/v1/mood-checks', moodCheckRoutes)
 app.use('/api/v1/favorites', favoritesRoutes)
 app.use('/api/v1/vision', visionRoutes)
+app.use('/api/v1/water', waterRoutes)
+app.use('/api/v1/notifications', notificationRoutes)
+app.use('/api/v1/insights', insightsRoutes)
 
 // ─── 404 handler ─────────────────────────────────────────────────────────────
 app.use((_req, res) => {

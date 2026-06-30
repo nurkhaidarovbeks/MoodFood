@@ -18,6 +18,14 @@ Mobile/ios/.symlinks/
 Mobile/android/.gradle/
 Mobile/android/local.properties
 
+# ─── Database backups (contain real user data — never commit) ─────────────────
+backups/
+*.sql.gz
+
+# ─── Local test fixtures (sample photos for Vision testing) ───────────────────
+Pictures/
+*.base64.txt
+
 # ─── OS ───────────────────────────────────────────────────────────────────────
 .DS_Store
 Thumbs.db

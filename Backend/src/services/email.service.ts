@@ -59,6 +59,23 @@ export async function sendOtpEmail(email: string, otp: string): Promise<void> {
   })
 }
 
+export async function sendPasswordResetEmail(email: string, rawToken: string): Promise<void> {
+  const resetUrl = `${env.FRONTEND_URL}/reset-password?token=${rawToken}`
+  await sendEmail({
+    to: email,
+    subject: 'Reset your MoodFood password',
+    text: `Reset your password using this link: ${resetUrl}\n\nThis link expires in 1 hour. If you didn't request a password reset, ignore this email.`,
+    html: `
+      <h2>Reset your MoodFood password</h2>
+      <p>We received a request to reset your password. Click the button below to choose a new one:</p>
+      <p><a href="${resetUrl}" style="background:#4f46e5;color:#fff;padding:12px 24px;border-radius:6px;text-decoration:none;">Reset Password</a></p>
+      <p>Or copy this link: <code>${resetUrl}</code></p>
+      <p>This link expires in <strong>1 hour</strong>.</p>
+      <p>If you didn't request a password reset, you can safely ignore this email — your password won't change.</p>
+    `,
+  })
+}
+
 export async function sendVerificationEmail(email: string, rawToken: string): Promise<void> {
   const verifyUrl = `${env.APP_URL}/api/v1/auth/verify-email?token=${rawToken}`
   await sendEmail({

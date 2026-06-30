@@ -52,4 +52,12 @@ export const env = {
   GRAFANA_REMOTE_WRITE_URL: optional('GRAFANA_REMOTE_WRITE_URL', ''),
   GRAFANA_REMOTE_WRITE_USER: optional('GRAFANA_REMOTE_WRITE_USER', ''),
   GRAFANA_REMOTE_WRITE_PASSWORD: optional('GRAFANA_REMOTE_WRITE_PASSWORD', ''),
+
+  // ─── Push notifications (Firebase Cloud Messaging) ────────────────────────
+  // If FCM_SERVER_KEY is empty, the push service no-ops (logs only) so the app
+  // and tests run fully offline — device tokens are still stored and the
+  // GET /notifications/due endpoint works for client-side polling.
+  FCM_SERVER_KEY: optional('FCM_SERVER_KEY', ''),
+  // Background reminder sweep cadence (minutes). 0 disables the sweep.
+  REMINDER_SWEEP_MINUTES: parseInt(optional('REMINDER_SWEEP_MINUTES', '15'), 10),
 }

@@ -2,6 +2,7 @@ import { env } from './config/env'
 import app from './app'
 import prisma from './config/database'
 import { startGrafanaCloudPush } from './services/metrics.service'
+import { startReminderSweep } from './services/reminder-sweep'
 
 async function main() {
   try {
@@ -19,12 +20,16 @@ async function main() {
     env.GRAFANA_REMOTE_WRITE_PASSWORD,
   )
 
+  // Start the background reminder sweep (water / meal push notifications)
+  const sweep = startReminderSweep(prisma, env.REMINDER_SWEEP_MINUTES)
+
   const server = app.listen(env.PORT, () => {
     console.log(`[Server] MoodFood API running on port ${env.PORT} (${env.NODE_ENV})`)
   })
 
   const shutdown = async (signal: string) => {
     console.log(`[Server] ${signal} received — shutting down gracefully`)
+    sweep.stop()
     server.close(async () => {
       await prisma.$disconnect()
       console.log('[Server] Shutdown complete')

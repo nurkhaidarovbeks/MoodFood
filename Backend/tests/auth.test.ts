@@ -16,6 +16,7 @@ jest.mock('../src/services/email.service', () => ({
   sendEmail: jest.fn(),
   sendVerificationEmail: jest.fn(),
   sendOtpEmail: jest.fn(),
+  sendPasswordResetEmail: jest.fn(),
 }))
 
 jest.mock('../src/services/google-oauth.service', () => ({
@@ -28,6 +29,7 @@ jest.mock('../src/services/apple-auth.service', () => ({
 
 const mockSendVerificationEmail = emailService.sendVerificationEmail as jest.Mock
 const mockSendOtpEmail = emailService.sendOtpEmail as jest.Mock
+const mockSendPasswordResetEmail = emailService.sendPasswordResetEmail as jest.Mock
 const mockVerifyGoogleIdToken = googleOauthService.verifyGoogleIdToken as jest.Mock
 const mockVerifyAppleIdToken = appleAuthService.verifyAppleIdToken as jest.Mock
 
@@ -72,6 +74,8 @@ beforeEach(() => {
   mockSendVerificationEmail.mockResolvedValue(undefined)
   mockSendOtpEmail.mockReset()
   mockSendOtpEmail.mockResolvedValue(undefined)
+  mockSendPasswordResetEmail.mockReset()
+  mockSendPasswordResetEmail.mockResolvedValue(undefined)
   authService = new AuthService(prismaMock as any)
 })
 
@@ -506,5 +510,62 @@ describe('OTP authentication', () => {
     await expect(
       authService.verifyOtp({ email: 'alice@example.com', code: '000000' }),
     ).rejects.toMatchObject({ statusCode: 429, code: 'OTP_MAX_ATTEMPTS' })
+  })
+})
+
+// ─── Password reset ─────────────────────────────────────────────────────────────
+
+describe('forgotPassword', () => {
+  it('issues a reset token and emails the link for a registered email account', async () => {
+    prismaMock.user.findUnique.mockResolvedValueOnce(baseUser as any)
+    prismaMock.user.update.mockResolvedValueOnce(baseUser as any)
+
+    const result = await authService.forgotPassword('alice@example.com')
+
+    expect(mockSendPasswordResetEmail).toHaveBeenCalledWith('alice@example.com', expect.any(String))
+    const arg = prismaMock.user.update.mock.calls[0]![0] as any
+    expect(arg.data.passwordResetToken).toEqual(expect.any(String))
+    expect(arg.data.passwordResetExpires).toBeInstanceOf(Date)
+    expect(result.message).toMatch(/reset link has been sent/i)
+  })
+
+  it('returns the same message but sends nothing for an unknown email', async () => {
+    prismaMock.user.findUnique.mockResolvedValueOnce(null)
+
+    const result = await authService.forgotPassword('ghost@example.com')
+
+    expect(mockSendPasswordResetEmail).not.toHaveBeenCalled()
+    expect(result.message).toMatch(/reset link has been sent/i)
+  })
+
+  it('does not send a reset link to an OAuth-only account (no password)', async () => {
+    prismaMock.user.findUnique.mockResolvedValueOnce({ ...baseUser, passwordHash: null } as any)
+
+    await authService.forgotPassword('alice@example.com')
+    expect(mockSendPasswordResetEmail).not.toHaveBeenCalled()
+  })
+})
+
+describe('resetPassword', () => {
+  it('sets a new password when the token is valid and clears it', async () => {
+    prismaMock.user.findFirst.mockResolvedValueOnce(baseUser as any)
+    prismaMock.user.update.mockResolvedValueOnce(baseUser as any)
+
+    const result = await authService.resetPassword('raw-token', 'newpassword123')
+
+    const arg = prismaMock.user.update.mock.calls[0]![0] as any
+    expect(arg.data.passwordHash).toEqual(expect.any(String))
+    expect(arg.data.passwordResetToken).toBeNull()
+    expect(arg.data.passwordResetExpires).toBeNull()
+    expect(result.message).toMatch(/password has been reset/i)
+  })
+
+  it('rejects an invalid or expired token', async () => {
+    prismaMock.user.findFirst.mockResolvedValueOnce(null)
+
+    await expect(authService.resetPassword('bad-token', 'newpassword123')).rejects.toMatchObject({
+      statusCode: 400,
+      code: 'INVALID_RESET_TOKEN',
+    })
   })
 })

@@ -4,7 +4,7 @@ import { PrismaClient } from '@prisma/client'
 import { signToken } from '../../utils/jwt'
 import { generateToken, sha256 } from '../../utils/hash'
 import { isProfileComplete } from '../../utils/profile-completion'
-import { sendVerificationEmail, sendOtpEmail } from '../../services/email.service'
+import { sendVerificationEmail, sendOtpEmail, sendPasswordResetEmail } from '../../services/email.service'
 import { verifyGoogleIdToken } from '../../services/google-oauth.service'
 import { verifyAppleIdToken } from '../../services/apple-auth.service'
 import { AppError } from '../../middleware/errorHandler'
@@ -16,6 +16,7 @@ const VERIFICATION_EXPIRES_HOURS = 24
 const OTP_EXPIRES_MS = 5 * 60 * 1000   // 5 minutes
 const OTP_MAX_ATTEMPTS = 3
 const OTP_RESEND_COOLDOWN_MS = 60 * 1000  // 1 minute between resends
+const PASSWORD_RESET_EXPIRES_MS = 60 * 60 * 1000  // 1 hour
 
 function generateOtp(): string {
   // Cryptographically secure: take 4 random bytes, mod 1_000_000, pad to 6 digits
@@ -236,6 +237,64 @@ export class AuthService {
       message:
         'If this email is registered and unverified, a new verification email has been sent.',
     }
+  }
+
+  /**
+   * Starts a password reset. Always returns the same generic message so the
+   * endpoint never reveals whether an email is registered. Only email-based
+   * accounts (with a passwordHash) get a reset link — OAuth-only users don't.
+   */
+  async forgotPassword(email: string) {
+    const okResponse = {
+      message: 'If this email is registered, a password reset link has been sent.',
+    }
+
+    const user = await this.prisma.user.findUnique({ where: { email } })
+    if (!user || !user.isActive || !user.passwordHash) return okResponse
+
+    const rawToken = generateToken()
+    const tokenHash = sha256(rawToken) // only the hash is stored
+    const expires = new Date(Date.now() + PASSWORD_RESET_EXPIRES_MS)
+
+    await this.prisma.user.update({
+      where: { id: user.id },
+      data: { passwordResetToken: tokenHash, passwordResetExpires: expires },
+    })
+
+    await sendPasswordResetEmail(email, rawToken)
+    return okResponse
+  }
+
+  /** Completes a reset: validates the token, sets the new password, clears OTP. */
+  async resetPassword(rawToken: string, newPassword: string) {
+    const tokenHash = sha256(rawToken)
+
+    const user = await this.prisma.user.findFirst({
+      where: {
+        passwordResetToken: tokenHash,
+        passwordResetExpires: { gt: new Date() },
+      },
+    })
+
+    if (!user) {
+      throw new AppError(400, 'Reset token is invalid or has expired', 'INVALID_RESET_TOKEN')
+    }
+
+    const passwordHash = await bcrypt.hash(newPassword, BCRYPT_ROUNDS)
+    await this.prisma.user.update({
+      where: { id: user.id },
+      data: {
+        passwordHash,
+        passwordResetToken: null,
+        passwordResetExpires: null,
+        // Invalidate any in-flight OTP login as well.
+        otpHash: null,
+        otpExpires: null,
+        otpAttempts: 0,
+      },
+    })
+
+    return { message: 'Password has been reset. You can now log in with your new password.' }
   }
 
   async appleAuth(input: AppleAuthInput) {

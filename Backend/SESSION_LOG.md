@@ -1192,6 +1192,44 @@ DATABASE_URL="<render-external-url>" npx ts-node prisma/seed.ts
 
 ---
 
+## Сессия 20 — 1 июля 2026 (Матчинг по продуктам, рецепты ×168, Epic 6/7, Push)
+
+**Главная проблема:** ИИ выдавал рецепты, которые НЕЛЬЗЯ приготовить из обнаруженных продуктов.
+**Причина:** рецепт считался «готовимым», если совпадал ≥1 ингредиент из всех (`some(hasIngredient)`),
+плюс рецептов было мало (44) → пустое cookable-подмножество → fallback на случайные.
+
+### Что сделано
+1. **Матчинг переписан** (`recommendation.scoring.ts` + `recommendation.service.ts`):
+   - `recipeMatchScore()` — staple-aware: соль/масло/специи/соусы (категории `spice|oil|condiment` + salt/pepper/water) считаются «всегда дома» и не штрафуют рецепт.
+   - «Готовимый» = есть ≥60% реальных ингредиентов (а не 1 из 8); если таких <3, добор лучшими по совпадению — никогда не случайные.
+   - Единый name-based матчинг для фото и кладовки; match-score как tie-breaker внутри fastest/healthiest/cheapest.
+2. **Рецепты 44 → 168** (`prisma/recipes.extra.ts`, +124 здоровых, без дублей) — построены вокруг базовых продуктов (яйца, курица, рис, паста, овсянка, бобовые, тунец, йогурт, сыр, хлеб, овощи). Все с макросами/категориями.
+3. **Epic 6 — Вода** (`modules/water`): `POST /water`, `GET /water/today|history|goal`, `PUT /water/goal`, `DELETE /water/:id`. Локальные дни по timezone offset.
+4. **Epic 7 — Аналитика привычек** (`modules/insights`): `GET /insights/weekly|tips` — сводка по mood-check + гидрации + rule-based советы. Без новых таблиц (выводы из Epic 2/6).
+5. **Push-уведомления** (`modules/notifications` + `services/push.service.ts` + `services/reminder-sweep.ts`):
+   - Device-токены, prefs (вода/еда/окно сна/часовой пояс), `GET /due` (polling), `POST /test`, история.
+   - FCM (legacy HTTP), no-op без `FCM_SERVER_KEY` (как AI). Фоновый sweep каждые `REMINDER_SWEEP_MINUTES`.
+6. **Сброс пароля** (`/auth/forgot-password`, `/auth/reset-password`, SHA-256 токен, 1ч) + **rate-limit** на `/login` и `/register` (10/15мин).
+7. Новые алиасы продуктов (cod→white fish, pita и т.д.). Postman: +папки Epic 6/7/Notifications.
+
+### Модели БД (миграция `20260701120000_add_water_reminders_push`)
+`water_logs`, `reminder_settings`, `device_tokens`, `notification_logs` + `password_reset_*` на `users`.
+
+### Тесты
+- `tests/water.test.ts`, `tests/notification.test.ts`, `tests/insights.test.ts`, `tests/recommendation-match.test.ts` + сброс пароля в `auth.test.ts`.
+- **Итого: 255 тестов (было 226, +29) — все зелёные, офлайн. tsc build чистый.**
+
+### Применить на Render
+```bash
+# 1) Миграция (новые таблицы)
+DATABASE_URL="<render-external-url>" npx prisma migrate deploy
+# 2) Пере-seed для 168 рецептов
+DATABASE_URL="<render-external-url>" npx ts-node prisma/seed.ts
+```
+Опц. env: `FCM_SERVER_KEY` (push), `REMINDER_SWEEP_MINUTES` (по умолч. 15).
+
+---
+
 ## Следующий шаг
 
 - Добавить на Render env-переменные: `OPENAI_API_KEY`, все `PAYPAL_*`
@@ -1214,4 +1252,9 @@ DATABASE_URL="<render-external-url>" npx ts-node prisma/seed.ts
 *Сессия 11: 19 июня 2026 — Epic 4: AI-рекомендации по настроению (171 тест)*
 *Сессия 12: 19 июня 2026 — Epic 2: Mood-check + история чек-инов (176 тестов)*
 *Сессия 13: 24 июня 2026 — OpenAI switch (gpt-4o-mini) + PayPal fix + Postman полная (166 тестов)*
+*Сессия 16: 25 июня 2026 — Epic 5: макросы (fatG/carbsG) + Favorites CRUD + Postman перестройка (175 тестов)*
+*Сессия 17: 25 июня 2026 — Epic 4: AI-распознавание фото + budget scoring (204 теста)*
+*Сессия 18: 25 июня 2026 — Здоровое питание: 44 рецепта + health-score + словарь продуктов (226 тестов)*
+*Сессия 19: 26 июня 2026 — Grafana + Prometheus мониторинг (HTTP/AI/Vision/бизнес/Node метрики) + remote_write фикс*
+*Сессия 20: 1 июля 2026 — Матчинг по продуктам (staple-aware, ≥60%), рецепты ×168, Epic 6 (вода) + Epic 7 (аналитика) + Push + сброс пароля (255 тестов)*
 

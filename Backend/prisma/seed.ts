@@ -1,8 +1,9 @@
 import { PrismaClient } from '@prisma/client'
+import { extraRecipes } from './recipes.extra'
 
 const prisma = new PrismaClient()
 
-const recipes = [
+const baseRecipes = [
   {
     title: 'Banana Oat Smoothie',
     cookingTimeMin: 5,
@@ -808,6 +809,9 @@ const recipes = [
     ],
   },
 ]
+
+// Full catalogue = original curated recipes + the Session 20 healthy expansion.
+const recipes = [...baseRecipes, ...extraRecipes]
 
 async function main() {
   // ─── Subscription plans ──────────────────────────────────────────────────

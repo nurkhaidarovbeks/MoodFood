@@ -85,6 +85,16 @@ const INGREDIENT_ALIASES: Record<string, string> = {
   'tuna': 'canned tuna',
   'prawns': 'shrimp',
   'prawn': 'shrimp',
+  'cod': 'white fish',
+  'cod fillet': 'white fish',
+  'tilapia': 'white fish',
+  'pollock': 'white fish',
+  'haddock': 'white fish',
+  'white fish fillet': 'white fish',
+  'chicken thighs': 'chicken thigh',
+  'chicken legs': 'chicken thigh',
+  'pita': 'pita bread',
+  'flatbread': 'pita bread',
 
   // ─── Grains, bread, pasta ─────────────────────────────────────────────────
   'wholewheat bread': 'whole wheat bread',
