@@ -18,6 +18,10 @@ Mobile/ios/.symlinks/
 Mobile/android/.gradle/
 Mobile/android/local.properties
 
+# ─── Database backups (contain real user data — never commit) ─────────────────
+backups/
+*.sql.gz
+
 # ─── OS ───────────────────────────────────────────────────────────────────────
 .DS_Store
 Thumbs.db

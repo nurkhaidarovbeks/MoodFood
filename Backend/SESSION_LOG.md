@@ -1214,4 +1214,8 @@ DATABASE_URL="<render-external-url>" npx ts-node prisma/seed.ts
 *Сессия 11: 19 июня 2026 — Epic 4: AI-рекомендации по настроению (171 тест)*
 *Сессия 12: 19 июня 2026 — Epic 2: Mood-check + история чек-инов (176 тестов)*
 *Сессия 13: 24 июня 2026 — OpenAI switch (gpt-4o-mini) + PayPal fix + Postman полная (166 тестов)*
+*Сессия 16: 25 июня 2026 — Epic 5: макросы (fatG/carbsG) + Favorites CRUD + Postman перестройка (175 тестов)*
+*Сессия 17: 25 июня 2026 — Epic 4: AI-распознавание фото + budget scoring (204 теста)*
+*Сессия 18: 25 июня 2026 — Здоровое питание: 44 рецепта + health-score + словарь продуктов (226 тестов)*
+*Сессия 19: 26 июня 2026 — Grafana + Prometheus мониторинг (HTTP/AI/Vision/бизнес/Node метрики) + remote_write фикс*
 
