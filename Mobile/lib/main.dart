@@ -8,6 +8,8 @@ import 'core/providers/ingredients_provider.dart';
 import 'core/providers/recipe_provider.dart';
 import 'core/providers/subscription_provider.dart';
 import 'core/providers/favorites_provider.dart';
+import 'core/providers/water_provider.dart';
+import 'core/providers/insights_provider.dart';
 import 'core/theme/app_theme.dart';
 import 'router/app_router.dart';
 
@@ -34,6 +36,8 @@ class MoodFoodApp extends StatelessWidget {
         ChangeNotifierProvider(create: (_) => RecipeProvider()),
         ChangeNotifierProvider(create: (_) => SubscriptionProvider()),
         ChangeNotifierProvider(create: (_) => FavoritesProvider()),
+        ChangeNotifierProvider(create: (_) => WaterProvider()),
+        ChangeNotifierProvider(create: (_) => InsightsProvider()),
       ],
       child: MaterialApp(
         title: 'MoodFood',

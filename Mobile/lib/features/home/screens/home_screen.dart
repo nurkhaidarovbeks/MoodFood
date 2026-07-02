@@ -10,6 +10,8 @@ import '../../../core/providers/auth_provider.dart';
 import '../../../core/providers/favorites_provider.dart';
 import '../../../core/providers/mood_provider.dart';
 import '../../../core/providers/subscription_provider.dart';
+import '../../../core/providers/water_provider.dart';
+import '../../../core/providers/insights_provider.dart';
 import '../../../core/services/vision_service.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../recipes/screens/recipes_screen.dart';
@@ -322,44 +324,25 @@ class _StatsRow extends StatefulWidget {
 }
 
 class _StatsRowState extends State<_StatsRow> {
-  static const _waterKey = 'water_glasses';
-  static const _goal = 8;
-  int _glasses = 0;
-
   @override
   void initState() {
     super.initState();
-    _load();
-  }
-
-  Future<void> _load() async {
-    final prefs = await SharedPreferences.getInstance();
-    final today = DateTime.now().toIso8601String().substring(0, 10);
-    final saved = prefs.getString(_waterKey);
-    if (saved != null && saved.startsWith(today)) {
-      final count = int.tryParse(saved.split(':').last) ?? 0;
-      if (mounted) setState(() => _glasses = count);
-    }
-  }
-
-  Future<void> _set(int v) async {
-    final clamped = v.clamp(0, 12);
-    setState(() => _glasses = clamped);
-    final prefs = await SharedPreferences.getInstance();
-    final today = DateTime.now().toIso8601String().substring(0, 10);
-    await prefs.setString(_waterKey, '$today:$clamped');
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      context.read<WaterProvider>().load();
+    });
   }
 
   @override
   Widget build(BuildContext context) {
+    final water = context.watch<WaterProvider>();
     return Row(
       children: [
         Expanded(
           child: _WaterCard(
-            glasses: _glasses,
-            goal: _goal,
-            onAdd: () => _set(_glasses + 1),
-            onRemove: () => _set(_glasses - 1),
+            glasses: water.glasses,
+            goal: water.goalGlasses,
+            onAdd: () => context.read<WaterProvider>().addGlass(),
+            onRemove: () => context.read<WaterProvider>().removeGlass(),
           ),
         ),
         const SizedBox(width: 12),
@@ -1376,6 +1359,10 @@ class _TrackerTab extends StatelessWidget {
                   _MoodTrendCard(entries: weekEntries),
                   const SizedBox(height: 16),
 
+                  // Weekly insights + tips (Epic 7 habit analytics)
+                  const _WeeklyInsightsSection(),
+                  const SizedBox(height: 16),
+
                   // Great Progress card
                   if (weekEntries.length >= 3)
                     _ProgressCard(streak: streak),
@@ -1402,27 +1389,17 @@ class _TrackerStatsGrid extends StatefulWidget {
 }
 
 class _TrackerStatsGridState extends State<_TrackerStatsGrid> {
-  static const _waterKey = 'water_glasses';
-  int _glasses = 0;
-
   @override
   void initState() {
     super.initState();
-    _loadWater();
-  }
-
-  Future<void> _loadWater() async {
-    final prefs = await SharedPreferences.getInstance();
-    final today = DateTime.now().toIso8601String().substring(0, 10);
-    final saved = prefs.getString(_waterKey);
-    if (saved != null && saved.startsWith(today)) {
-      final count = int.tryParse(saved.split(':').last) ?? 0;
-      if (mounted) setState(() => _glasses = count);
-    }
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      context.read<WaterProvider>().load();
+    });
   }
 
   @override
   Widget build(BuildContext context) {
+    final water = context.watch<WaterProvider>();
     return GridView.count(
       shrinkWrap: true,
       physics: const NeverScrollableScrollPhysics(),
@@ -1436,7 +1413,7 @@ class _TrackerStatsGridState extends State<_TrackerStatsGrid> {
           iconColor: const Color(0xFF2196F3),
           bgColor: Colors.white,
           title: 'Water',
-          value: '$_glasses/8',
+          value: '${water.glasses}/${water.goalGlasses}',
           subtitle: 'glasses',
         ),
         _TrackerStatCard(
@@ -1812,6 +1789,213 @@ class _LineChartPainter extends CustomPainter {
   @override
   bool shouldRepaint(_LineChartPainter old) =>
       old.moodData != moodData || old.energyData != energyData;
+}
+
+// ─── Epic 7: Weekly habit insights + tips ─────────────────────────────────────
+
+class _WeeklyInsightsSection extends StatefulWidget {
+  const _WeeklyInsightsSection();
+
+  @override
+  State<_WeeklyInsightsSection> createState() => _WeeklyInsightsSectionState();
+}
+
+class _WeeklyInsightsSectionState extends State<_WeeklyInsightsSection> {
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      context.read<InsightsProvider>().load();
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final prov = context.watch<InsightsProvider>();
+    final w = prov.weekly;
+
+    if (prov.loading && w == null) {
+      return Container(
+        height: 120,
+        alignment: Alignment.center,
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(16),
+        ),
+        child: const CircularProgressIndicator(color: AppTheme.primary),
+      );
+    }
+    if (w == null) return const SizedBox.shrink();
+
+    final energy = w.avgEnergy;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Container(
+          padding: const EdgeInsets.all(16),
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(16),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withValues(alpha: 0.04),
+                blurRadius: 8,
+                offset: const Offset(0, 2),
+              ),
+            ],
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  Container(
+                    width: 30,
+                    height: 30,
+                    decoration: BoxDecoration(
+                      color: AppTheme.primary.withValues(alpha: 0.1),
+                      shape: BoxShape.circle,
+                    ),
+                    child: const Icon(Icons.insights_outlined,
+                        size: 17, color: AppTheme.primary),
+                  ),
+                  const SizedBox(width: 10),
+                  Text(
+                    'This Week',
+                    style: const TextStyle(
+                      fontSize: 15,
+                      fontWeight: FontWeight.w700,
+                      color: AppTheme.textDark,
+                    ),
+                  ),
+                  const Spacer(),
+                  Text(
+                    '${w.periodDays} days',
+                    style: const TextStyle(
+                      fontSize: 11,
+                      color: AppTheme.textSecondary,
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 14),
+              Row(
+                children: [
+                  _InsightMetric(
+                    label: 'Check-ins',
+                    value: '${(w.checkInRate * 100).round()}%',
+                  ),
+                  _InsightMetric(
+                    label: 'Avg energy',
+                    value: energy == null ? '—' : '${energy.toStringAsFixed(1)}/5',
+                  ),
+                  _InsightMetric(
+                    label: 'Hydration',
+                    value: '${(w.hydration.adherence * 100).round()}%',
+                  ),
+                  _InsightMetric(
+                    label: 'Mood',
+                    value: w.dominantMood == null
+                        ? '—'
+                        : (MoodEntry.moodEmojis[w.dominantMood!] ?? '🙂'),
+                  ),
+                ],
+              ),
+            ],
+          ),
+        ),
+        if (prov.tips.isNotEmpty) ...[
+          const SizedBox(height: 12),
+          Container(
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              color: const Color(0xFFF1F8E9),
+              borderRadius: BorderRadius.circular(16),
+              border: Border.all(color: AppTheme.primary.withValues(alpha: 0.2)),
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Row(
+                  children: [
+                    Text('💡', style: TextStyle(fontSize: 15)),
+                    SizedBox(width: 8),
+                    Text(
+                      'Tips for you',
+                      style: TextStyle(
+                        fontSize: 14,
+                        fontWeight: FontWeight.w700,
+                        color: AppTheme.textDark,
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 10),
+                ...prov.tips.map(
+                  (tip) => Padding(
+                    padding: const EdgeInsets.only(bottom: 8),
+                    child: Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const Padding(
+                          padding: EdgeInsets.only(top: 2),
+                          child: Icon(Icons.check_circle,
+                              size: 15, color: AppTheme.primary),
+                        ),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: Text(
+                            tip,
+                            style: const TextStyle(
+                              fontSize: 12.5,
+                              color: AppTheme.textDark,
+                              height: 1.45,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ],
+    );
+  }
+}
+
+class _InsightMetric extends StatelessWidget {
+  final String label;
+  final String value;
+  const _InsightMetric({required this.label, required this.value});
+
+  @override
+  Widget build(BuildContext context) {
+    return Expanded(
+      child: Column(
+        children: [
+          Text(
+            value,
+            style: const TextStyle(
+              fontSize: 18,
+              fontWeight: FontWeight.w800,
+              color: AppTheme.textDark,
+            ),
+          ),
+          const SizedBox(height: 2),
+          Text(
+            label,
+            style: const TextStyle(
+              fontSize: 11,
+              color: AppTheme.textSecondary,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
 }
 
 class _ProgressCard extends StatelessWidget {
