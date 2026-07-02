@@ -355,17 +355,11 @@ class _StatsRowState extends State<_StatsRow> {
     return Row(
       children: [
         Expanded(
-          child: GestureDetector(
-            onTap: () async {
-              await Navigator.pushNamed(context, '/water-tracker');
-              _load(); // refresh count changed on the tracker screen
-            },
-            child: _WaterCard(
-              glasses: _glasses,
-              goal: _goal,
-              onAdd: () => _set(_glasses + 1),
-              onRemove: () => _set(_glasses - 1),
-            ),
+          child: _WaterCard(
+            glasses: _glasses,
+            goal: _goal,
+            onAdd: () => _set(_glasses + 1),
+            onRemove: () => _set(_glasses - 1),
           ),
         ),
         const SizedBox(width: 12),

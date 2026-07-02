@@ -22,7 +22,6 @@ import '../features/profile/screens/edit_profile_screen.dart';
 import '../features/payment/screens/paypal_webview_screen.dart';
 import '../features/favorites/screens/favorites_screen.dart';
 import '../features/wallet/screens/wallet_screen.dart';
-import '../features/tracker/screens/water_tracker_screen.dart';
 
 class AppRouter {
   static Route<dynamic> onGenerateRoute(RouteSettings settings) {
@@ -82,8 +81,6 @@ class AppRouter {
         return MaterialPageRoute(builder: (_) => const FavoritesScreen());
       case '/wallet':
         return MaterialPageRoute(builder: (_) => const WalletScreen());
-      case '/water-tracker':
-        return MaterialPageRoute(builder: (_) => const WaterTrackerScreen());
       case '/paypal-webview':
         final args = settings.arguments as Map<String, String>?;
         return MaterialPageRoute(
