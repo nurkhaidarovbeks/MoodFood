@@ -26,6 +26,9 @@ backups/
 Pictures/
 *.base64.txt
 
+# ─── Internal presentation notes (not part of the codebase) ───────────────────
+PRESENTATION.md
+
 # ─── OS ───────────────────────────────────────────────────────────────────────
 .DS_Store
 Thumbs.db

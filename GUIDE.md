@@ -1,7 +1,7 @@
 # MoodFood — Руководство команды
 
 > Репозиторий: https://github.com/nurkhaidarovbeks/MoodFood  
-> Последнее обновление: 26 июня 2026
+> Последнее обновление: 2 июля 2026
 
 ---
 
@@ -120,7 +120,7 @@ git push origin feature/название-задачи
 
 ```
 Любой пуш в любую ветку
-  → GitHub Actions: npm ci → prisma generate → 84 теста → tsc build
+  → GitHub Actions: npm ci → prisma generate → 255 тестов → tsc build
 
 Пуш/мерж в main
   → GitHub Actions: тесты → curl Render Deploy Hook → авто-деплой на Render
@@ -187,10 +187,10 @@ npm run dev
 
 ```powershell
 npm run dev          # запуск сервера с hot-reload (режим разработки)
-npm test             # все тесты (166 штук, ~8 сек)
+npm test             # все тесты (255 штук, ~10 сек)
 npm run build        # сборка TypeScript → JavaScript
 npx prisma studio    # визуальный просмотр БД (http://localhost:5555)
-npx ts-node prisma/seed.ts   # заполнить БД 44 здоровыми рецептами (идемпотентно)
+npx ts-node prisma/seed.ts   # заполнить БД 168 здоровыми рецептами (идемпотентно)
 ```
 
 **Два способа запустить окружение:**
@@ -268,6 +268,10 @@ Authorization: Bearer <jwt-токен>
 | `POST` | `/auth/otp/verify` | — | Войти по OTP-коду |
 | `GET` | `/auth/verify-email?token=` | — | Подтвердить email по ссылке |
 | `POST` | `/auth/resend-verification` | — | Переслать письмо верификации |
+| `POST` | `/auth/forgot-password` | — | Запросить сброс пароля (ссылка на email, токен 1 ч) |
+| `POST` | `/auth/reset-password` | — | Установить новый пароль по токену из письма |
+
+> `/login`, `/register`, `/forgot-password`, `/otp/*` защищены **rate limiting** (см. раздел «Безопасность»).
 
 ### Профиль
 
@@ -398,6 +402,38 @@ Authorization: Bearer <jwt-токен>
 | `POST` | `/subscriptions/subscribe` | ✅ | Оформить подписку → `{ paymentUrl }` |
 | `DELETE` | `/subscriptions/me` | ✅ | Отменить подписку (soft cancel) |
 
+### Вода и гидрация (Epic 6)
+
+| Метод | Путь | Auth | Описание |
+|-------|------|------|---------|
+| `POST` | `/water` | ✅ | Записать приём воды `{ "amountMl": 250 }` → сводка за день |
+| `GET` | `/water/today` | ✅ | Сегодня: total, goal, progress, логи |
+| `GET` | `/water/history?days=7` | ✅ | Итоги по дням (с нулями для пропусков) |
+| `GET` | `/water/goal` | ✅ | Цель + настройки напоминаний |
+| `PUT` | `/water/goal` | ✅ | Обновить цель / интервал / окно сна / часовой пояс |
+| `DELETE` | `/water/:id` | ✅ | Удалить запись о воде |
+
+### Уведомления и напоминания (Epic 6)
+
+| Метод | Путь | Auth | Описание |
+|-------|------|------|---------|
+| `POST` | `/notifications/devices` | ✅ | Зарегистрировать push-токен устройства |
+| `DELETE` | `/notifications/devices/:token` | ✅ | Удалить токен устройства |
+| `GET` | `/notifications/preferences` | ✅ | Настройки напоминаний (вода/еда/окно) |
+| `PUT` | `/notifications/preferences` | ✅ | Обновить настройки |
+| `GET` | `/notifications/due` | ✅ | Какие напоминания «пора» прямо сейчас (для polling) |
+| `GET` | `/notifications/history` | ✅ | История отправленных уведомлений |
+| `POST` | `/notifications/test` | ✅ | Тестовый push на свои устройства |
+
+> Push отправляется через **FCM** (нужен `FCM_SERVER_KEY`); без ключа — no-op, но `/due` работает для in-app polling. Фоновый sweep — каждые `REMINDER_SWEEP_MINUTES` (по умолч. 15).
+
+### Аналитика привычек (Epic 7)
+
+| Метод | Путь | Auth | Описание |
+|-------|------|------|---------|
+| `GET` | `/insights/weekly?days=7` | ✅ | Сводка mood + гидрация + rule-based советы |
+| `GET` | `/insights/tips?days=7` | ✅ | Только советы |
+
 ---
 
 ## Интеграция Backend ↔ Frontend
@@ -406,15 +442,17 @@ Authorization: Bearer <jwt-токен>
 
 | Компонент | Статус |
 |-----------|--------|
-| Backend API (84 теста) | ✅ Готов |
+| Backend API (255 тестов) | ✅ Готов |
 | Деплой на Render | ✅ Живой |
 | CI/CD (автодеплой при пуше в main) | ✅ Работает |
 | Flutter Auth экраны (Login/Register/OTP) | ✅ Готовы |
 | Flutter Google Sign In | ✅ Реализован |
 | Flutter OnBoarding (ProfileSetup) | ✅ Готов |
-| Flutter Pantry экран | ⏳ Нужно реализовать |
-| Flutter Recipes экран | ⏳ Нужно реализовать |
-| Flutter Apple Sign In | 🔒 Заглушка (требует iOS entitlement) |
+| Flutter Pantry / Recipes / Favorites экраны | ✅ Готовы |
+| Flutter Vision AI (фото → рецепты) | ✅ Готов |
+| Flutter Water / Insights / Notifications экраны | ✅ Готовы (Epic 6/7) |
+| Flutter Apple Sign In | ⏳ Не подключён на фронте (бэкенд готов) |
+| Flutter Сброс пароля | ⏳ Не подключён на фронте (бэкенд готов) |
 
 ---
 
@@ -786,22 +824,29 @@ cd Backend
 npm test
 ```
 
-166 тестов, запускаются без реальной базы данных (~8 секунд).
+255 тестов, запускаются без реальной базы данных (~10 секунд).
 
-| Файл | Тестов | Что тестирует |
-|------|--------|-------------|
-| `auth.test.ts` | 27 | Регистрация, вход, Google OAuth, Apple Sign In, OTP |
-| `profile.test.ts` | 8 | Создание профиля, PATCH, GET |
-| `dietary-restriction.test.ts` | 24 | Фильтрация по всем 10 типам + кастомные |
-| `recipe.test.ts` | 22 | CRUD рецептов, рекомендации, фильтрация, matchScore |
-| `pantry.test.ts` | 7 | Добавление, удаление, очистка кладовки |
-| `payment.test.ts` | 20 | State machine, PayPal checkout/success/cancel, idempotency |
-| `wallet.test.ts` | 13 | Баланс, транзакции, пополнение, кредитование при оплате |
-| `subscription.test.ts` | 14 | Планы, оформление, авто-expire, отмена, активация |
-| `recommendation-scoring.test.ts` | 16 | Скоринг по состоянию, выбор 3, замены |
-| `recommendation.test.ts` | 8 | Пайплайн, диета (hard), кладовка, 404 |
-| `meal-ai.test.ts` | 6 | Fallback без ключа, не-медицинский текст, формат |
-| `moodcheck.test.ts` | 5 | Create, история, пагинация, latest |
+| Файл | Что тестирует |
+|------|-------------|
+| `auth.test.ts` | Регистрация, вход, Google/Apple, OTP, **сброс пароля** |
+| `profile.test.ts` | Создание профиля, PATCH, GET |
+| `dietary-restriction.test.ts` | Фильтрация по всем 10 типам + кастомные |
+| `recipe.test.ts` | CRUD рецептов, рекомендации, фильтрация, matchScore |
+| `pantry.test.ts` | Добавление, удаление, очистка кладовки |
+| `payment.test.ts` | State machine, PayPal checkout/success/cancel, idempotency |
+| `wallet.test.ts` | Баланс, транзакции, пополнение |
+| `subscription.test.ts` | Планы, оформление, авто-expire, отмена, активация |
+| `recommendation-scoring.test.ts` | Скоринг по состоянию, выбор 3, замены |
+| `recommendation.test.ts` | Пайплайн, диета (hard), кладовка, 404 |
+| `recommendation-match.test.ts` | **Staple-aware match-score, cookable ≥60%, photo-flow** |
+| `meal-ai.test.ts` | Fallback без ключа, формат |
+| `moodcheck.test.ts` | Create, история, пагинация, latest |
+| `vision.test.ts` | Извлечение ингредиентов из фото, нормализация |
+| `ingredient-knowledge.test.ts` | Канонизация спеллингов/транслита/вариантов |
+| `favorites.test.ts` | Favorites CRUD + check |
+| `water.test.ts` | **Epic 6: лог воды, прогресс, история, цель** |
+| `notification.test.ts` | **Push: устройства, due-логика, окно сна, no-op** |
+| `insights.test.ts` | **Epic 7: недельная сводка + советы** |
 
 ---
 
@@ -813,7 +858,8 @@ npm test
 - JWT проверяется на каждом защищённом маршруте
 - Zod валидирует все входящие данные
 - Prisma ORM — параметризованные запросы, SQL injection невозможен
-- Rate limiting: OTP отправка — 3 запроса/15 мин, OTP проверка — 10 попыток/5 мин
+- Пароли сбрасываются по одноразовому токену (SHA-256 в БД, живёт 1 ч)
+- Rate limiting: OTP отправка — 3/15 мин, OTP проверка — 10/5 мин, **login/register — 10/15 мин**, **forgot-password — 3/15 мин**
 
 ---
 
@@ -829,13 +875,18 @@ npm test
 | Epic 3 Mobile | ✅ Готов | Ingredients screen (24 ингредиента, match-count сортировка) |
 | Epic 4 Backend | ✅ Готов | Payment (PayPal WebView), Wallet, Subscriptions (monthly/annual) |
 | Epic 4 Mobile | ✅ Готов | AI Recommendations с реальными данными (fitScore, GPT объяснение, категории), Premium/PayPal flow |
-| Epic 4 (AI) Backend | ✅ Готов | AI-рекомендации по настроению (GPT-4o-mini + rule-based fallback) |
+| Epic 4 (AI) Backend | ✅ Готов | AI-рекомендации по настроению (GPT-4o-mini + rule-based fallback) + **матчинг по продуктам (staple-aware, ≥60%)**, 168 рецептов |
 | Epic 5 Backend | ✅ Готов | fatG/carbsG в Recipe, Favorites CRUD (`/api/v1/favorites`), Vision AI |
 | Epic 5 Mobile | ✅ Готов | Favorites sync с бэкендом, Vision AI (фото → рецепты), macros/cost/difficulty в UI |
-| Infra | ✅ Готово | Docker, GitHub Actions CI/CD, Render деплой |
-| Epic 6+ | ⏳ Следующий | Habit analytics, Apple Sign In, push-уведомления, тёмная тема |
+| Epic 6 Backend | ✅ Готов | Water tracking (`/water/*`), напоминания + push (`/notifications/*`, FCM) |
+| Epic 6 Mobile | ✅ Готов | Трекер воды, экран напоминаний, регистрация устройства |
+| Epic 7 Backend | ✅ Готов | Habit analytics (`/insights/weekly|tips`) — сводка mood+вода+советы |
+| Epic 7 Mobile | ✅ Готов | Экран инсайтов с недельной сводкой |
+| Auth+ Backend | ✅ Готов | Сброс пароля, rate limiting на login/register |
+| Infra | ✅ Готово | Docker, GitHub Actions CI/CD, Render деплой, Grafana+Prometheus мониторинг |
+| Осталось (Mobile) | ⏳ | Apple Sign In + экран сброса пароля (бэкенд готов), тёмная тема |
 
 ---
 
-*Backend: май–июнь 2026 · 226 тестов · Epics 1–5 + AI-фото + здоровое питание (44 рецепта, health-score, словарь продуктов) · Деплой: Render · AI: OpenAI GPT-4o-mini*  
-*Mobile: июнь 2026 · Flutter 3.41.3 · iOS (Cherry🍒) · Epics 1–5 полностью готовы · Ветка: feature/flutter-frontend-epic1*
+*Backend: май–июль 2026 · 255 тестов · Epics 1–7 + AI-фото + матчинг по продуктам (168 рецептов, health-score, словарь) + push + сброс пароля · Деплой: Render · AI: OpenAI GPT-4o-mini · Мониторинг: Grafana/Prometheus*  
+*Mobile: июнь–июль 2026 · Flutter 3.41.3 · iOS (Cherry🍒) · Epics 1–7 фронтенд готовы (кроме Apple Sign In / сброса пароля)*
