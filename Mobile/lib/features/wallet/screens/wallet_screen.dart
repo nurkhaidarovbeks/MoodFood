@@ -1,51 +1,36 @@
 import 'package:flutter/material.dart';
+import '../../../core/services/wallet_service.dart';
 import '../../../core/theme/app_theme.dart';
 
-/// Wallet — balance + transaction history + top-up entry point.
-///
-/// DESIGN PHASE: uses placeholder data shaped exactly like the backend
-/// `GET /wallet` response ({ balance, currency, transactions: [...] }) so
-/// wiring a WalletService/WalletProvider later is a drop-in swap.
-class WalletScreen extends StatelessWidget {
+/// Wallet — balance + transaction history, wired to GET /wallet.
+class WalletScreen extends StatefulWidget {
   const WalletScreen({super.key});
 
-  // Placeholder — mirrors GET /wallet response shape.
-  static const _balance = 12500;
-  static const _currency = '₸';
-  static const _transactions = <_Txn>[
-    _Txn(
-      title: 'Premium subscription',
-      subtitle: 'Monthly plan',
-      amount: -4990,
-      type: 'payment',
-      date: 'Today, 14:32',
-      icon: Icons.workspace_premium_outlined,
-    ),
-    _Txn(
-      title: 'Wallet top-up',
-      subtitle: 'PayPal',
-      amount: 10000,
-      type: 'topup',
-      date: 'Yesterday, 09:10',
-      icon: Icons.add_card_outlined,
-    ),
-    _Txn(
-      title: 'Recipe pack',
-      subtitle: 'High-protein bundle',
-      amount: -1500,
-      type: 'payment',
-      date: 'Jun 28, 18:45',
-      icon: Icons.restaurant_menu_outlined,
-    ),
-    _Txn(
-      title: 'Wallet top-up',
-      subtitle: 'Card •••• 4242',
-      amount: 10000,
-      type: 'topup',
-      date: 'Jun 25, 11:02',
-      icon: Icons.add_card_outlined,
-    ),
-  ];
+  @override
+  State<WalletScreen> createState() => _WalletScreenState();
+}
+
+class _WalletScreenState extends State<WalletScreen> {
+  final _service = WalletService();
+  WalletData _data = WalletData.empty;
+  bool _loading = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _load();
+  }
+
+  Future<void> _load() async {
+    final data = await _service.getWallet();
+    if (!mounted) return;
+    setState(() {
+      if (data != null) _data = data;
+      _loading = false;
+    });
+  }
+
+  String get _symbol => _data.currency == 'KZT' ? '₸' : _data.currency;
 
   @override
   Widget build(BuildContext context) {
@@ -54,43 +39,45 @@ class WalletScreen extends StatelessWidget {
       body: SafeArea(
         child: Column(
           children: [
-            _Header(),
+            const _Header(),
             Expanded(
-              child: ListView(
-                padding: const EdgeInsets.fromLTRB(20, 4, 20, 24),
-                children: [
-                  _BalanceCard(balance: _balance, currency: _currency),
-                  const SizedBox(height: 20),
-                  const _QuickActions(),
-                  const SizedBox(height: 24),
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      const Text(
-                        'Recent Transactions',
-                        style: TextStyle(
-                          fontSize: 16,
-                          fontWeight: FontWeight.w700,
-                          color: AppTheme.textDark,
-                        ),
+              child: _loading
+                  ? const Center(
+                      child: CircularProgressIndicator(color: AppTheme.primary),
+                    )
+                  : RefreshIndicator(
+                      color: AppTheme.primary,
+                      onRefresh: _load,
+                      child: ListView(
+                        padding: const EdgeInsets.fromLTRB(20, 4, 20, 24),
+                        children: [
+                          _BalanceCard(balance: _data.balance, symbol: _symbol),
+                          const SizedBox(height: 20),
+                          const _QuickActions(),
+                          const SizedBox(height: 24),
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            children: const [
+                              Text(
+                                'Recent Transactions',
+                                style: TextStyle(
+                                  fontSize: 16,
+                                  fontWeight: FontWeight.w700,
+                                  color: AppTheme.textDark,
+                                ),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 12),
+                          if (_data.transactions.isEmpty)
+                            const _EmptyTransactions()
+                          else
+                            ..._data.transactions.map(
+                              (t) => _TransactionRow(txn: t, symbol: _symbol),
+                            ),
+                        ],
                       ),
-                      Text(
-                        'See all',
-                        style: TextStyle(
-                          fontSize: 13,
-                          fontWeight: FontWeight.w600,
-                          color: AppTheme.primary,
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 12),
-                  if (_transactions.isEmpty)
-                    const _EmptyTransactions()
-                  else
-                    ..._transactions.map((t) => _TransactionRow(txn: t)),
-                ],
-              ),
+                    ),
             ),
           ],
         ),
@@ -102,6 +89,8 @@ class WalletScreen extends StatelessWidget {
 // ─── Header ──────────────────────────────────────────────────────────────────
 
 class _Header extends StatelessWidget {
+  const _Header();
+
   @override
   Widget build(BuildContext context) {
     return Padding(
@@ -145,11 +134,11 @@ class _Header extends StatelessWidget {
 
 class _BalanceCard extends StatelessWidget {
   final int balance;
-  final String currency;
-  const _BalanceCard({required this.balance, required this.currency});
+  final String symbol;
+  const _BalanceCard({required this.balance, required this.symbol});
 
   String get _formatted {
-    final s = balance.toString();
+    final s = balance.abs().toString();
     final buf = StringBuffer();
     for (int i = 0; i < s.length; i++) {
       if (i > 0 && (s.length - i) % 3 == 0) buf.write(' ');
@@ -211,7 +200,7 @@ class _BalanceCard extends StatelessWidget {
               ),
               const SizedBox(width: 6),
               Text(
-                currency,
+                symbol,
                 style: TextStyle(
                   fontSize: 22,
                   fontWeight: FontWeight.w600,
@@ -326,8 +315,46 @@ class _ActionTile extends StatelessWidget {
 // ─── Transaction row ─────────────────────────────────────────────────────────
 
 class _TransactionRow extends StatelessWidget {
-  final _Txn txn;
-  const _TransactionRow({required this.txn});
+  final WalletTxn txn;
+  final String symbol;
+  const _TransactionRow({required this.txn, required this.symbol});
+
+  static const _monthNames = [
+    'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
+    'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec',
+  ];
+
+  String get _title {
+    if (txn.description != null && txn.description!.isNotEmpty) {
+      return txn.description!;
+    }
+    switch (txn.type) {
+      case 'topup':
+        return 'Wallet top-up';
+      case 'refund':
+        return 'Refund';
+      default:
+        return 'Payment';
+    }
+  }
+
+  String get _date {
+    final d = txn.createdAt;
+    final h = d.hour.toString().padLeft(2, '0');
+    final m = d.minute.toString().padLeft(2, '0');
+    return '${_monthNames[d.month - 1]} ${d.day}, $h:$m';
+  }
+
+  IconData get _icon {
+    switch (txn.type) {
+      case 'topup':
+        return Icons.add_card_outlined;
+      case 'refund':
+        return Icons.undo_outlined;
+      default:
+        return Icons.workspace_premium_outlined;
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -362,7 +389,7 @@ class _TransactionRow extends StatelessWidget {
               borderRadius: BorderRadius.circular(12),
             ),
             child: Icon(
-              txn.icon,
+              _icon,
               size: 20,
               color: isCredit ? AppTheme.primaryDark : const Color(0xFFE53935),
             ),
@@ -373,16 +400,18 @@ class _TransactionRow extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  txn.title,
+                  _title,
                   style: const TextStyle(
                     fontSize: 14,
                     fontWeight: FontWeight.w600,
                     color: AppTheme.textDark,
                   ),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
                 ),
                 const SizedBox(height: 2),
                 Text(
-                  '${txn.subtitle} · ${txn.date}',
+                  _date,
                   style: const TextStyle(
                     fontSize: 11.5,
                     color: AppTheme.textSecondary,
@@ -392,7 +421,7 @@ class _TransactionRow extends StatelessWidget {
             ),
           ),
           Text(
-            '$sign$absAmount ₸',
+            '$sign$absAmount $symbol',
             style: TextStyle(
               fontSize: 14,
               fontWeight: FontWeight.w700,
@@ -434,24 +463,4 @@ class _EmptyTransactions extends StatelessWidget {
       ),
     );
   }
-}
-
-// ─── Model (mirrors backend transaction) ─────────────────────────────────────
-
-class _Txn {
-  final String title;
-  final String subtitle;
-  final int amount; // negative = debit, positive = credit
-  final String type; // topup | payment | refund
-  final String date;
-  final IconData icon;
-
-  const _Txn({
-    required this.title,
-    required this.subtitle,
-    required this.amount,
-    required this.type,
-    required this.date,
-    required this.icon,
-  });
 }

@@ -100,7 +100,7 @@ class RecommendationService {
           'sleepQuality': entry.sleepQuality,
           if (entry.hungerLevel != null) 'hungerLevel': entry.hungerLevel,
           'useMyIngredients': useMyIngredients,
-          if (maxCookingTime != null) 'maxCookingTime': maxCookingTime!,
+          if (maxCookingTime != null) 'maxCookingTime': maxCookingTime,
         },
       );
       final data = res.data as Map;
