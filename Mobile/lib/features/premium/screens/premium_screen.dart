@@ -13,6 +13,11 @@ class PremiumScreen extends StatefulWidget {
 
 class _PremiumScreenState extends State<PremiumScreen> {
   bool _showPaymentSheet = false;
+  String _selectedPlan = 'monthly'; // 'monthly' | 'annual'
+
+  // Prices mirror the backend subscription_plans seed (USD).
+  static const _monthlyPrice = r'$9.99';
+  static const _annualPrice = r'$79.99';
 
   static const _features = [
     (Icons.auto_awesome, 'Advanced AI Insights',
@@ -140,10 +145,23 @@ class _PremiumScreenState extends State<PremiumScreen> {
 
                   const SizedBox(height: 14),
 
+                  // Monthly / Annual selector
+                  _PlanToggle(
+                    selected: _selectedPlan,
+                    onSelect: (p) => setState(() => _selectedPlan = p),
+                  ),
+
+                  const SizedBox(height: 14),
+
                   _PlanCard(
                     title: 'Premium',
-                    price: r'$9.99',
-                    period: '/month',
+                    price: _selectedPlan == 'annual'
+                        ? _annualPrice
+                        : _monthlyPrice,
+                    period: _selectedPlan == 'annual' ? '/year' : '/month',
+                    subLabel: _selectedPlan == 'annual'
+                        ? 'Just \$6.67/mo · billed annually'
+                        : null,
                     features: const [
                       'Unlimited recipes',
                       'Advanced mood tracking',
@@ -161,7 +179,7 @@ class _PremiumScreenState extends State<PremiumScreen> {
                   // Footer
                   const Center(
                     child: Text(
-                      'Cancel anytime • Secure payment\nBilled monthly, no hidden fees',
+                      'Cancel anytime • Secure payment\nNo hidden fees',
                       textAlign: TextAlign.center,
                       style: TextStyle(
                         fontSize: 12,
@@ -185,6 +203,10 @@ class _PremiumScreenState extends State<PremiumScreen> {
                 left: 0,
                 right: 0,
                 child: _PaymentSheet(
+                  planType: _selectedPlan,
+                  priceLabel: _selectedPlan == 'annual'
+                      ? '$_annualPrice / year'
+                      : '$_monthlyPrice / month',
                   onClose: () =>
                       setState(() => _showPaymentSheet = false),
                 ),
@@ -266,6 +288,7 @@ class _PlanCard extends StatelessWidget {
   final String title;
   final String price;
   final String period;
+  final String? subLabel;
   final List<String> features;
   final bool isRecommended;
   final String buttonLabel;
@@ -276,6 +299,7 @@ class _PlanCard extends StatelessWidget {
     required this.title,
     required this.price,
     required this.period,
+    this.subLabel,
     required this.features,
     required this.isRecommended,
     required this.buttonLabel,
@@ -353,6 +377,17 @@ class _PlanCard extends StatelessWidget {
                           ),
                         ],
                       ),
+                      if (subLabel != null) ...[
+                        const SizedBox(height: 2),
+                        Text(
+                          subLabel!,
+                          style: const TextStyle(
+                            fontSize: 12,
+                            fontWeight: FontWeight.w600,
+                            color: Color(0xFFE65100),
+                          ),
+                        ),
+                      ],
                     ],
                   ),
                 ),
@@ -444,9 +479,99 @@ class _PlanCard extends StatelessWidget {
   }
 }
 
+class _PlanToggle extends StatelessWidget {
+  final String selected; // 'monthly' | 'annual'
+  final void Function(String) onSelect;
+
+  const _PlanToggle({required this.selected, required this.onSelect});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(4),
+      decoration: BoxDecoration(
+        color: const Color(0xFFF3ECE4),
+        borderRadius: BorderRadius.circular(16),
+      ),
+      child: Row(
+        children: [
+          _segment('monthly', 'Monthly', null),
+          _segment('annual', 'Annual', 'Save 30%'),
+        ],
+      ),
+    );
+  }
+
+  Widget _segment(String value, String label, String? badge) {
+    final active = selected == value;
+    return Expanded(
+      child: GestureDetector(
+        onTap: () => onSelect(value),
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 180),
+          padding: const EdgeInsets.symmetric(vertical: 11),
+          decoration: BoxDecoration(
+            color: active ? Colors.white : Colors.transparent,
+            borderRadius: BorderRadius.circular(13),
+            boxShadow: active
+                ? [
+                    BoxShadow(
+                      color: Colors.black.withValues(alpha: 0.06),
+                      blurRadius: 6,
+                      offset: const Offset(0, 2),
+                    ),
+                  ]
+                : null,
+          ),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Text(
+                label,
+                style: TextStyle(
+                  fontSize: 14,
+                  fontWeight: FontWeight.w700,
+                  color: active
+                      ? const Color(0xFFE65100)
+                      : const Color(0xFF8D6E63),
+                ),
+              ),
+              if (badge != null) ...[
+                const SizedBox(width: 6),
+                Container(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFFF8F00),
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: Text(
+                    badge,
+                    style: const TextStyle(
+                      fontSize: 9,
+                      fontWeight: FontWeight.w800,
+                      color: Colors.white,
+                    ),
+                  ),
+                ),
+              ],
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
 class _PaymentSheet extends StatefulWidget {
   final VoidCallback onClose;
-  const _PaymentSheet({required this.onClose});
+  final String planType; // 'monthly' | 'annual'
+  final String priceLabel;
+  const _PaymentSheet({
+    required this.onClose,
+    required this.planType,
+    required this.priceLabel,
+  });
 
   @override
   State<_PaymentSheet> createState() => _PaymentSheetState();
@@ -588,9 +713,9 @@ class _PaymentSheetState extends State<_PaymentSheet> {
                         strokeWidth: 2,
                       ),
                     )
-                  : const Text(
-                      'Pay \$9.99 / month',
-                      style: TextStyle(
+                  : Text(
+                      'Pay ${widget.priceLabel}',
+                      style: const TextStyle(
                         fontSize: 15,
                         fontWeight: FontWeight.w700,
                       ),
@@ -633,7 +758,7 @@ class _PaymentSheetState extends State<_PaymentSheet> {
 
     try {
       final result = await _subService.subscribe(
-        planType: 'monthly',
+        planType: widget.planType,
         gateway: 'paypal',
       );
 

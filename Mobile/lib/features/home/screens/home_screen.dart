@@ -355,11 +355,17 @@ class _StatsRowState extends State<_StatsRow> {
     return Row(
       children: [
         Expanded(
-          child: _WaterCard(
-            glasses: _glasses,
-            goal: _goal,
-            onAdd: () => _set(_glasses + 1),
-            onRemove: () => _set(_glasses - 1),
+          child: GestureDetector(
+            onTap: () async {
+              await Navigator.pushNamed(context, '/water-tracker');
+              _load(); // refresh count changed on the tracker screen
+            },
+            child: _WaterCard(
+              glasses: _glasses,
+              goal: _goal,
+              onAdd: () => _set(_glasses + 1),
+              onRemove: () => _set(_glasses - 1),
+            ),
           ),
         ),
         const SizedBox(width: 12),
@@ -2275,6 +2281,13 @@ class _ProfileTabState extends State<_ProfileTab> {
                     padding: const EdgeInsets.symmetric(horizontal: 16),
                     child: Column(
                       children: [
+                        _ProfileLink(
+                          icon: Icons.account_balance_wallet_outlined,
+                          label: 'Wallet',
+                          onTap: () =>
+                              Navigator.pushNamed(context, '/wallet'),
+                        ),
+                        const SizedBox(height: 8),
                         _ProfileLink(
                           icon: Icons.settings_outlined,
                           label: 'Settings',
