@@ -446,7 +446,77 @@ static const String favoritesCheck = '/favorites/check';
 
 ---
 
-## Текущее состояние (26 июня 2026)
+## Сессия 11 Mobile — 2 июля 2026 (Дизайн + Epic 6/7 фронтенд + интеграция)
+
+> Автор: Azhara Khamitbek | Модель: Claude Opus 4.8
+> Ветка: `feature/flutter-design` (от свежего `main`, backend Epic 6/7 уже влит)
+
+### Дизайн — доводка под макеты Figma
+
+- **Шрифт Inter подключён.** Тема объявляла `fontFamily: 'Inter'`, но шрифт нигде не бандлился (нет .ttf, нет google_fonts) → падало на системный. Скачал 5 весов Inter (400/500/600/700/800) в `assets/fonts/`, объявил в `pubspec.yaml`. Теперь типографика как в Figma **на всех экранах**.
+- **Onboarding** — кнопка Next/Get Started: стрелка → шеврон `›` (как в макете).
+- **Auth (Login/Sign Up)** — лого: эмодзи 🥗 → иконка листа `Icons.eco` на зелёном квадрате. Google-кнопка: серая `g_mobiledata` → настоящий цветной логотип Google (`assets/images/google_logo.png`).
+- **Вода** — упрощена до `+/−` (по требованию): убран отдельный навороченный экран трекера, оставлена простая карточка на Home.
+- Profile Setup (Goals/Diet/Allergies), Mood Check — сверены с макетами, уже совпадают.
+
+### Новые экраны/фичи
+
+- **Wallet (кошелёк)** — новый экран `features/wallet/screens/wallet_screen.dart`: карточка баланса (градиент), quick actions, список транзакций. Маршрут `/wallet`, вход из Profile. Подключён к `GET /wallet` (баланс + транзакции, ₸), loading/empty/pull-to-refresh.
+- **2 плана подписки** — Premium: переключатель Monthly/Annual (`_PlanToggle`), динамическая цена ($9.99/мес ↔ $79.99/год «Save 30%»), выбранный `planType` уходит в оплату. Цены совпадают с backend seed.
+
+### Epic 6 — Water & Regular Eating (фронтенд)
+
+- **`WaterService` + `WaterProvider`** → `/water` (today/log/delete). UI в стаканах (250мл), «+» = `POST /water {amountMl:250}`, «−» = удаление последнего лога. Прогресс/цель с сервера.
+- Home + Tracker «Water» читают живые данные с бэка (было SharedPreferences).
+- **`NotificationService`** → `/notifications` (preferences/history). Экран Notifications показывает реальные напоминания (water/meal), относительное время, loading + empty state.
+- Settings → тоггл «Notifications» читает/пишет `/notifications/preferences` (water + meal reminders).
+
+### Epic 7 — Habit Analytics (фронтенд)
+
+- **`InsightsService` + `InsightsProvider`** → `/insights/weekly`.
+- Новая карточка «This Week» на Tracker: check-in rate, avg energy, hydration adherence, доминирующее настроение + блок «Tips for you» (правила-советы с бэка).
+
+### Интеграция фронт↔бэк (перед слиянием)
+
+- **Все frontend API-вызовы сверены с backend-роутами** — пути и методы совпадают 100% (auth, profile, recipes, pantry, favorites, vision, recommendations, mood-checks, subscriptions, wallet, water, notifications, insights).
+- Wallet переведён с заглушки на реальный `GET /wallet`.
+- `dart analyze` — **0 ошибок, 0 warnings** (убрал лишний `!` в recommendation_service).
+- Приложение собрано и запущено на Cherry🍒 (Xcode build ~30s, debug, hot reload активен).
+
+### Файлы
+
+| Файл | Изменение |
+|------|-----------|
+| `pubspec.yaml` + `assets/fonts/Inter-*.ttf` | **НОВЫЕ** — бандл Inter |
+| `assets/images/google_logo.png` | **НОВЫЙ** |
+| `lib/core/services/water_service.dart` | **НОВЫЙ** |
+| `lib/core/services/notification_service.dart` | **НОВЫЙ** |
+| `lib/core/services/insights_service.dart` | **НОВЫЙ** |
+| `lib/core/services/wallet_service.dart` | **НОВЫЙ** |
+| `lib/core/providers/water_provider.dart` | **НОВЫЙ** |
+| `lib/core/providers/insights_provider.dart` | **НОВЫЙ** |
+| `lib/features/wallet/screens/wallet_screen.dart` | **НОВЫЙ** |
+| `lib/core/constants/api_constants.dart` | + water/notifications/insights эндпоинты |
+| `lib/features/home/screens/home_screen.dart` | вода→WaterProvider, «This Week» insights + tips |
+| `lib/features/notifications/screens/notifications_screen.dart` | реальные данные `/notifications/history` |
+| `lib/features/settings/screens/settings_screen.dart` | тоггл → `/notifications/preferences` |
+| `lib/features/premium/screens/premium_screen.dart` | Monthly/Annual переключатель |
+| `lib/features/auth/widgets/auth_shared.dart` | лого-лист + Google-лого |
+| `lib/features/onboarding/screens/onboarding_screen.dart` | шеврон |
+| `lib/main.dart` | + WaterProvider, InsightsProvider |
+
+### Проблемы и решения
+
+| Проблема | Решение |
+|----------|---------|
+| Шрифт Inter не рендерился | Скачан и забандлен (assets/fonts + pubspec) |
+| «sandbox not in sync with Podfile.lock» при запуске | `pod install` в `ios/` |
+| Прямой пуш в main | Откатил — по GUIDE только через PR, ветка `feature/flutter-design` запушена |
+| `CustomPaint` insights карточка | derived из провайдера, loading/empty состояния |
+
+---
+
+## Текущее состояние (2 июля 2026)
 
 | Фича | Статус | Детали |
 |------|--------|--------|
@@ -460,22 +530,26 @@ static const String favoritesCheck = '/favorites/check';
 | Recipe macros/cost | ✅ | P/F/C + ~$X в detail sheet, данные от бэкенда |
 | Vision AI (фото → рецепты) | ✅ | Camera/Gallery → `/vision/recommendations` → RecommendationsScreen |
 | Mood & Energy Chart | ✅ | CustomPaint теперь на полную ширину карточки |
-| Premium / PayPal | ✅ | WebView flow, syncFromBackend |
+| Premium / PayPal | ✅ | WebView flow, syncFromBackend, Monthly/Annual переключатель |
 | Editable Profile | ✅ | Имя + аватар (Camera/Gallery) |
-| Water tracking | ✅ | +/− кнопки, SharedPreferences |
+| Water tracking (Epic 6) | ✅ | +/− стаканы → `/water` (бэкенд, было SharedPreferences) |
+| Notifications / reminders (Epic 6) | ✅ | Экран + Settings-тоггл → `/notifications` |
+| Habit analytics (Epic 7) | ✅ | «This Week» + tips → `/insights/weekly` |
+| Wallet (кошелёк) | ✅ | Баланс + транзакции → `/wallet` |
+| Шрифт Inter | ✅ | Забандлен, типографика как в Figma |
+| Реальный push (FCM/APNs) | ⏳ | In-app часть есть; нужна Firebase/APNs настройка + `POST /notifications/devices` |
 | Apple Sign In | ⏳ | Заглушка, нужен entitlement |
-| Habit analytics | ⏳ | Нет бэкенд эндпоинта |
-| Push-уведомления | ⏳ | UI есть, real push нет |
+| Password reset flow | ⏳ | Бэк готов (`/auth/reset-password`); фронт пока через OTP |
 | Тёмная тема | ⏳ | Тоггл в Settings есть, ThemeMode не меняется |
 
 ---
 
 ## Следующий шаг
 
-- Apple Sign In (entitlement в Xcode)
-- Habit analytics / weekly tips (когда бэкенд добавит эндпоинт)
-- Push-уведомления
-- Тёмная тема
+- Слить `feature/flutter-design → main` через PR (fast-forward, конфликтов нет)
+- Реальный push: Firebase Messaging + APNs + регистрация device-token
+- Финальная пиксельная доводка дизайна (по скринам с устройства)
+- Password reset flow, Apple Sign In, тёмная тема
 
 ---
 
@@ -484,3 +558,4 @@ static const String favoritesCheck = '/favorites/check';
 *Сессия 6: 19 июня 2026 — Полный редизайн всех экранов по Figma, все кнопки кликабельны, исправлены критические баги*
 *Сессия 9: 25 июня 2026 — API constants для Favorites добавлены*
 *Сессия 10: 26 июня 2026 — Epic 5 полностью: Favorites sync, Vision AI, macros UI, chart fix, photo matching*
+*Сессия 11: 2 июля 2026 — Дизайн (Inter, лого, вода +/−), Wallet + 2 плана, Epic 6/7 фронтенд (water/notifications/insights), полная сверка фронт↔бэк, analyze 0 ошибок*

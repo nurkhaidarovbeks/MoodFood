@@ -17,10 +17,10 @@ class AuthHeader extends StatelessWidget {
           height: 48,
           decoration: BoxDecoration(
             color: AppTheme.primary,
-            borderRadius: BorderRadius.circular(20),
+            borderRadius: BorderRadius.circular(16),
           ),
           child: const Center(
-            child: Text('🥗', style: TextStyle(fontSize: 24)),
+            child: Icon(Icons.eco, color: Colors.white, size: 26),
           ),
         ),
         const SizedBox(width: 12),
@@ -304,12 +304,13 @@ class _GoogleSignInBtnState extends State<_GoogleSignInBtn> {
                   child: CircularProgressIndicator(strokeWidth: 2),
                 ),
               )
-            : const Row(
+            : Row(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  Icon(Icons.g_mobiledata, size: 22, color: AppTheme.textDark),
-                  SizedBox(width: 8),
-                  Text(
+                  Image.asset('assets/images/google_logo.png',
+                      width: 20, height: 20),
+                  const SizedBox(width: 8),
+                  const Text(
                     'Google',
                     style: TextStyle(
                       color: AppTheme.textDark,

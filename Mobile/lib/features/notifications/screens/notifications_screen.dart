@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../../../core/services/notification_service.dart';
 import '../../../core/theme/app_theme.dart';
 
 class NotificationsScreen extends StatefulWidget {
@@ -9,53 +10,48 @@ class NotificationsScreen extends StatefulWidget {
 }
 
 class _NotificationsScreenState extends State<NotificationsScreen> {
-  final List<_NotifItem> _items = [
-    _NotifItem(
-      icon: Icons.auto_awesome,
-      iconBg: const Color(0xFFF3E5F5),
-      iconColor: const Color(0xFF9C27B0),
-      title: 'New AI Recommendation',
-      body: 'Based on your morning mood, we have 3 energy-boosting meals for you!',
-      time: '2 min ago',
+  final _service = NotificationService();
+  final List<_NotifItem> _items = [];
+  bool _loading = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _load();
+  }
+
+  Future<void> _load() async {
+    final history = await _service.history();
+    if (!mounted) return;
+    setState(() {
+      _items
+        ..clear()
+        ..addAll(history.map(_fromBackend));
+      _loading = false;
+    });
+  }
+
+  _NotifItem _fromBackend(NotificationItem n) {
+    final isWater = n.type == 'water';
+    return _NotifItem(
+      icon: isWater ? Icons.water_drop_outlined : Icons.restaurant_outlined,
+      iconBg: isWater ? const Color(0xFFE3F2FD) : const Color(0xFFE8F5E9),
+      iconColor: isWater ? const Color(0xFF2196F3) : AppTheme.primary,
+      title: n.title,
+      body: n.body,
+      time: _relativeTime(n.sentAt),
       isRead: false,
-    ),
-    _NotifItem(
-      icon: Icons.water_drop_outlined,
-      iconBg: const Color(0xFFE3F2FD),
-      iconColor: const Color(0xFF2196F3),
-      title: 'Hydration Reminder',
-      body: "You haven't logged any water today. Stay hydrated for better energy!",
-      time: '1 hr ago',
-      isRead: false,
-    ),
-    _NotifItem(
-      icon: Icons.local_fire_department_outlined,
-      iconBg: const Color(0xFFFFF3E0),
-      iconColor: const Color(0xFFFF8F00),
-      title: '5-Day Streak! 🔥',
-      body: "You've checked in 5 days in a row. Keep going, you're doing amazing!",
-      time: '3 hr ago',
-      isRead: true,
-    ),
-    _NotifItem(
-      icon: Icons.menu_book_outlined,
-      iconBg: const Color(0xFFE8F5E9),
-      iconColor: AppTheme.primary,
-      title: 'New Recipe Available',
-      body: 'Try this delicious Quinoa Buddha Bowl – perfect for your mood today.',
-      time: 'Yesterday',
-      isRead: true,
-    ),
-    _NotifItem(
-      icon: Icons.mood_outlined,
-      iconBg: const Color(0xFFFCE4EC),
-      iconColor: const Color(0xFFE91E63),
-      title: 'Mood Check-In Time',
-      body: "It's 8 PM — a great time to check in on how you're feeling today.",
-      time: 'Yesterday',
-      isRead: true,
-    ),
-  ];
+    );
+  }
+
+  static String _relativeTime(DateTime t) {
+    final d = DateTime.now().difference(t);
+    if (d.inMinutes < 1) return 'Just now';
+    if (d.inMinutes < 60) return '${d.inMinutes} min ago';
+    if (d.inHours < 24) return '${d.inHours} hr ago';
+    if (d.inDays == 1) return 'Yesterday';
+    return '${d.inDays} days ago';
+  }
 
   void _markAllRead() {
     setState(() {
@@ -150,18 +146,69 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
             const SizedBox(height: 16),
 
             Expanded(
-              child: ListView.builder(
-                padding: const EdgeInsets.symmetric(horizontal: 16),
-                itemCount: _items.length,
-                itemBuilder: (_, i) => _NotifCard(
-                  item: _items[i],
-                  onTap: () => setState(() => _items[i].isRead = true),
-                  onDismiss: () => setState(() => _items.removeAt(i)),
-                ),
-              ),
+              child: _loading
+                  ? const Center(
+                      child: CircularProgressIndicator(color: AppTheme.primary),
+                    )
+                  : _items.isEmpty
+                      ? _EmptyNotifications(onRefresh: _load)
+                      : RefreshIndicator(
+                          color: AppTheme.primary,
+                          onRefresh: _load,
+                          child: ListView.builder(
+                            padding: const EdgeInsets.symmetric(horizontal: 16),
+                            itemCount: _items.length,
+                            itemBuilder: (_, i) => _NotifCard(
+                              item: _items[i],
+                              onTap: () =>
+                                  setState(() => _items[i].isRead = true),
+                              onDismiss: () =>
+                                  setState(() => _items.removeAt(i)),
+                            ),
+                          ),
+                        ),
             ),
           ],
         ),
+      ),
+    );
+  }
+}
+
+class _EmptyNotifications extends StatelessWidget {
+  final Future<void> Function() onRefresh;
+  const _EmptyNotifications({required this.onRefresh});
+
+  @override
+  Widget build(BuildContext context) {
+    return RefreshIndicator(
+      color: AppTheme.primary,
+      onRefresh: onRefresh,
+      child: ListView(
+        children: [
+          const SizedBox(height: 120),
+          const Center(
+            child: Column(
+              children: [
+                Text('🔔', style: TextStyle(fontSize: 52)),
+                SizedBox(height: 16),
+                Text(
+                  'No notifications yet',
+                  style: TextStyle(
+                    fontSize: 17,
+                    fontWeight: FontWeight.w700,
+                    color: AppTheme.textDark,
+                  ),
+                ),
+                SizedBox(height: 6),
+                Text(
+                  'Water and meal reminders will show up here',
+                  style: TextStyle(fontSize: 13, color: AppTheme.textSecondary),
+                ),
+              ],
+            ),
+          ),
+        ],
       ),
     );
   }

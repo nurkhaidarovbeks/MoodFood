@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../../core/providers/auth_provider.dart';
+import '../../../core/services/notification_service.dart';
 import '../../../core/theme/app_theme.dart';
 
 class SettingsScreen extends StatefulWidget {
@@ -11,8 +12,34 @@ class SettingsScreen extends StatefulWidget {
 }
 
 class _SettingsScreenState extends State<SettingsScreen> {
+  final _notifService = NotificationService();
   bool _notificationsEnabled = true;
   bool _darkModeEnabled = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadPrefs();
+  }
+
+  Future<void> _loadPrefs() async {
+    final prefs = await _notifService.getPreferences();
+    if (prefs != null && mounted) {
+      setState(() {
+        _notificationsEnabled =
+            prefs.waterRemindersOn || prefs.mealRemindersOn;
+      });
+    }
+  }
+
+  // The single "Notifications" toggle controls both water and meal reminders.
+  Future<void> _setNotifications(bool on) async {
+    setState(() => _notificationsEnabled = on);
+    await _notifService.updatePreferences(
+      waterRemindersOn: on,
+      mealRemindersOn: on,
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -102,8 +129,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                       icon: Icons.notifications_outlined,
                       label: 'Notifications',
                       value: _notificationsEnabled,
-                      onChanged: (v) =>
-                          setState(() => _notificationsEnabled = v),
+                      onChanged: _setNotifications,
                     ),
                     _Divider(),
                     _ToggleTile(
