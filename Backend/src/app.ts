@@ -27,6 +27,12 @@ import insightsRoutes from './modules/insights/insights.routes'
 
 const app = express()
 
+// Render (and most PaaS) sit behind one reverse proxy hop that sets
+// X-Forwarded-For with the real client IP. Trust only that first hop so
+// express-rate-limit can key by the actual client IP — trusting `true`
+// (all hops) would let a client spoof its own IP via the header.
+app.set('trust proxy', 1)
+
 // ─── Security headers ────────────────────────────────────────────────────────
 app.use(helmet())
 
