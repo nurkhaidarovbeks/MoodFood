@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../../core/providers/auth_provider.dart';
+import '../../../core/providers/subscription_provider.dart';
 import '../../../core/services/notification_service.dart';
 import '../../../core/theme/app_theme.dart';
 
@@ -166,6 +167,32 @@ class _SettingsScreenState extends State<SettingsScreen> {
                       onTap: () =>
                           Navigator.pushNamed(context, '/profile-setup'),
                     ),
+                  ]),
+
+                  const SizedBox(height: 16),
+
+                  // Support
+                  _SectionHeader(label: 'Support'),
+                  _SettingsCard(children: [
+                    _SettingsTile(
+                      icon: Icons.mail_outline,
+                      label: 'Contact Us',
+                      onTap: () => _showContactUs(context),
+                    ),
+                    _Divider(),
+                    _SettingsTile(
+                      icon: Icons.help_outline,
+                      label: 'Help & Support',
+                      onTap: () => _showHelpSupport(context),
+                    ),
+                    if (context.watch<SubscriptionProvider>().isPremium) ...[
+                      _Divider(),
+                      _SettingsTile(
+                        icon: Icons.cancel_outlined,
+                        label: 'Cancel Subscription',
+                        onTap: () => _confirmCancelSubscription(context),
+                      ),
+                    ],
                   ]),
 
                   const SizedBox(height: 16),
@@ -383,6 +410,157 @@ class _SettingsScreenState extends State<SettingsScreen> {
           TextButton(
             onPressed: () => Navigator.pop(context),
             child: const Text('OK'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _showContactUs(BuildContext context) {
+    showDialog<void>(
+      context: context,
+      builder: (_) => AlertDialog(
+        title: const Text('Contact Us'),
+        content: const Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text('We\'d love to hear from you!'),
+            SizedBox(height: 12),
+            Row(children: [
+              Icon(Icons.email_outlined, size: 18, color: AppTheme.primary),
+              SizedBox(width: 8),
+              Text('support@moodfood.app'),
+            ]),
+            SizedBox(height: 8),
+            Row(children: [
+              Icon(Icons.phone_outlined, size: 18, color: AppTheme.primary),
+              SizedBox(width: 8),
+              Text('+7 700 000 0000'),
+            ]),
+            SizedBox(height: 8),
+            Row(children: [
+              Icon(Icons.access_time, size: 18, color: AppTheme.primary),
+              SizedBox(width: 8),
+              Text('Mon–Fri, 9:00–18:00'),
+            ]),
+          ],
+        ),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Close'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _showHelpSupport(BuildContext context) {
+    showDialog<void>(
+      context: context,
+      builder: (_) => AlertDialog(
+        title: const Text('Help & Support'),
+        content: const SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              _FaqItem(
+                q: 'How do recommendations work?',
+                a: 'We match meals to your mood, energy, and the ingredients you have at home.',
+              ),
+              _FaqItem(
+                q: 'How do I track water?',
+                a: 'Open the Water tab and tap + for each glass. Your goal and reminders are set there.',
+              ),
+              _FaqItem(
+                q: 'How do I reset my password?',
+                a: 'On the login screen tap "Forgot password?" and follow the emailed instructions.',
+              ),
+              _FaqItem(
+                q: 'How do I cancel Premium?',
+                a: 'Settings → Support → Cancel Subscription.',
+              ),
+            ],
+          ),
+        ),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Got it'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _confirmCancelSubscription(BuildContext context) {
+    showDialog<void>(
+      context: context,
+      builder: (dctx) => AlertDialog(
+        title: const Text('Cancel Subscription'),
+        content: const Text(
+          'Your Premium benefits stay active until the end of the current billing period. Cancel anyway?',
+        ),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dctx),
+            child: const Text('Keep Premium'),
+          ),
+          TextButton(
+            onPressed: () async {
+              Navigator.pop(dctx);
+              await context.read<SubscriptionProvider>().cancelPremium();
+              if (context.mounted) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(
+                    content: Text('Subscription cancelled'),
+                    behavior: SnackBarBehavior.floating,
+                  ),
+                );
+              }
+            },
+            child: const Text('Cancel Subscription',
+                style: TextStyle(color: Color(0xFFD32F2F))),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _FaqItem extends StatelessWidget {
+  final String q;
+  final String a;
+  const _FaqItem({required this.q, required this.a});
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 14),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            q,
+            style: const TextStyle(
+              fontSize: 14,
+              fontWeight: FontWeight.w700,
+              color: AppTheme.textDark,
+            ),
+          ),
+          const SizedBox(height: 4),
+          Text(
+            a,
+            style: const TextStyle(
+              fontSize: 13,
+              color: AppTheme.textSecondary,
+              height: 1.4,
+            ),
           ),
         ],
       ),

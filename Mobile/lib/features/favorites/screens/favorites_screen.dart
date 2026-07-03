@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 import '../../../core/providers/favorites_provider.dart';
 import '../../../core/services/favorites_service.dart';
 import '../../../core/theme/app_theme.dart';
+import '../../../core/utils/recipe_photo.dart';
 
 class FavoritesScreen extends StatefulWidget {
   const FavoritesScreen({super.key});
@@ -119,37 +120,8 @@ class _FavoriteCard extends StatelessWidget {
   final FavoriteItem item;
   const _FavoriteCard({required this.item});
 
-  static const _photos = {
-    'egg': 'https://images.unsplash.com/photo-1482049016688-2d3e1b311543?w=400&q=70&fit=crop',
-    'chicken': 'https://images.unsplash.com/photo-1598515214211-89d3c73ae83b?w=400&q=70&fit=crop',
-    'banana': 'https://images.unsplash.com/photo-1571771894821-ce9b6c11b08e?w=400&q=70&fit=crop',
-    'pasta': 'https://images.unsplash.com/photo-1555949258-eb67b1ef0ceb?w=400&q=70&fit=crop',
-    'salmon': 'https://images.unsplash.com/photo-1519708227418-c8fd9a32b7a2?w=400&q=70&fit=crop',
-    'fish': 'https://images.unsplash.com/photo-1519708227418-c8fd9a32b7a2?w=400&q=70&fit=crop',
-    'avocado': 'https://images.unsplash.com/photo-1523049673857-eb18f1d7b578?w=400&q=70&fit=crop',
-    'quinoa': 'https://images.unsplash.com/photo-1546069901-ba9599a7e63c?w=400&q=70&fit=crop',
-    'berry': 'https://images.unsplash.com/photo-1498557850523-fd3d118b962e?w=400&q=70&fit=crop',
-    'salad': 'https://images.unsplash.com/photo-1512621776951-a57141f2eefd?w=400&q=70&fit=crop',
-    'rice': 'https://images.unsplash.com/photo-1536304993881-ff6e9eefa2a6?w=400&q=70&fit=crop',
-    'oat': 'https://images.unsplash.com/photo-1517673132405-a56a62b18caf?w=400&q=70&fit=crop',
-    'soup': 'https://images.unsplash.com/photo-1547592180-85f173990554?w=400&q=70&fit=crop',
-    'smoothie': 'https://images.unsplash.com/photo-1638176066959-7cf4f8cef945?w=400&q=70&fit=crop',
-    'beef': 'https://images.unsplash.com/photo-1432139509613-5c4255815697?w=400&q=70&fit=crop',
-    'toast': 'https://images.unsplash.com/photo-1484723091739-30a097e8f929?w=400&q=70&fit=crop',
-    'stir': 'https://images.unsplash.com/photo-1512058564366-18510be2db19?w=400&q=70&fit=crop',
-    'wrap': 'https://images.unsplash.com/photo-1552332386-f8dd00dc2f85?w=400&q=70&fit=crop',
-  };
-
-  static const _fallback =
-      'https://images.unsplash.com/photo-1504674900247-0877df9cc836?w=400&q=70&fit=crop';
-
-  String get _photoUrl {
-    final title = item.recipe.title.toLowerCase();
-    for (final e in _photos.entries) {
-      if (title.contains(e.key)) return e.value;
-    }
-    return _fallback;
-  }
+  String get _photoUrl =>
+      RecipePhoto.forTitle(item.recipe.title, seed: item.recipe.id);
 
   @override
   Widget build(BuildContext context) {
