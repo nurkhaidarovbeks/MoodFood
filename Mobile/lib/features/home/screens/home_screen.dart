@@ -15,6 +15,7 @@ import '../../../core/providers/insights_provider.dart';
 import '../../../core/services/vision_service.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../recipes/screens/recipes_screen.dart';
+import '../../water/screens/water_tab.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -51,6 +52,7 @@ class _HomeScreenState extends State<HomeScreen> {
           const RecipesScreen(),
           const _AIChatTab(),
           const _TrackerTab(),
+          const WaterTab(),
           const _ProfileTab(),
         ],
       ),
@@ -87,6 +89,11 @@ class _HomeScreenState extends State<HomeScreen> {
             icon: Icon(Icons.bar_chart_outlined),
             activeIcon: Icon(Icons.bar_chart),
             label: 'Tracker',
+          ),
+          BottomNavigationBarItem(
+            icon: Icon(Icons.water_drop_outlined),
+            activeIcon: Icon(Icons.water_drop),
+            label: 'Water',
           ),
           BottomNavigationBarItem(
             icon: Icon(Icons.person_outline),
@@ -186,7 +193,10 @@ class _HomeTab extends StatelessWidget {
                 const SizedBox(height: 16),
 
                 // Water + Calories stats
-                _StatsRow(todayEntry: todayEntry),
+                _StatsRow(
+                  todayEntry: todayEntry,
+                  onOpenWater: () => onSwitchTab(4),
+                ),
                 const SizedBox(height: 20),
 
                 // Today's Meals
@@ -317,7 +327,8 @@ class _DailyMoodCard extends StatelessWidget {
 
 class _StatsRow extends StatefulWidget {
   final MoodEntry? todayEntry;
-  const _StatsRow({required this.todayEntry});
+  final VoidCallback onOpenWater;
+  const _StatsRow({required this.todayEntry, required this.onOpenWater});
 
   @override
   State<_StatsRow> createState() => _StatsRowState();
@@ -338,11 +349,14 @@ class _StatsRowState extends State<_StatsRow> {
     return Row(
       children: [
         Expanded(
-          child: _WaterCard(
-            glasses: water.glasses,
-            goal: water.goalGlasses,
-            onAdd: () => context.read<WaterProvider>().addGlass(),
-            onRemove: () => context.read<WaterProvider>().removeGlass(),
+          child: GestureDetector(
+            onTap: widget.onOpenWater,
+            child: _WaterCard(
+              glasses: water.glasses,
+              goal: water.goalGlasses,
+              onAdd: () => context.read<WaterProvider>().addGlass(),
+              onRemove: () => context.read<WaterProvider>().removeGlass(),
+            ),
           ),
         ),
         const SizedBox(width: 12),
