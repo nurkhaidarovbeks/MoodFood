@@ -516,7 +516,64 @@ static const String favoritesCheck = '/favorites/check';
 
 ---
 
-## Текущее состояние (2 июля 2026)
+## Сессия 12 Mobile — 3 июля 2026 (Water таб + редизайн рецептов + account-флоу)
+
+> Автор: Azhara Khamitbek | Модель: Claude Opus 4.8
+> Ветка: `feature/flutter-water-tab` (от свежего `main` d28f128)
+> Бэкенд не трогался — только чтение эндпоинтов.
+
+### Water таб (Epic 6 — полный фронтенд)
+
+- **`WaterService`** расширен: `history()`, `getGoal()`, `updateGoal()` (+ модели `WaterDay/WaterHistory/WaterGoal`) поверх today/log/delete.
+- **`WaterProvider`** расширен: история, цель, настройки напоминаний, custom-amount, удаление конкретного лога.
+- **`features/water/screens/water_tab.dart`** — НОВЫЙ полноценный экран:
+  * прогресс-кольцо (CustomPaint): totalMl/goalMl, %, стаканы, «осталось X мл»
+  * быстрое добавление: Glass 250 / Bottle 500 / Custom (ввод мл) + Undo last
+  * недельный график по дням (зелёный = цель достигнута, синий = нет)
+  * сегодняшние логи со свайп-удалением
+  * редактор цели (пресеты 1.5–3 L)
+  * напоминания: вкл/выкл, интервал (1–4ч), окно Wake/Sleep (custom schedule)
+- **6-й таб «Water»** (капля) в BottomNav между Tracker и Profile. Индексы табов проверены — только index 1 (Recipes) используется в коде, регрессий нет.
+- Тап по водной карточке на Home → открывает Water таб.
+
+### Фото рецептов — единая система (все 167)
+
+- **`core/utils/recipe_photo.dart`** — НОВЫЙ util. Бэкенд НЕ отдаёт фото рецепта, поэтому подбор на фронте по названию.
+- **Приоритетный матчинг** (не просто длина ключа): белки/сигнатурные блюда раньше сайдов → «Chicken Vegetable Soup» = суп, не брокколи.
+- **~45 фото**, каждое проверено `curl` на HTTP 200 → ни одной битой ссылки, ни одного emoji-заглушки.
+- Убраны 3 дублирующие фото-мапы (grid card, favorites) → всё через util.
+
+### Редизайн экрана деталей рецепта (по макетам)
+
+- **`features/recipes/screens/recipe_detail_screen.dart`** — НОВЫЙ полноэкранный экран вместо bottom-sheet:
+  * фото-герой + back/♥/share
+  * 3 цветные info-карты: Time (синяя) · Difficulty (оранжевая) · Servings (фиолетовая)
+  * Mood Benefit (фиолет.) + Energy Impact (персик.) — выводятся из moodTags/calories
+  * Nutrition Facts — 4 градиентные карты (Calories/Protein/Carbs/Fat) из реальных macros
+  * Ingredients (фиолетовые буллеты) + Instructions (пронумерованные кружки)
+  * золотая кнопка 🍳 Start Cooking
+- Старый `_RecipeDetailSheet` + хелперы (`_IconButton/_MetaItem/_CollapsibleSection/_MacroBadge`) удалены (~400 строк мёртвого кода).
+- ♥ в шапке синхронизирован с `FavoritesProvider`.
+
+### Forgot password (auth)
+
+- `AuthService`: + `forgotPassword(email)`, `resetPassword(token, password)` → `/auth/forgot-password`, `/auth/reset-password`.
+- **`ForgotPasswordScreen`** — 2 шага: email → письмо → вставить token из письма + новый пароль. Маршрут `/forgot-password`. Ссылка «Forgot password?» на логине ведёт сюда (было `/otp`).
+
+### Settings → секция Support
+
+- **Contact Us** (email/телефон/часы), **Help & Support** (FAQ) — диалоги.
+- **Cancel Subscription** — виден если Premium, отменяет через `SubscriptionProvider.cancelPremium()` → `DELETE /subscriptions/me`, с подтверждением.
+
+### Итог
+
+- `dart analyze` — **0 ошибок, 0 warnings**.
+- Собрано и запущено на Cherry🍒 (debug, hot reload).
+- Backend не тронут (проверено `git status`).
+
+---
+
+## Текущее состояние (3 июля 2026)
 
 | Фича | Статус | Детали |
 |------|--------|--------|
@@ -525,9 +582,13 @@ static const String favoritesCheck = '/favorites/check';
 | Home (5 табов) | ✅ | Water +/−, Calories, Mood summary |
 | Mood Check | ✅ | Слайдеры + hungerLevel → бэкенд |
 | AI Recommendations | ✅ | Реальные данные, fitScore, GPT объяснение |
-| Recipes | ✅ | Фото по ключевым словам, фильтры, detail sheet |
+| Recipes | ✅ | Единый photo-util (все 167, curl-verified), фильтры |
+| Recipe detail (редизайн) | ✅ | Полноэкранный: info-карты, Mood/Energy, Nutrition Facts, ingredients, instructions, Start Cooking |
 | Favorites | ✅ | Backend sync, optimistic toggle, экран, P/F/C badges |
-| Recipe macros/cost | ✅ | P/F/C + ~$X в detail sheet, данные от бэкенда |
+| Recipe macros/cost | ✅ | P/F/C + ~$X, данные от бэкенда |
+| Water таб (Epic 6) | ✅ | Отдельный таб: кольцо, +250/500/custom, история, цель, напоминания → `/water` |
+| Forgot password | ✅ | 2-шаговый флоу → `/auth/forgot-password` + `/reset-password` |
+| Settings: Contact/Help/Cancel Sub | ✅ | Секция Support + отмена подписки |
 | Vision AI (фото → рецепты) | ✅ | Camera/Gallery → `/vision/recommendations` → RecommendationsScreen |
 | Mood & Energy Chart | ✅ | CustomPaint теперь на полную ширину карточки |
 | Premium / PayPal | ✅ | WebView flow, syncFromBackend, Monthly/Annual переключатель |
@@ -539,17 +600,19 @@ static const String favoritesCheck = '/favorites/check';
 | Шрифт Inter | ✅ | Забандлен, типографика как в Figma |
 | Реальный push (FCM/APNs) | ⏳ | In-app часть есть; нужна Firebase/APNs настройка + `POST /notifications/devices` |
 | Apple Sign In | ⏳ | Заглушка, нужен entitlement |
-| Password reset flow | ⏳ | Бэк готов (`/auth/reset-password`); фронт пока через OTP |
-| Тёмная тема | ⏳ | Тоггл в Settings есть, ThemeMode не меняется |
+| Apple Sign In | ⏳ | Заглушка, нужен entitlement |
+| Тёмная тема (Dark/Light) | ⏳ | Следующий спринт — сквозная правка всех экранов |
+| 3 языка (kk/ru/en) | ⏳ | Следующий спринт — самый большой блок |
 
 ---
 
 ## Следующий шаг
 
-- Слить `feature/flutter-design → main` через PR (fast-forward, конфликтов нет)
+- Dark / Light mode (ThemeProvider + darkTheme, применить по всем экранам)
+- Локализация kk / ru / en (LocaleProvider + словари, пикер в Settings)
 - Реальный push: Firebase Messaging + APNs + регистрация device-token
-- Финальная пиксельная доводка дизайна (по скринам с устройства)
-- Password reset flow, Apple Sign In, тёмная тема
+- Deep-link для reset-password (чтобы token открывал приложение)
+- Apple Sign In
 
 ---
 
@@ -559,3 +622,4 @@ static const String favoritesCheck = '/favorites/check';
 *Сессия 9: 25 июня 2026 — API constants для Favorites добавлены*
 *Сессия 10: 26 июня 2026 — Epic 5 полностью: Favorites sync, Vision AI, macros UI, chart fix, photo matching*
 *Сессия 11: 2 июля 2026 — Дизайн (Inter, лого, вода +/−), Wallet + 2 плана, Epic 6/7 фронтенд (water/notifications/insights), полная сверка фронт↔бэк, analyze 0 ошибок*
+*Сессия 12: 3 июля 2026 — Water таб (полный Epic 6), единая система фото рецептов (167, curl-verified), редизайн деталей рецепта по макетам, forgot password флоу, Settings Support (Contact/Help/Cancel Sub)*

@@ -84,6 +84,31 @@ class AuthService {
     }
   }
 
+  /// POST /auth/forgot-password — emails a reset token. Always succeeds
+  /// (generic message) so accounts can't be enumerated.
+  Future<void> forgotPassword(String email) async {
+    try {
+      await _dio.post('/auth/forgot-password', data: {'email': email});
+    } on DioException catch (e) {
+      throw _client.handleError(e);
+    }
+  }
+
+  /// POST /auth/reset-password — sets a new password using the token from email.
+  Future<void> resetPassword({
+    required String token,
+    required String password,
+  }) async {
+    try {
+      await _dio.post(
+        '/auth/reset-password',
+        data: {'token': token, 'password': password},
+      );
+    } on DioException catch (e) {
+      throw _client.handleError(e);
+    }
+  }
+
   Future<void> logout() => TokenStorage.clear();
 
   Future<AuthResult> _parseAuthResponse(Map<String, dynamic> data) async {

@@ -6,6 +6,7 @@ import '../features/auth/screens/welcome_screen.dart';
 import '../features/auth/screens/login_screen.dart';
 import '../features/auth/screens/register_screen.dart';
 import '../features/auth/screens/otp_screen.dart';
+import '../features/auth/screens/forgot_password_screen.dart';
 import '../features/onboarding/screens/onboarding_screen.dart';
 import '../features/onboarding/screens/profile_setup_screen.dart';
 import '../features/home/screens/home_screen.dart';
@@ -40,6 +41,9 @@ class AppRouter {
       case '/otp':
         final email = settings.arguments as String? ?? '';
         return MaterialPageRoute(builder: (_) => OtpScreen(email: email));
+      case '/forgot-password':
+        return MaterialPageRoute(
+            builder: (_) => const ForgotPasswordScreen());
       case '/profile-setup':
         final isEditing = settings.arguments as bool? ?? false;
         return MaterialPageRoute(
