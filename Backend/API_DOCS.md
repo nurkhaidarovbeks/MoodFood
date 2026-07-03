@@ -1,5 +1,11 @@
 # MoodFood Backend — API Documentation
 
+> **⚠️ Частичный документ (Epic 1–2/4 эра).** Здесь описаны auth / profile /
+> recommendations / mood-checks. Полный и актуальный список **всех** эндпоинтов
+> (pantry, recipes, favorites, vision, payment, wallet, subscription, **water,
+> insights, notifications, password reset**) — в корневом `GUIDE.md` и в
+> `moodfood.postman_collection.json`. Актуально на 2 июля 2026 · 255 тестов.
+
 ## Stack
 
 | Layer | Technology |
@@ -498,12 +504,17 @@ The service performs case-insensitive substring matching on ingredient names and
 - `profile_completed_at` records the first time all required profile fields are filled; it is not overwritten on subsequent edits.
 - `emailVerificationToken` in the database stores a SHA-256 hash of the raw token; the raw token is only ever held in memory and sent via email.
 
-### Not implemented (frontend or later epics)
-- Frontend screens, onboarding UI, navigation.
+### Implemented since this doc was written (see GUIDE.md for details)
+- ✅ Recipe recommendation engine (Epic 4) — mood-based 3 options + product-aware matching (staple-aware, ≥60% cookable), 168 recipes.
+- ✅ Vision AI (photo → ingredients → dishes), Pantry, Favorites.
+- ✅ Payment (PayPal), Wallet, Subscriptions (idempotent, order state machine).
+- ✅ Water tracking + reminders + push (FCM), Habit insights (Epic 6/7).
+- ✅ Password reset (`/auth/forgot-password`, `/auth/reset-password`).
+- ✅ Rate limiting (login/register/otp/forgot-password).
+
+### Still not implemented (intentional / future)
+- Frontend screens, onboarding UI, navigation (lives in `Mobile/`).
 - Refresh tokens (MVP uses single long-lived access token).
 - OAuth authorization code flow with redirect URLs (only ID token verification).
 - Telegram OAuth (schema has the enum value; no endpoint yet).
-- Recipe recommendation engine (Epic 2+) — filtering service is ready to plug in.
 - Admin user management.
-- Rate limiting middleware (noted in security requirements; add express-rate-limit when needed).
-- Password reset / forgot-password flow.
