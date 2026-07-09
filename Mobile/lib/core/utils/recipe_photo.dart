@@ -13,9 +13,9 @@ class RecipePhoto {
   static String _u(String id) => '$_base$id?w=800&q=80&fit=crop';
 
   // ─── Verified photos ──────────────────────────────────────────────────────
-  static final _smoothie = _u('photo-1638176066959-7cf4f8cef945');
+  static final _smoothie = _u('photo-1553530666-ba11a7da3888');
   static final _egg = _u('photo-1482049016688-2d3e1b311543');
-  static final _oats = _u('photo-1517673132405-a56a62b18caf');
+  static final _oats = _u('photo-1571748982800-fa51082c2224');
   static final _blueberry = _u('photo-1498557850523-fd3d118b962e');
   static final _strawberry = _u('photo-1464965911861-746a04b4bca6');
   static final _berry = _u('photo-1498557850523-fd3d118b962e');
@@ -159,5 +159,42 @@ class RecipePhoto {
     }
     final idx = (seed ?? title).hashCode.abs() % _fallbacks.length;
     return _fallbacks[idx];
+  }
+
+  /// Food emoji for the graceful fallback (when a photo fails to load).
+  static const List<(List<String>, String)> _emojiRules = [
+    (['smoothie', 'shake'], '🥤'),
+    (['soup', 'stew', 'chowder', 'broth'], '🍲'),
+    (['salad', 'slaw', 'greens'], '🥗'),
+    (['salmon', 'tuna', 'cod', 'fish', 'trout', 'shrimp', 'prawn'], '🐟'),
+    (['chicken', 'turkey'], '🍗'),
+    (['beef', 'steak', 'burger', 'meatball', 'pork', 'lamb'], '🥩'),
+    (['egg', 'omelet', 'omelette', 'frittata', 'shakshuka'], '🍳'),
+    (['pasta', 'spaghetti', 'noodle', 'ramen', 'lasagna'], '🍝'),
+    (['rice', 'quinoa', 'couscous', 'bowl', 'buddha'], '🍚'),
+    (['taco', 'burrito', 'quesadilla', 'fajita', 'wrap'], '🌯'),
+    (['pizza', 'flatbread'], '🍕'),
+    (['oat', 'oatmeal', 'porridge', 'granola', 'cereal'], '🥣'),
+    (['toast', 'bread', 'bagel', 'sandwich', 'muffin'], '🍞'),
+    (['pancake', 'waffle'], '🥞'),
+    (['yogurt', 'parfait', 'pudding', 'chia'], '🥛'),
+    (['banana'], '🍌'),
+    (['apple', 'pear'], '🍎'),
+    (['berry', 'blueberry', 'strawberry'], '🍓'),
+    (['avocado'], '🥑'),
+    (['bean', 'lentil', 'chickpea', 'tofu', 'hummus'], '🫘'),
+    (['potato', 'sweet potato'], '🥔'),
+    (['broccoli', 'cauliflower', 'veggie', 'vegetable', 'mushroom', 'pepper'], '🥦'),
+    (['fruit', 'mango', 'peach'], '🍽️'),
+  ];
+
+  static String emojiForTitle(String title) {
+    final t = ' ${title.toLowerCase()} ';
+    for (final (keys, emoji) in _emojiRules) {
+      for (final k in keys) {
+        if (t.contains(k)) return emoji;
+      }
+    }
+    return '🍽️';
   }
 }
