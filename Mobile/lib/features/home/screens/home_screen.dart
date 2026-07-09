@@ -6,15 +6,19 @@ import 'package:image_picker/image_picker.dart';
 import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../../../core/models/mood_entry_model.dart';
+import '../../../core/models/recipe_model.dart';
 import '../../../core/providers/auth_provider.dart';
 import '../../../core/providers/favorites_provider.dart';
 import '../../../core/providers/mood_provider.dart';
+import '../../../core/providers/recipe_provider.dart';
 import '../../../core/providers/subscription_provider.dart';
 import '../../../core/providers/water_provider.dart';
 import '../../../core/providers/insights_provider.dart';
 import '../../../core/services/vision_service.dart';
 import '../../../core/theme/app_theme.dart';
+import '../../../core/widgets/recipe_image.dart';
 import '../../recipes/screens/recipes_screen.dart';
+import '../../recipes/screens/recipe_detail_screen.dart';
 import '../../water/screens/water_tab.dart';
 
 class HomeScreen extends StatefulWidget {
@@ -542,131 +546,138 @@ class _CaloriesCard extends StatelessWidget {
 }
 
 class _TodayMealsList extends StatelessWidget {
-  static const _meals = [
-    (
-      '🥑',
-      'Avocado Toast Bowl',
-      'Breakfast',
-      'High Energy',
-      const Color(0xFFE8F5E9),
-      const Color(0xFF388E3C),
-      320,
-      15
-    ),
-    (
-      '🥗',
-      'Quinoa Buddha Bowl',
-      'Lunch',
-      'Balanced',
-      const Color(0xFFE3F2FD),
-      const Color(0xFF1976D2),
-      450,
-      25
-    ),
-    (
-      '🐟',
-      'Salmon with Greens',
-      'Dinner',
-      'Focus Boost',
-      const Color(0xFFF3E5F5),
-      const Color(0xFF7B1FA2),
-      380,
-      30
-    ),
-  ];
+  static const _types = ['Breakfast', 'Lunch', 'Dinner'];
+
+  (String, Color, Color) _tag(Recipe r) {
+    final tags = r.moodTags.map((e) => e.toLowerCase()).toSet();
+    if (tags.contains('energetic')) {
+      return ('High Energy', const Color(0xFFE8F5E9), const Color(0xFF388E3C));
+    }
+    if (tags.contains('focused')) {
+      return ('Focus Boost', const Color(0xFFF3E5F5), const Color(0xFF7B1FA2));
+    }
+    if (tags.contains('calm')) {
+      return ('Calm', const Color(0xFFE3F2FD), const Color(0xFF1976D2));
+    }
+    return ('Balanced', const Color(0xFFE3F2FD), const Color(0xFF1976D2));
+  }
 
   @override
   Widget build(BuildContext context) {
-    return Column(
-      children: _meals.map((m) {
-        final (emoji, name, type, tag, tagBg, tagColor, cal, mins) = m;
-        return Container(
-          margin: const EdgeInsets.only(bottom: 10),
-          padding: const EdgeInsets.all(14),
-          decoration: BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.circular(16),
-            boxShadow: [
-              BoxShadow(
-                color: Colors.black.withValues(alpha: 0.04),
-                blurRadius: 8,
-                offset: const Offset(0, 2),
-              ),
-            ],
+    final recipes = context.watch<RecipeProvider>().recipes;
+    if (recipes.isEmpty) {
+      return const SizedBox(
+        height: 60,
+        child: Center(
+          child: Text(
+            'Loading meals…',
+            style: TextStyle(fontSize: 13, color: AppTheme.textSecondary),
           ),
-          child: Row(
-            children: [
-              Container(
-                width: 44,
-                height: 44,
-                decoration: BoxDecoration(
-                  color: const Color(0xFFF5F5F5),
-                  borderRadius: BorderRadius.circular(12),
+        ),
+      );
+    }
+    final meals = recipes.take(3).toList();
+
+    return Column(
+      children: meals.asMap().entries.map((entry) {
+        final i = entry.key;
+        final r = entry.value;
+        final (tag, tagBg, tagColor) = _tag(r);
+        final type = _types[i % _types.length];
+        return GestureDetector(
+          onTap: () => Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (_) => RecipeDetailScreen(recipe: r),
+            ),
+          ),
+          child: Container(
+            margin: const EdgeInsets.only(bottom: 10),
+            padding: const EdgeInsets.all(14),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(16),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withValues(alpha: 0.04),
+                  blurRadius: 8,
+                  offset: const Offset(0, 2),
                 ),
-                child: Center(
-                  child: Text(emoji, style: const TextStyle(fontSize: 22)),
+              ],
+            ),
+            child: Row(
+              children: [
+                RecipeImage(
+                  title: r.title,
+                  seed: r.id,
+                  width: 44,
+                  height: 44,
+                  emojiSize: 22,
+                  radius: BorderRadius.circular(12),
                 ),
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      name,
-                      style: const TextStyle(
-                        fontSize: 14,
-                        fontWeight: FontWeight.w700,
-                        color: AppTheme.textDark,
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        r.title,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(
+                          fontSize: 14,
+                          fontWeight: FontWeight.w700,
+                          color: AppTheme.textDark,
+                        ),
                       ),
-                    ),
-                    const SizedBox(height: 4),
-                    Row(
-                      children: [
-                        Container(
-                          padding: const EdgeInsets.symmetric(
-                              horizontal: 8, vertical: 2),
-                          decoration: BoxDecoration(
-                            color: tagBg,
-                            borderRadius: BorderRadius.circular(20),
-                          ),
-                          child: Text(
-                            tag,
-                            style: TextStyle(
-                              fontSize: 10,
-                              fontWeight: FontWeight.w600,
-                              color: tagColor,
+                      const SizedBox(height: 4),
+                      Row(
+                        children: [
+                          Container(
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 8, vertical: 2),
+                            decoration: BoxDecoration(
+                              color: tagBg,
+                              borderRadius: BorderRadius.circular(20),
+                            ),
+                            child: Text(
+                              tag,
+                              style: TextStyle(
+                                fontSize: 10,
+                                fontWeight: FontWeight.w600,
+                                color: tagColor,
+                              ),
                             ),
                           ),
-                        ),
-                        const SizedBox(width: 8),
-                        Text(
-                          '$cal cal · $mins min',
-                          style: const TextStyle(
-                            fontSize: 11,
-                            color: AppTheme.textSecondary,
+                          const SizedBox(width: 8),
+                          Text(
+                            '${r.calories?.toInt() ?? 0} cal · ${r.cookingTimeMin ?? 15} min',
+                            style: const TextStyle(
+                              fontSize: 11,
+                              color: AppTheme.textSecondary,
+                            ),
                           ),
-                        ),
-                      ],
-                    ),
-                  ],
+                        ],
+                      ),
+                    ],
+                  ),
                 ),
-              ),
-              Text(
-                type,
-                style: const TextStyle(
-                  fontSize: 11,
+                Text(
+                  type,
+                  style: const TextStyle(
+                    fontSize: 11,
+                    color: AppTheme.textSecondary,
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
+                const SizedBox(width: 4),
+                const Icon(
+                  Icons.chevron_right,
+                  size: 16,
                   color: AppTheme.textSecondary,
-                  fontWeight: FontWeight.w500,
                 ),
-              ),
-              const SizedBox(width: 4),
-              const Icon(
-                Icons.chevron_right,
-                size: 16,
-                color: AppTheme.textSecondary,
-              ),
-            ],
+              ],
+            ),
           ),
         );
       }).toList(),
@@ -2396,8 +2407,9 @@ class _ProfileTabState extends State<_ProfileTab> {
                   ),
                   const SizedBox(height: 12),
 
-                  // Upgrade banner
-                  Padding(
+                  // Upgrade banner — only for free users
+                  if (!isPremium)
+                    Padding(
                     padding: const EdgeInsets.symmetric(horizontal: 16),
                     child: GestureDetector(
                       onTap: () => Navigator.pushNamed(context, '/premium'),
@@ -2617,14 +2629,9 @@ class _GoalsSection extends StatelessWidget {
 }
 
 class _SavedRecipesSection extends StatelessWidget {
-  static const _recipes = [
-    ('🥑', 'Avocado Toast Bowl'),
-    ('🥗', 'Quinoa Buddha Bowl'),
-    ('🍓', 'Berry Smoothie'),
-  ];
-
   @override
   Widget build(BuildContext context) {
+    final items = context.watch<FavoritesProvider>().items;
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
@@ -2666,44 +2673,59 @@ class _SavedRecipesSection extends StatelessWidget {
             ],
           ),
           const SizedBox(height: 10),
-          ..._recipes.map((r) {
-            final (emoji, name) = r;
-            return Padding(
-              padding: const EdgeInsets.only(bottom: 8),
-              child: Row(
-                children: [
-                  Container(
-                    width: 36,
-                    height: 36,
-                    decoration: BoxDecoration(
-                      color: AppTheme.background,
-                      borderRadius: BorderRadius.circular(10),
-                    ),
-                    child: Center(
-                      child: Text(emoji,
-                          style: const TextStyle(fontSize: 18)),
-                    ),
-                  ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: Text(
-                      name,
-                      style: const TextStyle(
-                        fontSize: 13,
-                        fontWeight: FontWeight.w500,
-                        color: AppTheme.textDark,
-                      ),
-                    ),
-                  ),
-                  const Icon(
-                    Icons.favorite,
-                    size: 18,
-                    color: Color(0xFFE53935),
-                  ),
-                ],
+          if (items.isEmpty)
+            const Padding(
+              padding: EdgeInsets.symmetric(vertical: 12),
+              child: Text(
+                'No saved recipes yet — tap ♥ on any recipe.',
+                style: TextStyle(fontSize: 13, color: AppTheme.textSecondary),
               ),
-            );
-          }),
+            )
+          else
+            ...items.take(3).map((item) {
+              final r = item.recipe;
+              return GestureDetector(
+                onTap: () => Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (_) => RecipeDetailScreen(recipe: r),
+                  ),
+                ),
+                child: Padding(
+                  padding: const EdgeInsets.only(bottom: 8),
+                  child: Row(
+                    children: [
+                      RecipeImage(
+                        title: r.title,
+                        seed: r.id,
+                        width: 36,
+                        height: 36,
+                        emojiSize: 18,
+                        radius: BorderRadius.circular(10),
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Text(
+                          r.title,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: const TextStyle(
+                            fontSize: 13,
+                            fontWeight: FontWeight.w500,
+                            color: AppTheme.textDark,
+                          ),
+                        ),
+                      ),
+                      const Icon(
+                        Icons.favorite,
+                        size: 18,
+                        color: Color(0xFFE53935),
+                      ),
+                    ],
+                  ),
+                ),
+              );
+            }),
         ],
       ),
     );

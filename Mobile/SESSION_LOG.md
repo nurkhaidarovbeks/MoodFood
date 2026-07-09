@@ -573,16 +573,48 @@ static const String favoritesCheck = '/favorites/check';
 
 ---
 
+## Сессия 13 Mobile — 3 июля 2026 (Все 168 рецептов, фото-пулы, premium/payment фиксы, интеграция дисплеев)
+
+> Автор: Azhara Khamitbek | Модель: Claude Opus 4.8
+> Ветка: `feature/flutter-water-tab` | Backend не трогался (только чтение эндпоинтов)
+
+### Рецепты — показываются ВСЕ 168 (было 20)
+- `RecipeService.getRecipes` теперь **пагинирует**: бэкенд ограничивает страницу 100 (`limit≤100`), поэтому тянем страницами (limit=100, offset+=100) пока не придёт короткая. Раньше был хардкод `limit=20` → «20 recipes found». Теперь весь каталог.
+
+### Фото рецептов — пуленепробиваемо + без повторов
+- **`core/widgets/recipe_image.dart`** — НОВЫЙ виджет `RecipeImage`: сетевое фото + плавная загрузка + **красивый градиент + эмодзи-еды fallback** (по названию), если фото битое/медленное. Больше нет уродской «вилки-тарелки».
+- **`core/utils/recipe_photo.dart`** переписан на **пулы** (2-4 фото на категорию): рецепт выбирает фото из пула по своему id → рецепты с одним ключом («Black Bean Burrito/Soup/Bowl») получают **разные** фото, а не одно.
+- Починены видимые по скринам косяки: нут ≠ зелёный смузи, авокадо-блюда = фото авокадо-тоста (не розовый фон), капуста = салат (не брокколи); порядок правил: wrap/burrito/toast побеждают общий 'avocado'.
+- `RecipeImage` применён везде: сетка рецептов, hero деталей, Today's Meals, favorites, Profile saved.
+- ⚠️ Ограничение: фото подбираются на фронте (бэк не отдаёт image); из среды разработки сеть до Unsplash закрыта, поэтому часть ссылок не проверяема — но пулы + fallback гарантируют «не сломано» и минимум повторов.
+
+### Premium / Payment фиксы
+- **Payment Success**: был overflow 47px (полосатая полоса) → обёрнут в `LayoutBuilder + SingleChildScrollView + IntrinsicHeight` → скроллится, не переполняется.
+- **Profile**: баннер «Upgrade to Premium» теперь скрыт если `isPremium` (было видно даже после покупки).
+
+### Дожали интеграцию дисплеев (всё в БД)
+- **Home «Today's Meals»** — реальные рецепты из `RecipeProvider` (было 3 захардкоженных), тап → детали.
+- **Mood history** — `MoodCheckService.history()` + `MoodProvider.loadEntries` читает `GET /mood-checks` (было только локально; запись и так шла в БД).
+- **Profile «Saved Recipes»** — реальные favorites из `FavoritesProvider` (было захардкожено), тап → детали; счётчик «Recipes Saved» уже реальный.
+
+### Аудит связи фронт↔бэк
+- Все frontend-вызовы сверены с backend-роутами. Всё, у чего есть эндпоинт — подключено.
+- Не подключено (осознанно): **AI Chat текст** (эндпоинта на бэке нет; фото — через Vision), **Wallet Top-Up** (эндпоинт есть, оставили заглушкой), геймификация (Goals Hit/ачивки — эндпоинта нет).
+- `dart analyze` — 0 ошибок, 0 warnings.
+
+---
+
 ## Текущее состояние (3 июля 2026)
 
 | Фича | Статус | Детали |
 |------|--------|--------|
 | Auth (email + Google) | ✅ | Login, Register, OTP, Splash |
 | Onboarding (4 шага) | ✅ | Goals, Diet, Allergies → бэкенд |
-| Home (5 табов) | ✅ | Water +/−, Calories, Mood summary |
+| Home (6 табов) | ✅ | Today's Meals (реальные), Water, Calories, Mood |
 | Mood Check | ✅ | Слайдеры + hungerLevel → бэкенд |
+| Mood history | ✅ | Читается с `GET /mood-checks` (было локально) |
 | AI Recommendations | ✅ | Реальные данные, fitScore, GPT объяснение |
-| Recipes | ✅ | Единый photo-util (все 167, curl-verified), фильтры |
+| Recipes | ✅ | **Все 168** (пагинация), фото-пулы, RecipeImage fallback |
 | Recipe detail (редизайн) | ✅ | Полноэкранный: info-карты, Mood/Energy, Nutrition Facts, ingredients, instructions, Start Cooking |
 | Favorites | ✅ | Backend sync, optimistic toggle, экран, P/F/C badges |
 | Recipe macros/cost | ✅ | P/F/C + ~$X, данные от бэкенда |
@@ -591,15 +623,17 @@ static const String favoritesCheck = '/favorites/check';
 | Settings: Contact/Help/Cancel Sub | ✅ | Секция Support + отмена подписки |
 | Vision AI (фото → рецепты) | ✅ | Camera/Gallery → `/vision/recommendations` → RecommendationsScreen |
 | Mood & Energy Chart | ✅ | CustomPaint теперь на полную ширину карточки |
-| Premium / PayPal | ✅ | WebView flow, syncFromBackend, Monthly/Annual переключатель |
+| Premium / PayPal | ✅ | WebView flow, syncFromBackend, Monthly/Annual; баннер скрыт если куплен |
+| Payment Success | ✅ | Скроллится, overflow исправлен |
+| Saved Recipes (Profile) | ✅ | Реальные favorites, тап → детали |
 | Editable Profile | ✅ | Имя + аватар (Camera/Gallery) |
 | Water tracking (Epic 6) | ✅ | +/− стаканы → `/water` (бэкенд, было SharedPreferences) |
 | Notifications / reminders (Epic 6) | ✅ | Экран + Settings-тоггл → `/notifications` |
 | Habit analytics (Epic 7) | ✅ | «This Week» + tips → `/insights/weekly` |
-| Wallet (кошелёк) | ✅ | Баланс + транзакции → `/wallet` |
+| Wallet (кошелёк) | ✅ | Баланс + транзакции → `/wallet` (Top-Up — заглушка) |
 | Шрифт Inter | ✅ | Забандлен, типографика как в Figma |
+| AI Chat (текст) | ⏳ | Канёные ответы — текстового AI-эндпоинта на бэке нет |
 | Реальный push (FCM/APNs) | ⏳ | In-app часть есть; нужна Firebase/APNs настройка + `POST /notifications/devices` |
-| Apple Sign In | ⏳ | Заглушка, нужен entitlement |
 | Apple Sign In | ⏳ | Заглушка, нужен entitlement |
 | Тёмная тема (Dark/Light) | ⏳ | Следующий спринт — сквозная правка всех экранов |
 | 3 языка (kk/ru/en) | ⏳ | Следующий спринт — самый большой блок |
@@ -623,3 +657,4 @@ static const String favoritesCheck = '/favorites/check';
 *Сессия 10: 26 июня 2026 — Epic 5 полностью: Favorites sync, Vision AI, macros UI, chart fix, photo matching*
 *Сессия 11: 2 июля 2026 — Дизайн (Inter, лого, вода +/−), Wallet + 2 плана, Epic 6/7 фронтенд (water/notifications/insights), полная сверка фронт↔бэк, analyze 0 ошибок*
 *Сессия 12: 3 июля 2026 — Water таб (полный Epic 6), единая система фото рецептов (167, curl-verified), редизайн деталей рецепта по макетам, forgot password флоу, Settings Support (Contact/Help/Cancel Sub)*
+*Сессия 13: 3 июля 2026 — Все 168 рецептов (пагинация), RecipeImage + фото-пулы (без повторов, красивый fallback), Payment overflow фикс, Premium-баннер скрыт если куплен, Today's Meals/Mood history/Saved Recipes → реальные данные с бэка*

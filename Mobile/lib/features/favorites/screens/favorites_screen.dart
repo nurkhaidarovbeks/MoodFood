@@ -3,7 +3,7 @@ import 'package:provider/provider.dart';
 import '../../../core/providers/favorites_provider.dart';
 import '../../../core/services/favorites_service.dart';
 import '../../../core/theme/app_theme.dart';
-import '../../../core/utils/recipe_photo.dart';
+import '../../../core/widgets/recipe_image.dart';
 
 class FavoritesScreen extends StatefulWidget {
   const FavoritesScreen({super.key});
@@ -120,9 +120,6 @@ class _FavoriteCard extends StatelessWidget {
   final FavoriteItem item;
   const _FavoriteCard({required this.item});
 
-  String get _photoUrl =>
-      RecipePhoto.forTitle(item.recipe.title, seed: item.recipe.id);
-
   @override
   Widget build(BuildContext context) {
     final recipe = item.recipe;
@@ -141,22 +138,14 @@ class _FavoriteCard extends StatelessWidget {
       child: Row(
         children: [
           // Photo
-          ClipRRect(
-            borderRadius:
+          RecipeImage(
+            title: recipe.title,
+            seed: recipe.id,
+            width: 100,
+            height: 100,
+            emojiSize: 34,
+            radius:
                 const BorderRadius.horizontal(left: Radius.circular(18)),
-            child: Image.network(
-              _photoUrl,
-              width: 100,
-              height: 100,
-              fit: BoxFit.cover,
-              errorBuilder: (_, __, ___) => Container(
-                width: 100,
-                height: 100,
-                color: AppTheme.background,
-                child:
-                    const Center(child: Text('🍽️', style: TextStyle(fontSize: 32))),
-              ),
-            ),
           ),
           // Info
           Expanded(

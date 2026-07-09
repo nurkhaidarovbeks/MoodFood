@@ -32,6 +32,7 @@ class MoodProvider extends ChangeNotifier {
   }
 
   Future<void> loadEntries() async {
+    // 1) Show the local cache instantly.
     final prefs = await SharedPreferences.getInstance();
     final raw = prefs.getString(_storageKey);
     if (raw != null) {
@@ -40,8 +41,20 @@ class MoodProvider extends ChangeNotifier {
           .map((e) => MoodEntry.fromJson(e as Map<String, dynamic>))
           .toList()
         ..sort((a, b) => b.timestamp.compareTo(a.timestamp));
+      notifyListeners();
     }
-    notifyListeners();
+
+    // 2) Reconcile with the backend (GET /mood-checks). Keeps history in sync
+    //    across devices; no-op on error/guest so the cache is preserved.
+    final remote = await _service.history();
+    if (remote != null && remote.isNotEmpty) {
+      _entries = remote..sort((a, b) => b.timestamp.compareTo(a.timestamp));
+      await prefs.setString(
+        _storageKey,
+        jsonEncode(_entries.map((e) => e.toJson()).toList()),
+      );
+      notifyListeners();
+    }
   }
 
   Future<void> saveMoodEntry(MoodEntry entry) async {

@@ -3,7 +3,7 @@ import 'package:provider/provider.dart';
 import '../../../core/models/recipe_model.dart';
 import '../../../core/providers/favorites_provider.dart';
 import '../../../core/theme/app_theme.dart';
-import '../../../core/utils/recipe_photo.dart';
+import '../../../core/widgets/recipe_image.dart';
 
 /// Full-screen recipe detail — photo hero, info cards, mood/energy,
 /// nutrition facts, ingredients, instructions, and a Start Cooking CTA.
@@ -18,8 +18,6 @@ class RecipeDetailScreen extends StatelessWidget {
     this.pantry = const [],
     this.photoUrl,
   });
-
-  String get _photo => photoUrl ?? RecipePhoto.forTitle(recipe.title, seed: recipe.id);
 
   String get _difficulty {
     switch (recipe.difficulty?.toLowerCase()) {
@@ -66,32 +64,12 @@ class RecipeDetailScreen extends StatelessWidget {
             padding: const EdgeInsets.only(bottom: 110),
             children: [
               // Photo hero
-              SizedBox(
+              RecipeImage(
+                title: recipe.title,
+                seed: recipe.id,
                 height: 300,
                 width: double.infinity,
-                child: Image.network(
-                  _photo,
-                  fit: BoxFit.cover,
-                  loadingBuilder: (_, child, progress) {
-                    if (progress == null) return child;
-                    return Container(
-                      color: const Color(0xFFEDEDED),
-                      child: const Center(
-                        child: CircularProgressIndicator(
-                          strokeWidth: 2,
-                          color: AppTheme.primary,
-                        ),
-                      ),
-                    );
-                  },
-                  errorBuilder: (_, __, ___) => Container(
-                    color: const Color(0xFFEDEDED),
-                    child: const Center(
-                      child: Icon(Icons.restaurant,
-                          size: 56, color: Colors.white),
-                    ),
-                  ),
-                ),
+                emojiSize: 90,
               ),
 
               // Overlapping content

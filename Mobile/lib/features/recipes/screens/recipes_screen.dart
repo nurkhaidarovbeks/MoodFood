@@ -6,6 +6,7 @@ import '../../../core/providers/ingredients_provider.dart';
 import '../../../core/providers/recipe_provider.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../core/utils/recipe_photo.dart';
+import '../../../core/widgets/recipe_image.dart';
 import 'recipe_detail_screen.dart';
 
 // Chip filter definition
@@ -576,36 +577,12 @@ class _RecipeGridCardState extends State<_RecipeGridCard> {
             // Food photo
             Stack(
               children: [
-                ClipRRect(
-                  borderRadius: const BorderRadius.vertical(
-                    top: Radius.circular(18),
-                  ),
-                  child: Image.network(
-                    _photoUrl,
-                    height: 110,
-                    width: double.infinity,
-                    fit: BoxFit.cover,
-                    loadingBuilder: (_, child, progress) {
-                      if (progress == null) return child;
-                      return Container(
-                        height: 110,
-                        color: AppTheme.background,
-                        child: const Center(
-                          child: CircularProgressIndicator(
-                            strokeWidth: 2,
-                            color: AppTheme.primary,
-                          ),
-                        ),
-                      );
-                    },
-                    errorBuilder: (_, __, ___) => Container(
-                      height: 110,
-                      color: AppTheme.background,
-                      child: const Center(
-                        child: Text('🍽️', style: TextStyle(fontSize: 40)),
-                      ),
-                    ),
-                  ),
+                RecipeImage(
+                  title: widget.recipe.title,
+                  seed: widget.recipe.id,
+                  height: 110,
+                  width: double.infinity,
+                  radius: const BorderRadius.vertical(top: Radius.circular(18)),
                 ),
                 // Save button overlay
                 Positioned(
